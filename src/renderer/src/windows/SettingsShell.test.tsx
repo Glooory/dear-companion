@@ -53,6 +53,23 @@ describe('SettingsShell', () => {
     expect(await screen.findByText('尚未设置提醒')).toBeInTheDocument()
   })
 
+  it('settles an initial load failure and recovers after retrying', async () => {
+    const getSettings = vi.fn()
+      .mockRejectedValueOnce(new Error('disk unavailable'))
+      .mockResolvedValueOnce(settings)
+    const api = createApi({ getSettings })
+
+    const { container } = render(<SettingsShell api={api} />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('无法读取本地设置')
+    expect(container.querySelector('main')).toHaveAttribute('aria-busy', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }))
+
+    expect(await screen.findByText('还没有添加宠物照片')).toBeInTheDocument()
+    expect(getSettings).toHaveBeenCalledTimes(2)
+  })
+
   it('hides the pet only after setPetVisibility resolves', async () => {
     let resolveVisibility: (value: AppSettings) => void = () => undefined
     const visibilityResult = new Promise<AppSettings>((resolve) => {

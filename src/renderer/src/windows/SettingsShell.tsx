@@ -8,6 +8,9 @@ interface SettingsShellProps {
 export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasLoadError, setHasLoadError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [isSavingVisibility, setIsSavingVisibility] = useState(false)
 
   useEffect(() => {
@@ -15,17 +18,29 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
     void api.getSettings().then(
       (loadedSettings) => {
-        if (!cancelled) setSettings(loadedSettings)
+        if (cancelled) return
+        setSettings(loadedSettings)
+        setIsLoading(false)
       },
       () => {
-        if (!cancelled) setError('无法读取本地设置')
+        if (cancelled) return
+        setError('无法读取本地设置')
+        setHasLoadError(true)
+        setIsLoading(false)
       }
     )
 
     return () => {
       cancelled = true
     }
-  }, [api])
+  }, [api, loadAttempt])
+
+  const retryLoadingSettings = (): void => {
+    setIsLoading(true)
+    setHasLoadError(false)
+    setError(null)
+    setLoadAttempt((currentAttempt) => currentAttempt + 1)
+  }
 
   const updatePetVisibility = (): void => {
     if (!settings || isSavingVisibility) return
@@ -45,13 +60,18 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   }
 
   return (
-    <main className="settings-shell" aria-busy={settings === null}>
+    <main className="settings-shell" aria-busy={isLoading}>
       <header className="settings-header">
         <p className="eyebrow">本地离线桌面伙伴</p>
         <h1>Dear Companion</h1>
       </header>
 
-      {error && <p className="inline-error" role="alert">{error}</p>}
+      {error && (
+        <div className="inline-error" role="alert">
+          <span>{error}</span>
+          {hasLoadError && <button type="button" onClick={retryLoadingSettings}>重试</button>}
+        </div>
+      )}
 
       {settings && (
         <section className="settings-sections" aria-label="基础设置">
