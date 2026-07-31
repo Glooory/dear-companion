@@ -154,6 +154,10 @@ input:focus-visible {
   padding: 28px;
 }
 
+[data-native-drag-region='drag'] {
+  -webkit-app-region: drag;
+}
+
 .pet-placeholder {
   display: grid;
   width: min(72vw, 184px);
@@ -180,6 +184,10 @@ input:focus-visible {
   background: rgb(255 255 255 / 86%);
   color: #315448;
   cursor: pointer;
+}
+
+[data-native-drag-region='no-drag'] {
+  -webkit-app-region: no-drag;
 }
 
 @media (prefers-reduced-motion: reduce) {

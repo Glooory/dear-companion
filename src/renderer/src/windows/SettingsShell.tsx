@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AppSettings, FoundationApi } from '@shared/contracts'
 
 interface SettingsShellProps {
@@ -12,20 +12,34 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [hasLoadError, setHasLoadError] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [isSavingVisibility, setIsSavingVisibility] = useState(false)
+  const isMounted = useRef(false)
+  const visibilityRequestGeneration = useRef(0)
+
+  useEffect(() => {
+    isMounted.current = true
+
+    return () => {
+      isMounted.current = false
+      visibilityRequestGeneration.current += 1
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
+    visibilityRequestGeneration.current += 1
 
     void api.getSettings().then(
       (loadedSettings) => {
-        if (cancelled) return
+        if (cancelled || !isMounted.current) return
         setSettings(loadedSettings)
+        setIsSavingVisibility(false)
         setIsLoading(false)
       },
       () => {
-        if (cancelled) return
+        if (cancelled || !isMounted.current) return
         setError('无法读取本地设置')
         setHasLoadError(true)
+        setIsSavingVisibility(false)
         setIsLoading(false)
       }
     )
@@ -47,12 +61,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
     setError(null)
     setIsSavingVisibility(true)
+    const requestGeneration = visibilityRequestGeneration.current + 1
+    visibilityRequestGeneration.current = requestGeneration
     void api.setPetVisibility(!settings.petWindow.visible).then(
       (updatedSettings) => {
+        if (!isMounted.current || visibilityRequestGeneration.current !== requestGeneration) return
         setSettings(updatedSettings)
         setIsSavingVisibility(false)
       },
       () => {
+        if (!isMounted.current || visibilityRequestGeneration.current !== requestGeneration) return
         setError('无法保存宠物显示设置')
         setIsSavingVisibility(false)
       }

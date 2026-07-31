@@ -6,6 +6,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppSettings, FoundationApi } from '@shared/contracts'
 import { SettingsShell } from './SettingsShell'
 
+function deferred<T>(): {
+  promise: Promise<T>
+  resolve: (value: T) => void
+  reject: (error: unknown) => void
+} {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
 const settings: AppSettings = {
   schemaVersion: 1,
   activePetId: null,
@@ -84,6 +98,8 @@ describe('SettingsShell', () => {
     const toggle = await screen.findByRole('checkbox', { name: '显示桌面宠物' })
     fireEvent.click(toggle)
 
+    expect(api.setPetVisibility).toHaveBeenCalledTimes(1)
+    expect(api.setPetVisibility).toHaveBeenCalledWith(false)
     expect(toggle).toBeChecked()
 
     await act(async () => {
@@ -109,5 +125,39 @@ describe('SettingsShell', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('无法保存宠物显示设置')
     expect(toggle).toBeChecked()
+  })
+
+  it('ignores a stale visibility save after the API boundary changes', async () => {
+    const pendingVisibility = deferred<AppSettings>()
+    const firstApi = createApi({
+      setPetVisibility: vi.fn().mockReturnValue(pendingVisibility.promise)
+    })
+    const replacementSettings: AppSettings = {
+      ...settings,
+      activePetId: 'replacement-pet'
+    }
+    const replacementApi = createApi({
+      getSettings: vi.fn().mockResolvedValue(replacementSettings)
+    })
+    const { rerender } = render(<SettingsShell api={firstApi} />)
+
+    const toggle = await screen.findByRole('checkbox', { name: '显示桌面宠物' })
+    fireEvent.click(toggle)
+    expect(firstApi.setPetVisibility).toHaveBeenCalledTimes(1)
+
+    rerender(<SettingsShell api={replacementApi} />)
+    await vi.waitFor(() => expect(replacementApi.getSettings).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(toggle).toBeEnabled())
+
+    await act(async () => {
+      pendingVisibility.resolve({
+        ...settings,
+        petWindow: { ...settings.petWindow, visible: false }
+      })
+      await pendingVisibility.promise
+    })
+
+    expect(toggle).toBeChecked()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

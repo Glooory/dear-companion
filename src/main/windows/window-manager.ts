@@ -15,7 +15,7 @@ interface WindowManagerOptions {
   settingsStore: WindowSettingsStore
   preloadPath: string
   rendererRoot: string
-  isQuitting?: () => boolean
+  isPackaged: boolean
 }
 
 export class WindowManager {
@@ -28,13 +28,13 @@ export class WindowManager {
   private settingsWindowReady = false
   private readonly settingsStore: WindowSettingsStore
   private readonly preloadPath: string
-  private readonly isQuitting: () => boolean
+  private readonly isPackaged: boolean
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
 
-  constructor({ settingsStore, preloadPath, isQuitting = () => false }: WindowManagerOptions) {
+  constructor({ settingsStore, preloadPath, isPackaged }: WindowManagerOptions) {
     this.settingsStore = settingsStore
     this.preloadPath = preloadPath
-    this.isQuitting = isQuitting
+    this.isPackaged = isPackaged
   }
 
   async showPet(): Promise<void> {
@@ -61,15 +61,12 @@ export class WindowManager {
       petWindow.removeListener('ready-to-show', showWhenReady)
     })
 
-    const hideInsteadOfClose = (event: ElectronEvent): void => {
-      if (this.isQuitting()) return
+    const preventPetClose = (event: ElectronEvent): void => {
       event.preventDefault()
-      if (this.petWindow === petWindow) this.petVisibilityRequested = false
-      petWindow.hide()
     }
-    petWindow.on('close', hideInsteadOfClose)
+    petWindow.on('close', preventPetClose)
     this.addListenerDisposer(petWindow, () => {
-      petWindow.removeListener('close', hideInsteadOfClose)
+      petWindow.removeListener('close', preventPetClose)
     })
 
     const clearPetWindow = (): void => {
@@ -319,7 +316,7 @@ export class WindowManager {
   }
 
   private rendererUrl(kind: WindowKind): string {
-    const developmentUrl = process.env.ELECTRON_RENDERER_URL
+    const developmentUrl = this.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
     return developmentUrl
       ? `${developmentUrl}?window=${kind}`
       : `app://renderer/index.html?window=${kind}`

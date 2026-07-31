@@ -158,7 +158,7 @@ if (!hasSingleInstanceLock) {
       settingsStore: store,
       preloadPath,
       rendererRoot,
-      isQuitting: () => isQuitting
+      isPackaged: app.isPackaged
     })
     const tray = new TrayController({ settingsStore: store, windowManager: manager, requestQuit })
     disposePendingStartup = () => {

@@ -236,13 +236,13 @@ class FailingOnceSettingsStore extends FakeSettingsStore {
 
 function createManager(
   settingsStore = new FakeSettingsStore(),
-  isQuitting: () => boolean = () => false
+  isPackaged = false
 ): WindowManager {
   const manager = new WindowManager({
     settingsStore,
     preloadPath: '/app/out/preload/index.js',
     rendererRoot: '/app/out/renderer',
-    isQuitting
+    isPackaged
   })
   managers.push(manager)
   return manager
@@ -295,6 +295,22 @@ afterEach(() => {
 })
 
 describe('WindowManager', () => {
+  it('uses the development renderer URL only when explicitly unpackaged', async () => {
+    vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:5173')
+
+    const petWindow = await openPet(createManager(new FakeSettingsStore(), false))
+
+    expect(petWindow.loadedUrl).toBe('http://localhost:5173?window=pet')
+  })
+
+  it('ignores an inherited development renderer URL when packaged', async () => {
+    vi.stubEnv('ELECTRON_RENDERER_URL', 'https://untrusted.example')
+
+    const petWindow = await openPet(createManager(new FakeSettingsStore(), true))
+
+    expect(petWindow.loadedUrl).toBe('app://renderer/index.html?window=pet')
+  })
+
   it('does not undo a hide request when the pet window later becomes ready', async () => {
     const manager = createManager()
     const opening = manager.showPet()
@@ -400,7 +416,7 @@ describe('WindowManager', () => {
     )
   })
 
-  it('hides an ordinarily closed pet but destroys only a closed settings window', async () => {
+  it('prevents an ordinary pet close without hiding it but closes the settings window', async () => {
     const manager = createManager()
     const petWindow = await openPet(manager)
     const settingsOpening = manager.openSettings()
@@ -411,20 +427,18 @@ describe('WindowManager', () => {
 
     petWindow.close()
     expect(petWindow.isDestroyed()).toBe(false)
-    expect(petWindow.visible).toBe(false)
+    expect(petWindow.visible).toBe(true)
 
     settingsWindow.close()
     expect(settingsWindow.isDestroyed()).toBe(true)
     expect(petWindow.isDestroyed()).toBe(false)
   })
 
-  it('allows the owned pet window to close during app quit', async () => {
-    let quitting = false
-    const manager = createManager(new FakeSettingsStore(), () => quitting)
+  it('destroys the owned pet window during manager disposal', async () => {
+    const manager = createManager()
     const petWindow = await openPet(manager)
 
-    quitting = true
-    petWindow.close()
+    manager.dispose()
 
     expect(petWindow.isDestroyed()).toBe(true)
   })
@@ -473,6 +487,31 @@ describe('WindowManager', () => {
 
     await vi.advanceTimersByTimeAsync(1)
     expect(settingsStore.settings.petWindow).toMatchObject({ x: -600, y: 200, displayId: '2' })
+  })
+
+  it('consumes rejected placement persistence and keeps the live pet window safe', async () => {
+    const settingsStore = new FakeSettingsStore()
+    const petWindow = await openPet(createManager(settingsStore))
+    let rejectUpdate!: (error: unknown) => void
+    const failedUpdate = new Promise<AppSettings>((_resolve, reject) => {
+      rejectUpdate = reject
+    })
+    const consumeRejection = vi.spyOn(failedUpdate, 'catch')
+    const update = vi.spyOn(settingsStore, 'update').mockReturnValueOnce(failedUpdate)
+    vi.useFakeTimers()
+
+    petWindow.moveTo(240, 180)
+    await vi.advanceTimersByTimeAsync(250)
+    await vi.waitFor(() => expect(update).toHaveBeenCalledOnce())
+    expect(consumeRejection).toHaveBeenCalledOnce()
+    const consumedUpdate = consumeRejection.mock.results[0]?.value
+    if (!(consumedUpdate instanceof Promise)) throw new Error('Expected a consumed update')
+    rejectUpdate(new Error('save failed'))
+    await expect(consumedUpdate).resolves.toBeUndefined()
+
+    expect(petWindow.isDestroyed()).toBe(false)
+    expect(petWindow.bounds).toEqual({ x: 240, y: 180, width: 320, height: 320 })
+    expect(settingsStore.settings.petWindow).toMatchObject({ x: null, y: null, displayId: null })
   })
 
   it('re-clamps immediately to the primary display when a display is removed', async () => {

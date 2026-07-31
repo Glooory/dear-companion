@@ -170,7 +170,7 @@ describe('TrayController', () => {
     expect(getMenuItem(getTray(), 0).label).toBe('显示宠物')
   })
 
-  it('does not change the window when persisting visibility fails', async () => {
+  it('consumes rejected visibility persistence and leaves the tray and window state unchanged', async () => {
     const dependencies = createDependencies(true)
     vi.spyOn(dependencies.settingsStore, 'update').mockRejectedValueOnce(new Error('save failed'))
     const controller = new TrayController({ ...dependencies, platform: 'win32' })
@@ -179,8 +179,12 @@ describe('TrayController', () => {
 
     clickMenuItem(getTray(), 0)
     await vi.waitFor(() => expect(dependencies.settingsStore.update).toHaveBeenCalledOnce())
+    // Let an uncaught fire-and-forget rejection reach Node's unhandled-rejection turn.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
 
     expect(dependencies.windowManager.hidePet).not.toHaveBeenCalled()
+    expect(dependencies.windowManager.showPet).not.toHaveBeenCalled()
+    expect(dependencies.settingsStore.settings.petWindow.visible).toBe(true)
     expect(getMenuItem(getTray(), 0).label).toBe('隐藏宠物')
   })
 

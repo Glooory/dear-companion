@@ -50,8 +50,9 @@ Windows desktop, then verify:
    zero reminders.
 3. Reopening settings focuses the existing settings window instead of creating
    a second one; closing settings does not quit the application.
-4. Hide and show the pet with the tray, restart the app, and confirm the saved
-   visibility is restored.
+4. Hide the pet with the tray, exit and restart once, and confirm it stays
+   hidden. Then show it with the tray, exit and restart a second time, and
+   confirm it returns visible.
 5. Move the pet near a display edge, then remove or change that display; the
    pet falls back to a visible position on the remaining display.
 6. Choose the tray exit command and confirm the application fully quits.
