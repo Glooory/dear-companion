@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_APP_SETTINGS, type AppSettings } from '../../shared/contracts'
-import { prepareTray, runStartup } from './startup'
+import {
+  StartupIntentQueue,
+  prepareTray,
+  runStartup,
+  terminateFailedStartup
+} from './startup'
 
 function deferred<T>(): {
   promise: Promise<T>
@@ -17,6 +22,24 @@ function deferred<T>(): {
 }
 
 describe('startup', () => {
+  it('requests terminal quit even when startup cleanup throws', () => {
+    const report = vi.fn()
+    const quit = vi.fn()
+
+    expect(() =>
+      terminateFailedStartup({
+        cleanup: () => {
+          throw new Error('cleanup failed')
+        },
+        report,
+        quit
+      })
+    ).not.toThrow()
+
+    expect(report).toHaveBeenCalledOnce()
+    expect(quit).toHaveBeenCalledOnce()
+  })
+
   it('handles a rejected startup without exposing a headless tray or rejecting', async () => {
     const load = deferred<AppSettings>()
     const tray = { create: vi.fn(), refresh: vi.fn() }
@@ -56,5 +79,48 @@ describe('startup', () => {
     expect(tray.create).toHaveBeenCalledOnce()
     expect(tray.refresh).toHaveBeenCalledWith(settings)
     expect(tray.create).toHaveBeenCalledBefore(tray.refresh)
+  })
+
+  it('drains early second-instance and activate intents once after the initial menu', async () => {
+    const load = deferred<AppSettings>()
+    const tray = { create: vi.fn(), refresh: vi.fn() }
+    let persisted = {
+      ...DEFAULT_APP_SETTINGS,
+      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow, visible: false }
+    }
+    const showFromFreshSettings = vi.fn(() => {
+      persisted = {
+        ...persisted,
+        petWindow: { ...persisted.petWindow, visible: true }
+      }
+      tray.refresh(persisted)
+    })
+    const queue = new StartupIntentQueue({
+      secondInstance: showFromFreshSettings,
+      activate: showFromFreshSettings
+    })
+    const preparing = prepareTray({
+      settingsStore: { load: () => load.promise },
+      tray,
+      isQuitting: () => false
+    })
+
+    queue.request('second-instance')
+    queue.request('activate')
+    expect(showFromFreshSettings).not.toHaveBeenCalled()
+
+    load.resolve(persisted)
+    await preparing
+    queue.markReady()
+    queue.markReady()
+
+    expect(showFromFreshSettings).toHaveBeenCalledTimes(2)
+    expect(tray.refresh).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ petWindow: expect.objectContaining({ visible: false }) })
+    )
+    expect(tray.refresh).toHaveBeenLastCalledWith(
+      expect.objectContaining({ petWindow: expect.objectContaining({ visible: true }) })
+    )
   })
 })

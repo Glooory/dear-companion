@@ -2,7 +2,12 @@ import { app, dialog } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AppSettings } from '../shared/contracts'
-import { prepareTray, runStartup } from './app/startup'
+import {
+  StartupIntentQueue,
+  prepareTray,
+  runStartup,
+  terminateFailedStartup
+} from './app/startup'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
 import { registerAppProtocol, registerAppScheme } from './security/app-protocol'
 import { SettingsStore } from './settings/settings-store'
@@ -16,8 +21,16 @@ let windowManager: WindowManager | null = null
 let settingsStore: SettingsStore | null = null
 let trayController: TrayController | null = null
 let disposeFoundationIpc: (() => void) | null = null
-let secondInstanceActivated = false
+let disposePendingStartup: (() => void) | null = null
 let isQuitting = false
+let startupReady = false
+
+const startupIntents = new StartupIntentQueue({
+  secondInstance: () => activateSecondInstance(),
+  activate: () => {
+    void activateApplication().catch(() => undefined)
+  }
+})
 
 function requestQuit(): void {
   if (isQuitting) return
@@ -58,33 +71,51 @@ async function activateApplication(): Promise<void> {
 }
 
 function disposeApplication(): void {
-  disposeFoundationIpc?.()
+  startupReady = false
+  startupIntents.reset()
+  const ownedTray = trayController
+  const ownedWindowManager = windowManager
+  const disposers = [
+    disposePendingStartup,
+    disposeFoundationIpc,
+    ownedTray ? () => ownedTray.dispose() : null,
+    ownedWindowManager ? () => ownedWindowManager.dispose() : null
+  ]
+  disposePendingStartup = null
   disposeFoundationIpc = null
-  trayController?.dispose()
   trayController = null
-  windowManager?.dispose()
   windowManager = null
   settingsStore = null
+
+  for (const dispose of disposers) {
+    try {
+      dispose?.()
+    } catch {
+      // Cleanup is best-effort; startup failure still must request terminal quit.
+    }
+  }
 }
 
 function handleStartupFailure(): void {
-  disposeApplication()
-  try {
-    dialog.showErrorBox(
-      'Dear Companion 无法启动',
-      '读取本地设置或创建桌面窗口失败。请重新启动应用。'
-    )
-  } finally {
-    requestQuit()
-  }
+  terminateFailedStartup({
+    cleanup: disposeApplication,
+    report: () => {
+      dialog.showErrorBox(
+        'Dear Companion 无法启动',
+        '读取本地设置或创建桌面窗口失败。请重新启动应用。'
+      )
+    },
+    quit: requestQuit
+  })
 }
 
 if (!hasSingleInstanceLock) {
   requestQuit()
 } else {
   app.on('second-instance', () => {
-    if (!windowManager) {
-      secondInstanceActivated = true
+    if (isQuitting) return
+    if (!startupReady) {
+      startupIntents.request('second-instance')
       return
     }
     activateSecondInstance()
@@ -100,7 +131,11 @@ if (!hasSingleInstanceLock) {
   })
 
   app.on('activate', () => {
-    if (process.platform !== 'darwin') return
+    if (process.platform !== 'darwin' || isQuitting) return
+    if (!startupReady) {
+      startupIntents.request('activate')
+      return
+    }
     void activateApplication().catch(() => undefined)
   })
 
@@ -126,15 +161,30 @@ if (!hasSingleInstanceLock) {
       isQuitting: () => isQuitting
     })
     const tray = new TrayController({ settingsStore: store, windowManager: manager, requestQuit })
-    settingsStore = store
-    windowManager = manager
-    trayController = tray
+    disposePendingStartup = () => {
+      for (const dispose of [() => tray.dispose(), () => manager.dispose()]) {
+        try {
+          dispose()
+        } catch {
+          // Continue releasing the remaining startup-owned resources.
+        }
+      }
+    }
     const settings = await prepareTray({
       settingsStore: store,
       tray,
       isQuitting: () => isQuitting
     })
-    if (!settings) return
+    if (!settings) {
+      disposePendingStartup?.()
+      disposePendingStartup = null
+      return
+    }
+
+    settingsStore = store
+    windowManager = manager
+    trayController = tray
+    disposePendingStartup = null
 
     disposeFoundationIpc = registerFoundationIpc({
       settingsStore: store,
@@ -155,9 +205,7 @@ if (!hasSingleInstanceLock) {
     if (isQuitting || windowManager !== manager) return
     if (settings.activePetId === null) await manager.openSettings()
     if (isQuitting || windowManager !== manager) return
-    if (secondInstanceActivated) {
-      secondInstanceActivated = false
-      activateSecondInstance()
-    }
+    startupReady = true
+    startupIntents.markReady()
   }, handleStartupFailure)
 }
