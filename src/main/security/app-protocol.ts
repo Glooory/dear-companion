@@ -17,7 +17,6 @@ export function registerAppScheme(): void {
 
 export async function registerAppProtocol(rendererRoot: string): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot)
-  const canonicalRendererRoot = await realpath(resolvedRendererRoot)
 
   await protocol.handle(APP_SCHEME, async (request) => {
     try {
@@ -34,8 +33,10 @@ export async function registerAppProtocol(rendererRoot: string): Promise<void> {
         return forbiddenResponse()
       }
 
+      let canonicalRendererRoot: string
       let canonicalPath: string
       try {
+        canonicalRendererRoot = await realpath(resolvedRendererRoot)
         canonicalPath = await realpath(resolvedPath)
       } catch {
         return notFoundResponse()

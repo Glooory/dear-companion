@@ -53,6 +53,18 @@ afterEach(async () => {
 })
 
 describe('application protocol', () => {
+  it('registers with a missing renderer root and returns 404 when requested', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'dear-companion-protocol-missing-'))
+    temporaryDirectories.push(parent)
+    const missingRendererRoot = join(parent, 'renderer')
+
+    await expect(registerAppProtocol(missingRendererRoot)).resolves.toBeUndefined()
+
+    const response = await requestRenderer('app://renderer/index.html')
+    expect(response.status).toBe(404)
+    expect(await response.text()).toBe('Not found')
+  })
+
   it('serves a decoded file only from the renderer host', async () => {
     const rendererRoot = await createRendererRoot()
     await writeFile(join(rendererRoot, 'pet shell.html'), 'pet renderer')
