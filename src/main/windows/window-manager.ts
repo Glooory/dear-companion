@@ -15,9 +15,11 @@ interface WindowManagerOptions {
   settingsStore: WindowSettingsStore
   preloadPath: string
   rendererRoot: string
+  isQuitting?: () => boolean
 }
 
 export class WindowManager {
+  private disposed = false
   private petWindow: BrowserWindow | null = null
   private settingsWindow: BrowserWindow | null = null
   private petWindowReady = false
@@ -26,14 +28,17 @@ export class WindowManager {
   private settingsWindowReady = false
   private readonly settingsStore: WindowSettingsStore
   private readonly preloadPath: string
+  private readonly isQuitting: () => boolean
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
 
-  constructor({ settingsStore, preloadPath }: WindowManagerOptions) {
+  constructor({ settingsStore, preloadPath, isQuitting = () => false }: WindowManagerOptions) {
     this.settingsStore = settingsStore
     this.preloadPath = preloadPath
+    this.isQuitting = isQuitting
   }
 
   async showPet(): Promise<void> {
+    if (this.disposed) return
     this.petVisibilityRequested = true
     if (this.petWindow && !this.petWindow.isDestroyed()) {
       if (this.petWindowReady && this.petWindowPlaced) this.petWindow.show()
@@ -57,6 +62,7 @@ export class WindowManager {
     })
 
     const hideInsteadOfClose = (event: ElectronEvent): void => {
+      if (this.isQuitting()) return
       event.preventDefault()
       if (this.petWindow === petWindow) this.petVisibilityRequested = false
       petWindow.hide()
@@ -94,11 +100,13 @@ export class WindowManager {
   }
 
   hidePet(): void {
+    if (this.disposed) return
     this.petVisibilityRequested = false
     this.petWindow?.hide()
   }
 
   async openSettings(): Promise<void> {
+    if (this.disposed) return
     if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
       if (this.settingsWindowReady) {
         this.settingsWindow.show()
@@ -139,6 +147,7 @@ export class WindowManager {
   }
 
   focusSettingsIfOpen(): void {
+    if (this.disposed) return
     if (!this.settingsWindow || this.settingsWindow.isDestroyed() || !this.settingsWindowReady) return
     this.settingsWindow.show()
     this.settingsWindow.focus()
@@ -163,6 +172,8 @@ export class WindowManager {
   }
 
   dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
     const ownedWindows = [this.petWindow, this.settingsWindow]
     this.petWindow = null
     this.settingsWindow = null

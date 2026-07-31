@@ -1,4 +1,5 @@
 import { ipcMain, type IpcMainEvent } from 'electron'
+import type { AppSettings } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { SettingsStore } from '../settings/settings-store'
 import type { WindowManager } from '../windows/window-manager'
@@ -9,11 +10,13 @@ interface FoundationIpcDependencies {
     WindowManager,
     'getWindowKind' | 'hidePet' | 'showPet' | 'openSettings'
   >
+  onSettingsChanged?: (settings: AppSettings) => void
 }
 
 export function registerFoundationIpc({
   settingsStore,
-  windowManager
+  windowManager,
+  onSettingsChanged = () => undefined
 }: FoundationIpcDependencies): () => void {
   let getSettingsRegistered = false
   let setPetVisibilityRegistered = false
@@ -50,7 +53,9 @@ export function registerFoundationIpc({
         ...current,
         petWindow: { ...current.petWindow, visible }
       }))
+      if (!active) return settings
 
+      onSettingsChanged(settings)
       if (visible) await windowManager.showPet()
       else windowManager.hidePet()
 

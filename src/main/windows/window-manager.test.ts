@@ -37,6 +37,7 @@ interface FakeBrowserWindow {
   isDestroyed(): boolean
   signalReady(): void
   finishLoading(): void
+  close(): void
   destroy(): void
 }
 
@@ -139,6 +140,16 @@ vi.mock('electron', async () => {
       this.emit('closed')
     }
 
+    close(): void {
+      let defaultPrevented = false
+      this.emit('close', {
+        preventDefault: () => {
+          defaultPrevented = true
+        }
+      })
+      if (!defaultPrevented) this.destroy()
+    }
+
     loadURL(url: string): Promise<void> {
       this.loadedUrl = url
       return new Promise((resolve) => {
@@ -217,11 +228,15 @@ class FailingOnceSettingsStore extends FakeSettingsStore {
   }
 }
 
-function createManager(settingsStore = new FakeSettingsStore()): WindowManager {
+function createManager(
+  settingsStore = new FakeSettingsStore(),
+  isQuitting: () => boolean = () => false
+): WindowManager {
   const manager = new WindowManager({
     settingsStore,
     preloadPath: '/app/out/preload/index.js',
-    rendererRoot: '/app/out/renderer'
+    rendererRoot: '/app/out/renderer',
+    isQuitting
   })
   managers.push(manager)
   return manager
@@ -357,6 +372,45 @@ describe('WindowManager', () => {
     expect(() => manager.getWindowKind(settingsWindow.webContents.id)).toThrow(
       'Unrecognized renderer sender'
     )
+  })
+
+  it('hides an ordinarily closed pet but destroys only a closed settings window', async () => {
+    const manager = createManager()
+    const petWindow = await openPet(manager)
+    const settingsOpening = manager.openSettings()
+    const settingsWindow = getWindow(1)
+    settingsWindow.signalReady()
+    await finishWindowLoading(settingsWindow)
+    await settingsOpening
+
+    petWindow.close()
+    expect(petWindow.isDestroyed()).toBe(false)
+    expect(petWindow.visible).toBe(false)
+
+    settingsWindow.close()
+    expect(settingsWindow.isDestroyed()).toBe(true)
+    expect(petWindow.isDestroyed()).toBe(false)
+  })
+
+  it('allows the owned pet window to close during app quit', async () => {
+    let quitting = false
+    const manager = createManager(new FakeSettingsStore(), () => quitting)
+    const petWindow = await openPet(manager)
+
+    quitting = true
+    petWindow.close()
+
+    expect(petWindow.isDestroyed()).toBe(true)
+  })
+
+  it('does not recreate windows after disposal', async () => {
+    const manager = createManager()
+
+    manager.dispose()
+    await manager.showPet()
+    await manager.openSettings()
+
+    expect(windowHarness.windows).toHaveLength(0)
   })
 
   it('clamps saved bounds before making a ready pet window visible', async () => {

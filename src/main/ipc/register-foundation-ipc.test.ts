@@ -110,7 +110,19 @@ describe('registerFoundationIpc', () => {
   it('requires a boolean and persists visibility before changing the pet window', async () => {
     const settingsStore = createSettingsStore()
     const windowManager = createWindowManager()
-    registerFoundationIpc({ settingsStore, windowManager })
+    const events: string[] = []
+    settingsStore.update.mockImplementation(async (mutator: (value: AppSettings) => AppSettings) => {
+      events.push('persist')
+      return mutator(DEFAULT_APP_SETTINGS)
+    })
+    vi.mocked(windowManager.hidePet).mockImplementation(() => {
+      events.push('hide')
+    })
+    registerFoundationIpc({
+      settingsStore,
+      windowManager,
+      onSettingsChanged: () => events.push('refresh')
+    })
 
     await expect(getHandler(IPC_CHANNELS.setPetVisibility)({ sender: { id: 9 } }, 'yes')).rejects.toThrow(
       'visible must be a boolean'
@@ -126,6 +138,7 @@ describe('registerFoundationIpc', () => {
     const settings = await getHandler(IPC_CHANNELS.setPetVisibility)({ sender: { id: 9 } }, false)
     expect(settings).toMatchObject({ petWindow: { visible: false } })
     expect(windowManager.hidePet).toHaveBeenCalledOnce()
+    expect(events).toEqual(['persist', 'refresh', 'hide'])
   })
 
   it('returns the owned window kind synchronously and removes only its registrations', () => {
