@@ -34,12 +34,13 @@
 
 ## Testing policy
 
-- Testing is risk-driven; blanket TDD and arbitrary coverage targets are not required.
-- Test state transitions, reminder calculations, sleep/time recovery, cursor-movement thresholds, action fallbacks, configuration parsing/migration, and input validation rigorously. Use TDD for these when it improves the design.
-- Use component tests for behavior-rich forms, reminder empty states, and critical bubbles or countdown UI.
-- Prefer integration tests and manual cross-platform checks for transparent windows, tray behavior, native dialogs, drag feel, CSS animation quality, installers, and operating-system security prompts.
-- Simple presentation components, one-off styles, and thin glue code do not need tests unless they have meaningful branching or regression risk.
-- Before claiming a task complete, run the smallest relevant checks plus any broader checks justified by its risk.
+- Write unit tests only for necessary core logic and reusable shared methods.
+- Core unit-test targets include state transitions, reminder calculations, sleep/time recovery, cursor-movement thresholds, action fallbacks, configuration parsing/migration, persistence recovery, input validation, and reusable geometry or normalization helpers.
+- TDD is optional and should be used only when it makes one of those core units easier to design correctly.
+- Do not add UI unit tests, React component tests, snapshot tests, Playwright tests, or other automated end-to-end tests unless the user explicitly changes this policy.
+- Validate renderer UI, transparent windows, tray behavior, native dialogs, drag feel, CSS animation quality, installers, and operating-system security prompts through focused manual checks.
+- Simple presentation components, IPC wiring, platform adapters, one-off styles, and thin glue code do not require unit tests.
+- Before claiming a task complete, run the relevant core unit tests, static checks, build, and manual checks justified by the change.
 
 ## Git and generated files
 
