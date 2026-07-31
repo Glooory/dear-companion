@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_APP_SETTINGS, type AppSettings, type WindowKind } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { SettingsStore } from '../settings/settings-store'
@@ -8,22 +8,50 @@ import { registerFoundationIpc } from './register-foundation-ipc'
 const ipcHarness = vi.hoisted(() => ({
   handlers: new Map<string, (event: { sender: { id: number } }, ...args: unknown[]) => unknown>(),
   listeners: new Map<string, (event: { sender: { id: number }; returnValue?: unknown }) => void>(),
+  handle: vi.fn(),
+  on: vi.fn(),
   removeHandler: vi.fn(),
   removeListener: vi.fn()
 }))
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: (channel: string, handler: (event: { sender: { id: number } }, ...args: unknown[]) => unknown) => {
-      ipcHarness.handlers.set(channel, handler)
-    },
-    on: (channel: string, listener: (event: { sender: { id: number }; returnValue?: unknown }) => void) => {
-      ipcHarness.listeners.set(channel, listener)
-    },
+    handle: ipcHarness.handle,
+    on: ipcHarness.on,
     removeHandler: ipcHarness.removeHandler,
     removeListener: ipcHarness.removeListener
   }
 }))
+
+beforeEach(() => {
+  ipcHarness.handlers.clear()
+  ipcHarness.listeners.clear()
+  ipcHarness.handle.mockReset()
+  ipcHarness.on.mockReset()
+  ipcHarness.removeHandler.mockReset()
+  ipcHarness.removeListener.mockReset()
+  ipcHarness.handle.mockImplementation(
+    (
+      channel: string,
+      handler: (event: { sender: { id: number } }, ...args: unknown[]) => unknown
+    ) => {
+      ipcHarness.handlers.set(channel, handler)
+    }
+  )
+  ipcHarness.on.mockImplementation(
+    (channel: string, listener: (event: { sender: { id: number }; returnValue?: unknown }) => void) => {
+      ipcHarness.listeners.set(channel, listener)
+    }
+  )
+  ipcHarness.removeHandler.mockImplementation((channel: string) => {
+    ipcHarness.handlers.delete(channel)
+  })
+  ipcHarness.removeListener.mockImplementation(
+    (channel: string, listener: (event: { sender: { id: number }; returnValue?: unknown }) => void) => {
+      if (ipcHarness.listeners.get(channel) === listener) ipcHarness.listeners.delete(channel)
+    }
+  )
+})
 
 function createSettingsStore(settings: AppSettings = DEFAULT_APP_SETTINGS): Pick<
   SettingsStore,
@@ -118,5 +146,62 @@ describe('registerFoundationIpc', () => {
       IPC_CHANNELS.getWindowKind,
       expect.any(Function)
     )
+  })
+
+  it('rolls back handlers registered before a later handler registration fails', () => {
+    const settingsStore = createSettingsStore()
+    const windowManager = createWindowManager()
+    ipcHarness.handle.mockImplementation(
+      (
+        channel: string,
+        handler: (event: { sender: { id: number } }, ...args: unknown[]) => unknown
+      ) => {
+        if (channel === IPC_CHANNELS.openSettings) throw new Error('open settings registration failed')
+        ipcHarness.handlers.set(channel, handler)
+      }
+    )
+
+    expect(() => registerFoundationIpc({ settingsStore, windowManager })).toThrow(
+      'open settings registration failed'
+    )
+    expect(ipcHarness.handlers).toEqual(new Map())
+    expect(ipcHarness.removeHandler).toHaveBeenCalledWith(IPC_CHANNELS.getSettings)
+    expect(ipcHarness.removeHandler).toHaveBeenCalledWith(IPC_CHANNELS.setPetVisibility)
+    expect(ipcHarness.removeHandler).not.toHaveBeenCalledWith(IPC_CHANNELS.openSettings)
+    expect(ipcHarness.removeListener).not.toHaveBeenCalled()
+  })
+
+  it('rolls back all handlers when the synchronous listener registration fails', () => {
+    const settingsStore = createSettingsStore()
+    const windowManager = createWindowManager()
+    ipcHarness.on.mockImplementation(() => {
+      throw new Error('window kind registration failed')
+    })
+
+    expect(() => registerFoundationIpc({ settingsStore, windowManager })).toThrow(
+      'window kind registration failed'
+    )
+    expect(ipcHarness.handlers).toEqual(new Map())
+    expect(ipcHarness.removeHandler).toHaveBeenCalledTimes(3)
+    expect(ipcHarness.removeListener).not.toHaveBeenCalled()
+  })
+
+  it('does not remove replacement registrations when cleanup is called twice', () => {
+    const cleanup = registerFoundationIpc({
+      settingsStore: createSettingsStore(),
+      windowManager: createWindowManager()
+    })
+    cleanup()
+    const replacementHandler = vi.fn()
+    const replacementListener = vi.fn()
+    ipcHarness.handlers.set(IPC_CHANNELS.getSettings, replacementHandler)
+    ipcHarness.listeners.set(IPC_CHANNELS.getWindowKind, replacementListener)
+
+    cleanup()
+
+    expect(ipcHarness.handlers.get(IPC_CHANNELS.getSettings)).toBe(replacementHandler)
+    expect(ipcHarness.listeners.get(IPC_CHANNELS.getWindowKind)).toBe(replacementListener)
+    expect(ipcHarness.removeHandler).toHaveBeenCalledTimes(3)
+    expect(ipcHarness.removeListener).toHaveBeenCalledTimes(1)
   })
 })
