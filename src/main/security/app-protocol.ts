@@ -1,4 +1,5 @@
 import { net, protocol } from 'electron'
+import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -16,6 +17,7 @@ export function registerAppScheme(): void {
 
 export async function registerAppProtocol(rendererRoot: string): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot)
+  const canonicalRendererRoot = await realpath(resolvedRendererRoot)
 
   await protocol.handle(APP_SCHEME, async (request) => {
     try {
@@ -32,10 +34,19 @@ export async function registerAppProtocol(rendererRoot: string): Promise<void> {
         return forbiddenResponse()
       }
 
+      let canonicalPath: string
       try {
-        return await net.fetch(pathToFileURL(resolvedPath).toString())
+        canonicalPath = await realpath(resolvedPath)
       } catch {
-        return new Response('Not found', { status: 404 })
+        return notFoundResponse()
+      }
+
+      if (!isPathInside(canonicalRendererRoot, canonicalPath)) return forbiddenResponse()
+
+      try {
+        return await net.fetch(pathToFileURL(canonicalPath).toString())
+      } catch {
+        return notFoundResponse()
       }
     } catch {
       return forbiddenResponse()
@@ -55,4 +66,8 @@ function isPathInside(root: string, candidate: string): boolean {
 
 function forbiddenResponse(): Response {
   return new Response('Forbidden', { status: 403 })
+}
+
+function notFoundResponse(): Response {
+  return new Response('Not found', { status: 404 })
 }

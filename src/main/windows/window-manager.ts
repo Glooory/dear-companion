@@ -12,6 +12,9 @@ interface WindowManagerOptions {
 export class WindowManager {
   private petWindow: BrowserWindow | null = null
   private settingsWindow: BrowserWindow | null = null
+  private petWindowReady = false
+  private petVisibilityRequested = false
+  private settingsWindowReady = false
   private readonly settingsStore: SettingsStore
   private readonly preloadPath: string
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
@@ -22,17 +25,21 @@ export class WindowManager {
   }
 
   async showPet(): Promise<void> {
+    this.petVisibilityRequested = true
     if (this.petWindow && !this.petWindow.isDestroyed()) {
-      this.petWindow.show()
+      if (this.petWindowReady) this.petWindow.show()
       return
     }
 
     const petWindow = new BrowserWindow(createPetWindowOptions(this.preloadPath))
     this.petWindow = petWindow
+    this.petWindowReady = false
     this.secureWindow(petWindow)
 
     const showWhenReady = (): void => {
-      if (this.petWindow === petWindow && !petWindow.isDestroyed()) petWindow.show()
+      if (this.petWindow !== petWindow || petWindow.isDestroyed()) return
+      this.petWindowReady = true
+      if (this.petVisibilityRequested) petWindow.show()
     }
     petWindow.once('ready-to-show', showWhenReady)
     this.addListenerDisposer(petWindow, () => {
@@ -41,6 +48,7 @@ export class WindowManager {
 
     const hideInsteadOfClose = (event: ElectronEvent): void => {
       event.preventDefault()
+      if (this.petWindow === petWindow) this.petVisibilityRequested = false
       petWindow.hide()
     }
     petWindow.on('close', hideInsteadOfClose)
@@ -49,7 +57,11 @@ export class WindowManager {
     })
 
     const clearPetWindow = (): void => {
-      if (this.petWindow === petWindow) this.petWindow = null
+      if (this.petWindow === petWindow) {
+        this.petWindow = null
+        this.petWindowReady = false
+        this.petVisibilityRequested = false
+      }
       this.releaseWindowListeners(petWindow)
     }
     petWindow.once('closed', clearPetWindow)
@@ -61,22 +73,27 @@ export class WindowManager {
   }
 
   hidePet(): void {
+    this.petVisibilityRequested = false
     this.petWindow?.hide()
   }
 
   async openSettings(): Promise<void> {
     if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
-      this.settingsWindow.show()
-      this.settingsWindow.focus()
+      if (this.settingsWindowReady) {
+        this.settingsWindow.show()
+        this.settingsWindow.focus()
+      }
       return
     }
 
     const settingsWindow = new BrowserWindow(createSettingsWindowOptions(this.preloadPath))
     this.settingsWindow = settingsWindow
+    this.settingsWindowReady = false
     this.secureWindow(settingsWindow)
 
     const showWhenReady = (): void => {
       if (this.settingsWindow !== settingsWindow || settingsWindow.isDestroyed()) return
+      this.settingsWindowReady = true
       settingsWindow.show()
       settingsWindow.focus()
     }
@@ -86,7 +103,10 @@ export class WindowManager {
     })
 
     const clearSettingsWindow = (): void => {
-      if (this.settingsWindow === settingsWindow) this.settingsWindow = null
+      if (this.settingsWindow === settingsWindow) {
+        this.settingsWindow = null
+        this.settingsWindowReady = false
+      }
       this.releaseWindowListeners(settingsWindow)
     }
     settingsWindow.once('closed', clearSettingsWindow)
@@ -119,6 +139,9 @@ export class WindowManager {
     const ownedWindows = [this.petWindow, this.settingsWindow]
     this.petWindow = null
     this.settingsWindow = null
+    this.petWindowReady = false
+    this.petVisibilityRequested = false
+    this.settingsWindowReady = false
 
     for (const window of ownedWindows) {
       if (!window) continue
