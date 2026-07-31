@@ -1,0 +1,194 @@
+:root {
+  color: #27272a;
+  background: #f6f6f3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html[data-window='settings'],
+html[data-window='settings'] body,
+html[data-window='settings'] #root {
+  min-height: 100%;
+  margin: 0;
+  background: #f6f6f3;
+}
+
+html[data-window='pet'],
+html[data-window='pet'] body,
+html[data-window='pet'] #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #4f7b6e;
+  outline-offset: 2px;
+}
+
+.settings-shell {
+  min-height: 100vh;
+  padding: 48px clamp(24px, 7vw, 72px) 32px;
+}
+
+.settings-header {
+  margin-bottom: 28px;
+}
+
+.settings-header h1,
+.settings-card h2,
+.settings-card p {
+  margin-top: 0;
+}
+
+.settings-header h1 {
+  margin-bottom: 0;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  letter-spacing: -0.04em;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #5b6f68;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.settings-sections {
+  display: grid;
+  gap: 16px;
+  max-width: 680px;
+}
+
+.settings-card {
+  padding: 22px;
+  border: 1px solid #deded8;
+  border-radius: 18px;
+  background: #fffefa;
+  box-shadow: 0 8px 24px rgb(42 42 36 / 6%);
+}
+
+.settings-card h2 {
+  font-size: 1.125rem;
+}
+
+.supporting-copy,
+.privacy-note {
+  color: #686862;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.settings-card button {
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: #deded8;
+  color: #777770;
+}
+
+.toggle-control,
+.height-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-control {
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.toggle-control input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4f7b6e;
+}
+
+.height-control {
+  justify-content: space-between;
+  max-width: 260px;
+}
+
+.height-control input {
+  width: 90px;
+  padding: 7px 9px;
+  border: 1px solid #deded8;
+  border-radius: 8px;
+  background: #f6f6f3;
+  color: #50504c;
+  text-align: right;
+}
+
+.inline-error {
+  max-width: 680px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff0ef;
+  color: #a13e3b;
+}
+
+.privacy-note {
+  margin-top: 28px;
+}
+
+.pet-shell {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 28px;
+}
+
+.pet-placeholder {
+  display: grid;
+  width: min(72vw, 184px);
+  aspect-ratio: 0.78;
+  place-items: center;
+  padding: 20px;
+  border: 3px solid rgb(255 255 255 / 88%);
+  border-radius: 48% 48% 42% 42% / 42% 42% 56% 56%;
+  background: linear-gradient(145deg, #94c5b5, #4f7b6e);
+  box-shadow: 0 12px 28px rgb(21 55 45 / 28%);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pet-settings-button {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 6px 10px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 86%);
+  color: #315448;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
