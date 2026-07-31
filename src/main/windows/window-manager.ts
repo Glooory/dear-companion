@@ -1,10 +1,18 @@
-import { BrowserWindow, type Event as ElectronEvent } from 'electron'
+import { BrowserWindow, screen, type Event as ElectronEvent } from 'electron'
 import type { WindowKind } from '../../shared/contracts'
 import type { SettingsStore } from '../settings/settings-store'
+import {
+  resolvePetWindowBounds,
+  type DisplaySnapshot,
+  type Point,
+  type Rect
+} from './display-placement'
 import { createPetWindowOptions, createSettingsWindowOptions } from './window-options'
 
+type WindowSettingsStore = Pick<SettingsStore, 'load' | 'update'>
+
 interface WindowManagerOptions {
-  settingsStore: SettingsStore
+  settingsStore: WindowSettingsStore
   preloadPath: string
   rendererRoot: string
 }
@@ -13,9 +21,10 @@ export class WindowManager {
   private petWindow: BrowserWindow | null = null
   private settingsWindow: BrowserWindow | null = null
   private petWindowReady = false
+  private petWindowPlaced = false
   private petVisibilityRequested = false
   private settingsWindowReady = false
-  private readonly settingsStore: SettingsStore
+  private readonly settingsStore: WindowSettingsStore
   private readonly preloadPath: string
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
 
@@ -27,19 +36,20 @@ export class WindowManager {
   async showPet(): Promise<void> {
     this.petVisibilityRequested = true
     if (this.petWindow && !this.petWindow.isDestroyed()) {
-      if (this.petWindowReady) this.petWindow.show()
+      if (this.petWindowReady && this.petWindowPlaced) this.petWindow.show()
       return
     }
 
     const petWindow = new BrowserWindow(createPetWindowOptions(this.preloadPath))
     this.petWindow = petWindow
     this.petWindowReady = false
+    this.petWindowPlaced = false
     this.secureWindow(petWindow)
 
     const showWhenReady = (): void => {
       if (this.petWindow !== petWindow || petWindow.isDestroyed()) return
       this.petWindowReady = true
-      if (this.petVisibilityRequested) petWindow.show()
+      if (this.petWindowPlaced && this.petVisibilityRequested) petWindow.show()
     }
     petWindow.once('ready-to-show', showWhenReady)
     this.addListenerDisposer(petWindow, () => {
@@ -60,6 +70,7 @@ export class WindowManager {
       if (this.petWindow === petWindow) {
         this.petWindow = null
         this.petWindowReady = false
+        this.petWindowPlaced = false
         this.petVisibilityRequested = false
       }
       this.releaseWindowListeners(petWindow)
@@ -68,6 +79,11 @@ export class WindowManager {
     this.addListenerDisposer(petWindow, () => {
       petWindow.removeListener('closed', clearPetWindow)
     })
+
+    const placementCompleted = await this.initializePetPlacement(petWindow)
+    if (!placementCompleted) return
+    this.petWindowPlaced = true
+    if (this.petWindowReady && this.petVisibilityRequested) petWindow.show()
 
     await petWindow.loadURL(this.rendererUrl('pet'))
   }
@@ -140,6 +156,7 @@ export class WindowManager {
     this.petWindow = null
     this.settingsWindow = null
     this.petWindowReady = false
+    this.petWindowPlaced = false
     this.petVisibilityRequested = false
     this.settingsWindowReady = false
 
@@ -163,6 +180,93 @@ export class WindowManager {
     })
   }
 
+  private async initializePetPlacement(petWindow: BrowserWindow): Promise<boolean> {
+    const settings = await this.settingsStore.load()
+    if (this.petWindow !== petWindow || petWindow.isDestroyed()) return false
+
+    const savedPoint = toSavedPoint(settings.petWindow.x, settings.petWindow.y)
+    const currentBounds = petWindow.getBounds()
+    petWindow.setBounds(
+      resolvePetWindowBounds(
+        this.displaySnapshots(),
+        settings.petWindow.displayId,
+        savedPoint,
+        currentBounds
+      )
+    )
+    this.listenForPetPlacementChanges(petWindow)
+    return true
+  }
+
+  private listenForPetPlacementChanges(petWindow: BrowserWindow): void {
+    let persistenceTimer: ReturnType<typeof setTimeout> | null = null
+    let disposed = false
+
+    const persistBounds = (): void => {
+      persistenceTimer = null
+      if (disposed || this.petWindow !== petWindow || petWindow.isDestroyed()) return
+
+      const position = petWindow.getPosition()
+      const x = position[0]
+      const y = position[1]
+      if (x === undefined || y === undefined) return
+      const nearestDisplay = screen.getDisplayNearestPoint({ x, y })
+      void this.settingsStore
+        .update((current) => ({
+          ...current,
+          petWindow: {
+            ...current.petWindow,
+            x,
+            y,
+            displayId: String(nearestDisplay.id)
+          }
+        }))
+        .catch(() => undefined)
+    }
+
+    const schedulePersistence = (): void => {
+      if (persistenceTimer) clearTimeout(persistenceTimer)
+      persistenceTimer = setTimeout(persistBounds, 250)
+    }
+
+    const reclamp = (): void => {
+      if (disposed || this.petWindow !== petWindow || petWindow.isDestroyed()) return
+      const bounds = petWindow.getBounds()
+      petWindow.setBounds(
+        resolvePetWindowBounds(
+          this.displaySnapshots(),
+          null,
+          { x: bounds.x, y: bounds.y },
+          bounds
+        )
+      )
+    }
+
+    petWindow.on('moved', schedulePersistence)
+    petWindow.on('resized', schedulePersistence)
+    screen.on('display-removed', reclamp)
+    screen.on('display-metrics-changed', reclamp)
+    this.addListenerDisposer(petWindow, () => {
+      disposed = true
+      if (persistenceTimer) clearTimeout(persistenceTimer)
+      persistenceTimer = null
+      petWindow.removeListener('moved', schedulePersistence)
+      petWindow.removeListener('resized', schedulePersistence)
+      screen.removeListener('display-removed', reclamp)
+      screen.removeListener('display-metrics-changed', reclamp)
+    })
+  }
+
+  private displaySnapshots(): readonly DisplaySnapshot[] {
+    const primaryDisplayId = String(screen.getPrimaryDisplay().id)
+    return screen.getAllDisplays().map((display) => ({
+      id: String(display.id),
+      bounds: toRect(display.bounds),
+      workArea: toRect(display.workArea),
+      isPrimary: String(display.id) === primaryDisplayId
+    }))
+  }
+
   private rendererUrl(kind: WindowKind): string {
     const developmentUrl = process.env.ELECTRON_RENDERER_URL
     return developmentUrl
@@ -181,4 +285,12 @@ export class WindowManager {
     this.windowListenerDisposers.delete(window)
     for (const dispose of disposers) dispose()
   }
+}
+
+function toSavedPoint(x: number | null, y: number | null): Point | null {
+  return x === null || y === null ? null : { x, y }
+}
+
+function toRect(rect: Rect): Rect {
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
 }

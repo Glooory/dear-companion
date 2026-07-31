@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SettingsStore } from '../settings/settings-store'
+import { DEFAULT_APP_SETTINGS, type AppSettings } from '../../shared/contracts'
+import type { Rect } from './display-placement'
 import { WindowManager } from './window-manager'
+
+interface FakeDisplay {
+  readonly id: number
+  readonly bounds: Rect
+  readonly workArea: Rect
+}
+
+interface FakeScreen {
+  emit(eventName: string, ...args: unknown[]): boolean
+  listenerCount(eventName: string): number
+}
 
 interface FakeWebContents {
   readonly id: number
@@ -11,10 +23,17 @@ interface FakeWebContents {
 interface FakeBrowserWindow {
   readonly webContents: FakeWebContents
   readonly options: unknown
+  bounds: Rect
   visible: boolean
   focused: boolean
   ready: boolean
   loadedUrl: string | null
+  getBounds(): Rect
+  getPosition(): [number, number]
+  setBounds(bounds: Rect): void
+  moveTo(x: number, y: number): void
+  resizeTo(width: number, height: number): void
+  listenerCount(eventName: string): number
   signalReady(): void
   finishLoading(): void
   destroy(): void
@@ -22,7 +41,10 @@ interface FakeBrowserWindow {
 
 const windowHarness = vi.hoisted(() => ({
   windows: [] as FakeBrowserWindow[],
-  nextWebContentsId: 100
+  nextWebContentsId: 100,
+  displays: [] as FakeDisplay[],
+  primaryDisplayId: 1,
+  screen: undefined as FakeScreen | undefined
 }))
 
 vi.mock('electron', async () => {
@@ -58,12 +80,15 @@ vi.mock('electron', async () => {
     focused = false
     ready = false
     loadedUrl: string | null = null
+    bounds: Rect
     private destroyed = false
     private finishLoad: (() => void) | undefined
 
     constructor(options: unknown) {
       super()
       this.options = options
+      const { width = 0, height = 0 } = options as { width?: number; height?: number }
+      this.bounds = { x: 0, y: 0, width, height }
       this.webContents = new TestWebContents(windowHarness.nextWebContentsId++)
       windowHarness.windows.push(this)
     }
@@ -82,6 +107,28 @@ vi.mock('electron', async () => {
 
     isDestroyed(): boolean {
       return this.destroyed
+    }
+
+    getBounds(): Rect {
+      return { ...this.bounds }
+    }
+
+    getPosition(): [number, number] {
+      return [this.bounds.x, this.bounds.y]
+    }
+
+    setBounds(bounds: Rect): void {
+      this.bounds = { ...bounds }
+    }
+
+    moveTo(x: number, y: number): void {
+      this.bounds = { ...this.bounds, x, y }
+      this.emit('moved')
+    }
+
+    resizeTo(width: number, height: number): void {
+      this.bounds = { ...this.bounds, width, height }
+      this.emit('resized')
     }
 
     destroy(): void {
@@ -109,14 +156,57 @@ vi.mock('electron', async () => {
     }
   }
 
-  return { BrowserWindow: TestBrowserWindow }
+  const testScreen = new EventEmitter() as InstanceType<typeof EventEmitter> & {
+    getAllDisplays(): readonly FakeDisplay[]
+    getPrimaryDisplay(): FakeDisplay
+    getDisplayNearestPoint(point: { x: number; y: number }): FakeDisplay
+  }
+  testScreen.getAllDisplays = () => windowHarness.displays
+  testScreen.getPrimaryDisplay = () => {
+    const primary = windowHarness.displays.find(
+      (display) => display.id === windowHarness.primaryDisplayId
+    )
+    if (!primary) throw new Error('Expected a primary display fixture')
+    return primary
+  }
+  testScreen.getDisplayNearestPoint = (point: { x: number; y: number }) =>
+    windowHarness.displays.find(
+      (display) =>
+        point.x >= display.bounds.x &&
+        point.x < display.bounds.x + display.bounds.width &&
+        point.y >= display.bounds.y &&
+        point.y < display.bounds.y + display.bounds.height
+    ) ?? testScreen.getPrimaryDisplay()
+  windowHarness.screen = testScreen
+
+  return { BrowserWindow: TestBrowserWindow, screen: testScreen }
 })
 
 const managers: WindowManager[] = []
 
-function createManager(): WindowManager {
+class FakeSettingsStore {
+  settings: AppSettings
+
+  constructor(petWindow: Partial<AppSettings['petWindow']> = {}) {
+    this.settings = {
+      ...DEFAULT_APP_SETTINGS,
+      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow, ...petWindow }
+    }
+  }
+
+  async load(): Promise<AppSettings> {
+    return this.settings
+  }
+
+  async update(mutator: (current: AppSettings) => AppSettings): Promise<AppSettings> {
+    this.settings = mutator(this.settings)
+    return this.settings
+  }
+}
+
+function createManager(settingsStore = new FakeSettingsStore()): WindowManager {
   const manager = new WindowManager({
-    settingsStore: new SettingsStore('/unused-in-window-manager-tests'),
+    settingsStore,
     preloadPath: '/app/out/preload/index.js',
     rendererRoot: '/app/out/renderer'
   })
@@ -130,14 +220,43 @@ function getWindow(index: number): FakeBrowserWindow {
   return window
 }
 
+async function finishWindowLoading(window: FakeBrowserWindow): Promise<void> {
+  await vi.waitFor(() => expect(window.loadedUrl).not.toBeNull())
+  window.finishLoading()
+}
+
+async function openPet(manager: WindowManager): Promise<FakeBrowserWindow> {
+  const opening = manager.showPet()
+  const petWindow = getWindow(windowHarness.windows.length - 1)
+  await finishWindowLoading(petWindow)
+  petWindow.signalReady()
+  await opening
+  return petWindow
+}
+
 beforeEach(() => {
   vi.stubEnv('ELECTRON_RENDERER_URL', '')
+  windowHarness.displays = [
+    {
+      id: 2,
+      bounds: { x: -1920, y: 0, width: 1920, height: 1080 },
+      workArea: { x: -1920, y: 0, width: 1920, height: 1040 }
+    },
+    {
+      id: 1,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 }
+    }
+  ]
+  windowHarness.primaryDisplayId = 1
 })
 
 afterEach(() => {
   for (const manager of managers.splice(0)) manager.dispose()
   windowHarness.windows.length = 0
   windowHarness.nextWebContentsId = 100
+  windowHarness.displays = []
+  vi.useRealTimers()
   vi.unstubAllEnvs()
 })
 
@@ -151,7 +270,7 @@ describe('WindowManager', () => {
     petWindow.signalReady()
 
     expect(petWindow.visible).toBe(false)
-    petWindow.finishLoading()
+    await finishWindowLoading(petWindow)
     await opening
   })
 
@@ -165,8 +284,8 @@ describe('WindowManager', () => {
     expect(petWindow.visible).toBe(false)
 
     petWindow.signalReady()
-    expect(petWindow.visible).toBe(true)
-    petWindow.finishLoading()
+    await vi.waitFor(() => expect(petWindow.visible).toBe(true))
+    await finishWindowLoading(petWindow)
     await Promise.all([firstOpening, secondOpening])
   })
 
@@ -183,7 +302,7 @@ describe('WindowManager', () => {
     settingsWindow.signalReady()
     expect(settingsWindow.visible).toBe(true)
     expect(settingsWindow.focused).toBe(true)
-    settingsWindow.finishLoading()
+    await finishWindowLoading(settingsWindow)
     await Promise.all([firstOpening, secondOpening])
   })
 
@@ -192,7 +311,7 @@ describe('WindowManager', () => {
     const opening = manager.showPet()
     const petWindow = getWindow(0)
     petWindow.signalReady()
-    petWindow.finishLoading()
+    await finishWindowLoading(petWindow)
     await opening
 
     manager.hidePet()
@@ -208,13 +327,13 @@ describe('WindowManager', () => {
     const petOpening = manager.showPet()
     const petWindow = getWindow(0)
     petWindow.signalReady()
-    petWindow.finishLoading()
+    await finishWindowLoading(petWindow)
     await petOpening
 
     const settingsOpening = manager.openSettings()
     const settingsWindow = getWindow(1)
     settingsWindow.signalReady()
-    settingsWindow.finishLoading()
+    await finishWindowLoading(settingsWindow)
     await settingsOpening
 
     expect(manager.getWindowKind(petWindow.webContents.id)).toBe('pet')
@@ -225,5 +344,95 @@ describe('WindowManager', () => {
     expect(() => manager.getWindowKind(settingsWindow.webContents.id)).toThrow(
       'Unrecognized renderer sender'
     )
+  })
+
+  it('clamps saved bounds before making a ready pet window visible', async () => {
+    const manager = createManager(
+      new FakeSettingsStore({ x: -2200, y: 1000, displayId: '2' })
+    )
+    const opening = manager.showPet()
+    const petWindow = getWindow(0)
+
+    petWindow.signalReady()
+    expect(petWindow.visible).toBe(false)
+    await Promise.resolve()
+
+    expect(petWindow.bounds).toEqual({ x: -1912, y: 712, width: 320, height: 320 })
+    await vi.waitFor(() => expect(petWindow.visible).toBe(true))
+    await finishWindowLoading(petWindow)
+    await opening
+  })
+
+  it('debounces moved and resized persistence for 250 ms and saves the nearest display', async () => {
+    const settingsStore = new FakeSettingsStore()
+    const petWindow = await openPet(createManager(settingsStore))
+    vi.useFakeTimers()
+
+    petWindow.moveTo(-600, 200)
+    await vi.advanceTimersByTimeAsync(200)
+    petWindow.resizeTo(320, 320)
+    await vi.advanceTimersByTimeAsync(249)
+    expect(settingsStore.settings.petWindow).toMatchObject({
+      x: null,
+      y: null,
+      displayId: null
+    })
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(settingsStore.settings.petWindow).toMatchObject({ x: -600, y: 200, displayId: '2' })
+  })
+
+  it('re-clamps immediately to the primary display when a display is removed', async () => {
+    const settingsStore = new FakeSettingsStore({ x: -500, y: 100, displayId: '2' })
+    const petWindow = await openPet(createManager(settingsStore))
+
+    windowHarness.displays = [windowHarness.displays[1]!]
+    windowHarness.screen?.emit('display-removed', {}, { id: 2 })
+
+    expect(petWindow.bounds).toEqual({ x: 8, y: 100, width: 320, height: 320 })
+  })
+
+  it('re-clamps immediately when display metrics change', async () => {
+    const settingsStore = new FakeSettingsStore({ x: 1500, y: 700, displayId: '1' })
+    const petWindow = await openPet(createManager(settingsStore))
+    const leftDisplay = windowHarness.displays[0]!
+    const primaryDisplay = windowHarness.displays[1]!
+    windowHarness.displays = [
+      leftDisplay,
+      {
+        ...primaryDisplay,
+        bounds: { x: 0, y: 0, width: 800, height: 640 },
+        workArea: { x: 0, y: 0, width: 800, height: 600 }
+      }
+    ]
+
+    windowHarness.screen?.emit('display-metrics-changed', {}, windowHarness.displays[1], [
+      'bounds',
+      'workArea'
+    ])
+
+    expect(petWindow.bounds).toEqual({ x: 472, y: 272, width: 320, height: 320 })
+  })
+
+  it('cancels pending persistence and removes display and window listeners on disposal', async () => {
+    const settingsStore = new FakeSettingsStore()
+    const manager = createManager(settingsStore)
+    const petWindow = await openPet(manager)
+    vi.useFakeTimers()
+
+    petWindow.moveTo(200, 200)
+    expect(petWindow.listenerCount('moved')).toBe(1)
+    expect(petWindow.listenerCount('resized')).toBe(1)
+    expect(windowHarness.screen?.listenerCount('display-removed')).toBe(1)
+    expect(windowHarness.screen?.listenerCount('display-metrics-changed')).toBe(1)
+
+    manager.dispose()
+    await vi.advanceTimersByTimeAsync(250)
+
+    expect(settingsStore.settings.petWindow.x).toBeNull()
+    expect(petWindow.listenerCount('moved')).toBe(0)
+    expect(petWindow.listenerCount('resized')).toBe(0)
+    expect(windowHarness.screen?.listenerCount('display-removed')).toBe(0)
+    expect(windowHarness.screen?.listenerCount('display-metrics-changed')).toBe(0)
   })
 })
