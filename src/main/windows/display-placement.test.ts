@@ -51,4 +51,13 @@ describe('display placement', () => {
       height: 320
     })
   })
+
+  it('keeps a nonzero visible rectangle when the work area cannot fit the normal margin', () => {
+    expect(
+      clampRectToWorkArea(
+        { x: -100, y: -100, width: 320, height: 320 },
+        { x: 100, y: 200, width: 8, height: 0 }
+      )
+    ).toEqual({ x: 103, y: 200, width: 2, height: 1 })
+  })
 })

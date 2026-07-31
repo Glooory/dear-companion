@@ -34,6 +34,7 @@ interface FakeBrowserWindow {
   moveTo(x: number, y: number): void
   resizeTo(width: number, height: number): void
   listenerCount(eventName: string): number
+  isDestroyed(): boolean
   signalReady(): void
   finishLoading(): void
   destroy(): void
@@ -201,6 +202,18 @@ class FakeSettingsStore {
   async update(mutator: (current: AppSettings) => AppSettings): Promise<AppSettings> {
     this.settings = mutator(this.settings)
     return this.settings
+  }
+}
+
+class FailingOnceSettingsStore extends FakeSettingsStore {
+  private shouldFail = true
+
+  override async load(): Promise<AppSettings> {
+    if (this.shouldFail) {
+      this.shouldFail = false
+      throw new Error('settings load failed')
+    }
+    return super.load()
   }
 }
 
@@ -434,5 +447,63 @@ describe('WindowManager', () => {
     expect(petWindow.listenerCount('resized')).toBe(0)
     expect(windowHarness.screen?.listenerCount('display-removed')).toBe(0)
     expect(windowHarness.screen?.listenerCount('display-metrics-changed')).toBe(0)
+  })
+
+  it('destroys a pet whose settings load failed so a later show can retry', async () => {
+    const manager = createManager(new FailingOnceSettingsStore())
+
+    await expect(manager.showPet()).rejects.toThrow('settings load failed')
+    expect(getWindow(0).isDestroyed()).toBe(true)
+
+    const retry = manager.showPet()
+    expect(windowHarness.windows).toHaveLength(2)
+    const petWindow = getWindow(1)
+    await finishWindowLoading(petWindow)
+    petWindow.signalReady()
+    await retry
+
+    expect(petWindow.visible).toBe(true)
+  })
+
+  it('destroys a pet whose placement failed so a later show can retry', async () => {
+    const manager = createManager()
+    const availableDisplays = windowHarness.displays
+    windowHarness.displays = []
+
+    await expect(manager.showPet()).rejects.toThrow('Expected a primary display fixture')
+    expect(getWindow(0).isDestroyed()).toBe(true)
+
+    windowHarness.displays = availableDisplays
+    const retry = manager.showPet()
+    expect(windowHarness.windows).toHaveLength(2)
+    const petWindow = getWindow(1)
+    await finishWindowLoading(petWindow)
+    petWindow.signalReady()
+    await retry
+
+    expect(petWindow.visible).toBe(true)
+  })
+
+  it('restores the intended pet size after a compact display grows', async () => {
+    const leftDisplay = windowHarness.displays[0]!
+    const primaryDisplay = windowHarness.displays[1]!
+    windowHarness.displays = [
+      leftDisplay,
+      {
+        ...primaryDisplay,
+        bounds: { x: 0, y: 0, width: 200, height: 200 },
+        workArea: { x: 0, y: 0, width: 200, height: 180 }
+      }
+    ]
+    const petWindow = await openPet(createManager())
+    expect(petWindow.bounds).toEqual({ x: 8, y: 8, width: 184, height: 164 })
+
+    windowHarness.displays = [leftDisplay, primaryDisplay]
+    windowHarness.screen?.emit('display-metrics-changed', {}, primaryDisplay, [
+      'bounds',
+      'workArea'
+    ])
+
+    expect(petWindow.bounds).toEqual({ x: 8, y: 8, width: 320, height: 320 })
   })
 })

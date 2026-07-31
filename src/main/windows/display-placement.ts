@@ -36,20 +36,14 @@ export function chooseDisplay(
 }
 
 export function clampRectToWorkArea(rect: Rect, workArea: Rect, margin = 8): Rect {
-  const availableWidth = Math.max(0, workArea.width - margin * 2)
-  const availableHeight = Math.max(0, workArea.height - margin * 2)
-  const width = Math.min(rect.width, availableWidth)
-  const height = Math.min(rect.height, availableHeight)
-  const minimumX = workArea.x + margin
-  const minimumY = workArea.y + margin
-  const maximumX = workArea.x + workArea.width - margin - width
-  const maximumY = workArea.y + workArea.height - margin - height
+  const horizontal = clampAxis(rect.x, rect.width, workArea.x, workArea.width, margin)
+  const vertical = clampAxis(rect.y, rect.height, workArea.y, workArea.height, margin)
 
   return {
-    x: clamp(rect.x, minimumX, maximumX),
-    y: clamp(rect.y, minimumY, maximumY),
-    width,
-    height
+    x: horizontal.position,
+    y: vertical.position,
+    width: horizontal.size,
+    height: vertical.size
   }
 }
 
@@ -78,4 +72,28 @@ function containsPoint(rect: Rect, point: Point): boolean {
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
+}
+
+function clampAxis(
+  position: number,
+  size: number,
+  workAreaOrigin: number,
+  workAreaExtent: number,
+  margin: number
+): { position: number; size: number } {
+  const effectiveExtent = Math.max(1, workAreaExtent)
+  const effectiveMargin = Math.min(
+    Math.max(0, margin),
+    Math.max(0, Math.floor((effectiveExtent - 1) / 2))
+  )
+  const availableSize = Math.max(1, effectiveExtent - effectiveMargin * 2)
+  const clampedSize = Math.max(1, Math.min(size, availableSize))
+  const minimumPosition = workAreaOrigin + effectiveMargin
+  const maximumPosition =
+    workAreaOrigin + effectiveExtent - effectiveMargin - clampedSize
+
+  return {
+    position: clamp(position, minimumPosition, maximumPosition),
+    size: clampedSize
+  }
 }

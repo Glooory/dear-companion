@@ -80,12 +80,17 @@ export class WindowManager {
       petWindow.removeListener('closed', clearPetWindow)
     })
 
-    const placementCompleted = await this.initializePetPlacement(petWindow)
-    if (!placementCompleted) return
-    this.petWindowPlaced = true
-    if (this.petWindowReady && this.petVisibilityRequested) petWindow.show()
+    try {
+      const placementCompleted = await this.initializePetPlacement(petWindow)
+      if (!placementCompleted) return
+      this.petWindowPlaced = true
+      if (this.petWindowReady && this.petVisibilityRequested) petWindow.show()
 
-    await petWindow.loadURL(this.rendererUrl('pet'))
+      await petWindow.loadURL(this.rendererUrl('pet'))
+    } catch (error) {
+      this.discardFailedPetWindow(petWindow)
+      throw error
+    }
   }
 
   hidePet(): void {
@@ -185,20 +190,24 @@ export class WindowManager {
     if (this.petWindow !== petWindow || petWindow.isDestroyed()) return false
 
     const savedPoint = toSavedPoint(settings.petWindow.x, settings.petWindow.y)
-    const currentBounds = petWindow.getBounds()
+    const initialBounds = petWindow.getBounds()
+    const desiredSize = { width: initialBounds.width, height: initialBounds.height }
     petWindow.setBounds(
       resolvePetWindowBounds(
         this.displaySnapshots(),
         settings.petWindow.displayId,
         savedPoint,
-        currentBounds
+        desiredSize
       )
     )
-    this.listenForPetPlacementChanges(petWindow)
+    this.listenForPetPlacementChanges(petWindow, desiredSize)
     return true
   }
 
-  private listenForPetPlacementChanges(petWindow: BrowserWindow): void {
+  private listenForPetPlacementChanges(
+    petWindow: BrowserWindow,
+    desiredSize: Pick<Rect, 'width' | 'height'>
+  ): void {
     let persistenceTimer: ReturnType<typeof setTimeout> | null = null
     let disposed = false
 
@@ -237,7 +246,7 @@ export class WindowManager {
           this.displaySnapshots(),
           null,
           { x: bounds.x, y: bounds.y },
-          bounds
+          desiredSize
         )
       )
     }
@@ -255,6 +264,17 @@ export class WindowManager {
       screen.removeListener('display-removed', reclamp)
       screen.removeListener('display-metrics-changed', reclamp)
     })
+  }
+
+  private discardFailedPetWindow(petWindow: BrowserWindow): void {
+    if (this.petWindow === petWindow) {
+      this.petWindow = null
+      this.petWindowReady = false
+      this.petWindowPlaced = false
+      this.petVisibilityRequested = false
+    }
+    this.releaseWindowListeners(petWindow)
+    if (!petWindow.isDestroyed()) petWindow.destroy()
   }
 
   private displaySnapshots(): readonly DisplaySnapshot[] {
