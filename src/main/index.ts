@@ -1,7 +1,8 @@
-import { app } from 'electron'
+import { app, dialog } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AppSettings } from '../shared/contracts'
+import { prepareTray, runStartup } from './app/startup'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
 import { registerAppProtocol, registerAppScheme } from './security/app-protocol'
 import { SettingsStore } from './settings/settings-store'
@@ -66,6 +67,18 @@ function disposeApplication(): void {
   settingsStore = null
 }
 
+function handleStartupFailure(): void {
+  disposeApplication()
+  try {
+    dialog.showErrorBox(
+      'Dear Companion 无法启动',
+      '读取本地设置或创建桌面窗口失败。请重新启动应用。'
+    )
+  } finally {
+    requestQuit()
+  }
+}
+
 if (!hasSingleInstanceLock) {
   requestQuit()
 } else {
@@ -91,7 +104,8 @@ if (!hasSingleInstanceLock) {
     void activateApplication().catch(() => undefined)
   })
 
-  void app.whenReady().then(async () => {
+  void runStartup(async () => {
+    await app.whenReady()
     const mainDirectory = dirname(fileURLToPath(import.meta.url))
     const preloadPath = join(mainDirectory, '../preload/index.js')
     const rendererRoot = join(mainDirectory, '../renderer')
@@ -115,13 +129,18 @@ if (!hasSingleInstanceLock) {
     settingsStore = store
     windowManager = manager
     trayController = tray
-    tray.create()
+    const settings = await prepareTray({
+      settingsStore: store,
+      tray,
+      isQuitting: () => isQuitting
+    })
+    if (!settings) return
+
     disposeFoundationIpc = registerFoundationIpc({
       settingsStore: store,
       windowManager: manager,
       onSettingsChanged: (nextSettings) => trayController?.refresh(nextSettings)
     })
-    const settings = await store.load()
     if (
       isQuitting ||
       settingsStore !== store ||
@@ -140,5 +159,5 @@ if (!hasSingleInstanceLock) {
       secondInstanceActivated = false
       activateSecondInstance()
     }
-  })
+  }, handleStartupFailure)
 }

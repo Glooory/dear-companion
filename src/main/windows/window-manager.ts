@@ -143,7 +143,12 @@ export class WindowManager {
       settingsWindow.removeListener('closed', clearSettingsWindow)
     })
 
-    await settingsWindow.loadURL(this.rendererUrl('settings'))
+    try {
+      await settingsWindow.loadURL(this.rendererUrl('settings'))
+    } catch (error) {
+      this.discardFailedSettingsWindow(settingsWindow)
+      throw error
+    }
   }
 
   focusSettingsIfOpen(): void {
@@ -292,6 +297,15 @@ export class WindowManager {
     }
     this.releaseWindowListeners(petWindow)
     if (!petWindow.isDestroyed()) petWindow.destroy()
+  }
+
+  private discardFailedSettingsWindow(settingsWindow: BrowserWindow): void {
+    if (this.settingsWindow === settingsWindow) {
+      this.settingsWindow = null
+      this.settingsWindowReady = false
+    }
+    this.releaseWindowListeners(settingsWindow)
+    if (!settingsWindow.isDestroyed()) settingsWindow.destroy()
   }
 
   private displaySnapshots(): readonly DisplaySnapshot[] {

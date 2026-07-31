@@ -37,6 +37,7 @@ interface FakeBrowserWindow {
   isDestroyed(): boolean
   signalReady(): void
   finishLoading(): void
+  failLoading(error: Error): void
   close(): void
   destroy(): void
 }
@@ -84,7 +85,7 @@ vi.mock('electron', async () => {
     loadedUrl: string | null = null
     bounds: Rect
     private destroyed = false
-    private finishLoad: (() => void) | undefined
+    private finishLoad: { resolve: () => void; reject: (error: Error) => void } | undefined
 
     constructor(options: unknown) {
       super()
@@ -152,8 +153,8 @@ vi.mock('electron', async () => {
 
     loadURL(url: string): Promise<void> {
       this.loadedUrl = url
-      return new Promise((resolve) => {
-        this.finishLoad = resolve
+      return new Promise((resolve, reject) => {
+        this.finishLoad = { resolve, reject }
       })
     }
 
@@ -163,7 +164,12 @@ vi.mock('electron', async () => {
     }
 
     finishLoading(): void {
-      this.finishLoad?.()
+      this.finishLoad?.resolve()
+      this.finishLoad = undefined
+    }
+
+    failLoading(error: Error): void {
+      this.finishLoad?.reject(error)
       this.finishLoad = undefined
     }
   }
@@ -332,6 +338,26 @@ describe('WindowManager', () => {
     expect(settingsWindow.focused).toBe(true)
     await finishWindowLoading(settingsWindow)
     await Promise.all([firstOpening, secondOpening])
+  })
+
+  it('destroys a settings window whose navigation failed so a later open can retry', async () => {
+    const manager = createManager()
+    const firstOpening = manager.openSettings()
+    const failedWindow = getWindow(0)
+
+    failedWindow.failLoading(new Error('settings navigation failed'))
+    await expect(firstOpening).rejects.toThrow('settings navigation failed')
+    expect(failedWindow.isDestroyed()).toBe(true)
+
+    const retry = manager.openSettings()
+    const replacementWindow = getWindow(1)
+    replacementWindow.signalReady()
+    await finishWindowLoading(replacementWindow)
+    await retry
+
+    expect(windowHarness.windows).toHaveLength(2)
+    expect(replacementWindow.visible).toBe(true)
+    expect(replacementWindow.focused).toBe(true)
   })
 
   it('shows an already-ready pet singleton only after a new show request', async () => {
