@@ -138,6 +138,12 @@ export class WindowManager {
     await settingsWindow.loadURL(this.rendererUrl('settings'))
   }
 
+  focusSettingsIfOpen(): void {
+    if (!this.settingsWindow || this.settingsWindow.isDestroyed() || !this.settingsWindowReady) return
+    this.settingsWindow.show()
+    this.settingsWindow.focus()
+  }
+
   getWindowKind(webContentsId: number): WindowKind {
     if (
       this.petWindow &&
