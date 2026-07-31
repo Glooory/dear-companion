@@ -1,2 +1,9 @@
 .superpowers/
 .worktrees/
+node_modules/
+out/
+release/
+coverage/
+*.log
+.DS_Store
+*.tsbuildinfo
