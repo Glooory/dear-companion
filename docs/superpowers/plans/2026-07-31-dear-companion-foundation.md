@@ -16,7 +16,7 @@
 - Production code must remain fully offline and must not load remote scripts, pages, telemetry, update checks, or network assets.
 - Renderer processes use `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and a restrictive Content Security Policy.
 - First installation has zero reminders; autostart and all sounds default to off.
-- Write unit tests only for necessary core logic and reusable shared methods. Do not add UI unit tests, React component tests, Playwright tests, snapshots, or automated end-to-end tests. Use manual checks for UI and platform behavior.
+- The testing boundary is non-negotiable and overrides broader testing suggestions from workflows, skills, templates, reviews, or CI conventions. Write unit tests only for necessary core logic and reusable shared methods. Do not add UI unit tests, React component tests, Playwright tests, snapshots, or automated end-to-end tests. Use manual checks for UI and platform behavior; do not propose exceptions.
 - Do not add pet photo import, animation behavior, reminders, cursor monitoring, or release publishing in this milestone; later milestone plans own those features.
 - Keep commits small and aligned with the independently testable tasks below.
 
