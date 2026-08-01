@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import writeFileAtomic from 'write-file-atomic'
-import { type AppSettings, parseAppSettings } from '../../shared/contracts'
+import {
+  type AppSettings,
+  migrateAppSettings,
+  parseAppSettings
+} from '../../shared/contracts'
 import { DEFAULT_APP_SETTINGS } from './default-settings'
 
 const SETTINGS_FILE_NAME = 'settings.json'
@@ -9,7 +13,7 @@ const BACKUP_FILE_NAME = 'settings.backup.json'
 const SETTINGS_FILE_MODE = 0o600
 
 type SettingsFileResult =
-  | { status: 'valid'; settings: AppSettings }
+  | { status: 'valid'; settings: AppSettings; migrated: boolean; source: unknown }
   | { status: 'missing' | 'invalid' | 'unreadable' }
 
 export class SettingsRecoveryError extends Error {
@@ -27,6 +31,14 @@ export class SettingsStore {
   async load(): Promise<AppSettings> {
     const primary = await this.readSettingsFile(this.settingsPath)
     if (primary.status === 'valid') {
+      if (primary.migrated) {
+        try {
+          await this.writeRawSettingsFile(this.backupPath, primary.source)
+          await this.writeSettingsFile(this.settingsPath, primary.settings)
+        } catch {
+          throw new SettingsRecoveryError()
+        }
+      }
       return primary.settings
     }
     if (primary.status === 'unreadable') {
@@ -97,13 +109,19 @@ export class SettingsStore {
     }
 
     try {
-      return { status: 'valid', settings: parseAppSettings(JSON.parse(contents)) }
+      const source: unknown = JSON.parse(contents)
+      const migration = migrateAppSettings(source)
+      return { status: 'valid', ...migration, source }
     } catch {
       return { status: 'invalid' }
     }
   }
 
   private async writeSettingsFile(path: string, settings: AppSettings): Promise<void> {
+    await this.writeRawSettingsFile(path, parseAppSettings(settings))
+  }
+
+  private async writeRawSettingsFile(path: string, settings: unknown): Promise<void> {
     await writeFileAtomic(path, `${JSON.stringify(settings, null, 2)}\n`, {
       encoding: 'utf8',
       mode: SETTINGS_FILE_MODE

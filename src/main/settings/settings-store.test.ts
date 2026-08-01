@@ -3,7 +3,11 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import writeFileAtomic from 'write-file-atomic'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_APP_SETTINGS, type AppSettings } from '../../shared/contracts'
+import {
+  DEFAULT_APP_SETTINGS,
+  type AppSettings,
+  type AppSettingsV1
+} from '../../shared/contracts'
 import { SettingsRecoveryError, SettingsStore } from './settings-store'
 
 const ioFaults = vi.hoisted(() => ({
@@ -67,6 +71,7 @@ describe('SettingsStore', () => {
     expect(settings.petWindow).not.toBe(DEFAULT_APP_SETTINGS.petWindow)
     expect(settings.audio).not.toBe(DEFAULT_APP_SETTINGS.audio)
     expect(settings.reminders).not.toBe(DEFAULT_APP_SETTINGS.reminders)
+    expect(settings.pets).not.toBe(DEFAULT_APP_SETTINGS.pets)
     expect(await readdir(userDataPath)).toEqual([])
   })
 
@@ -74,7 +79,7 @@ describe('SettingsStore', () => {
     const userDataPath = await createUserDataPath()
     const expected: AppSettings = {
       ...DEFAULT_APP_SETTINGS,
-      activePetId: 'pet-1',
+      activePetId: null,
       petWindow: {
         ...DEFAULT_APP_SETTINGS.petWindow,
         x: 120,
@@ -282,5 +287,81 @@ describe('SettingsStore', () => {
 
     await expect(rejected).rejects.toThrow('Invalid pet window settings')
     await expect(committed).resolves.toMatchObject({ petWindow: { visible: false } })
+  })
+
+  it('migrates a valid v1 primary and preserves the original as backup', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV1 = {
+      schemaVersion: 1,
+      activePetId: 'legacy-pet',
+      petWindow: { x: 20, y: 40, displayId: '1', height: 220, visible: false },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: []
+    }
+    await writeFile(join(userDataPath, 'settings.json'), JSON.stringify(legacy))
+
+    const migrated = await new SettingsStore(userDataPath).load()
+
+    expect(migrated).toEqual({ ...legacy, schemaVersion: 2, activePetId: null, pets: [] })
+    expect(JSON.parse(await readFile(join(userDataPath, 'settings.json'), 'utf8'))).toEqual(migrated)
+    expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
+  })
+
+  it('recovers a corrupt primary from a valid v1 backup as schema v2', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV1 = {
+      schemaVersion: 1,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: []
+    }
+    await writeFile(join(userDataPath, 'settings.json'), '{broken')
+    await writeFile(join(userDataPath, 'settings.backup.json'), JSON.stringify(legacy))
+
+    await expect(new SettingsStore(userDataPath).load()).resolves.toEqual({
+      ...legacy,
+      schemaVersion: 2,
+      pets: []
+    })
+  })
+
+  it('leaves a v1 primary intact when migration backup write fails', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV1 = {
+      schemaVersion: 1,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: []
+    }
+    const settingsPath = join(userDataPath, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify(legacy))
+    ioFaults.failedAtomicWritePaths.add(join(userDataPath, 'settings.backup.json'))
+
+    await expect(new SettingsStore(userDataPath).load()).rejects.toBeInstanceOf(SettingsRecoveryError)
+    expect(JSON.parse(await readFile(settingsPath, 'utf8'))).toEqual(legacy)
+  })
+
+  it('leaves a v1 primary intact when migration replacement fails', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV1 = {
+      schemaVersion: 1,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: []
+    }
+    const settingsPath = join(userDataPath, 'settings.json')
+    await writeFile(settingsPath, JSON.stringify(legacy))
+    ioFaults.failedAtomicWritePaths.add(settingsPath)
+
+    await expect(new SettingsStore(userDataPath).load()).rejects.toBeInstanceOf(SettingsRecoveryError)
+    expect(JSON.parse(await readFile(settingsPath, 'utf8'))).toEqual(legacy)
+    expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
   })
 })
