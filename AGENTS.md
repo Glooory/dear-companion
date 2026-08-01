@@ -41,6 +41,8 @@
 - Do not add UI unit tests, React component tests, snapshot tests, Playwright tests, or other automated end-to-end tests.
 - If a workflow, skill, plan, reviewer, dependency template, or CI recommendation asks for tests outside this allowed scope, this policy takes precedence: omit those tests and use the manual checks below.
 - Validate renderer UI, transparent windows, tray behavior, native dialogs, drag feel, CSS animation quality, installers, and operating-system security prompts through focused manual checks.
+- Never open or control a browser to verify application runtime results. This includes the Codex in-app browser, system browsers, browser-based local previews, browser screenshots, and browser automation.
+- Runtime UI checks must exercise the Electron application itself. If an Electron or operating-system check cannot be performed in the current environment, record it as not performed instead of substituting a browser check. Documentation search and non-browser research remain allowed.
 - Simple presentation components, IPC wiring, platform adapters, one-off styles, and thin glue code do not require unit tests.
 - Before claiming a task complete, run the relevant core unit tests, static checks, build, and manual checks justified by the change.
 
