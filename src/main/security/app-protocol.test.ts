@@ -142,4 +142,31 @@ describe('application protocol', () => {
     expect(response.status).toBe(403)
     expect(await response.text()).toBe('Forbidden')
   })
+
+  it('serves only a controlled pet asset resolved from both owned IDs', async () => {
+    const rendererRoot = await createRendererRoot()
+    const assetPath = join(dirname(rendererRoot), 'owned.png')
+    await writeFile(assetPath, 'pet pixels')
+    await registerAppProtocol(rendererRoot, async (petId, assetId) =>
+      petId === 'pet-1' && assetId === 'asset-1' ? assetPath : null
+    )
+
+    const response = await requestRenderer('app://renderer/pet-assets/pet-1/asset-1')
+    const guessed = await requestRenderer('app://renderer/pet-assets/pet-2/asset-1')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('pet pixels')
+    expect(guessed.status).toBe(404)
+  })
+
+  it('rejects malformed or traversing pet asset identifiers before resolution', async () => {
+    const rendererRoot = await createRendererRoot()
+    const resolver = vi.fn(async () => null)
+    await registerAppProtocol(rendererRoot, resolver)
+
+    expect((await requestRenderer('app://renderer/pet-assets/pet-1/..%2Fsecret')).status).toBe(403)
+    expect((await requestRenderer('app://renderer/pet-assets/pet_1/asset-1')).status).toBe(403)
+    expect((await requestRenderer('app://renderer/pet-assets/pet-1')).status).toBe(403)
+    expect(resolver).not.toHaveBeenCalled()
+  })
 })

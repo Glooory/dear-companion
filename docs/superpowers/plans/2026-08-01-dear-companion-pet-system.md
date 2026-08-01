@@ -6,7 +6,7 @@
 
 **Architecture:** Extend the global settings file to schema v2 and keep atomic backup/recovery in `SettingsStore`; an independent main-process `PetPackService` owns pet directories, image validation, safe copies, and resource resolution. Pure shared TypeScript modules own geometry, action fallback, interaction arbitration, drag velocity, and state transitions. The preload exposes only typed pet operations, while React renderers consume controlled `app://renderer/pet-assets/...` URLs and never receive arbitrary filesystem access.
 
-**Tech Stack:** Node.js 24, pnpm 10.33, Electron 43, React 19, TypeScript 5.9, electron-vite, Vite, Vitest, ESLint, electron-builder; Electron `nativeImage` is used for PNG/WebP decoding so no image-processing dependency is added.
+**Tech Stack:** Node.js 24, pnpm 10.33, Electron 43, React 19, TypeScript 5.9, electron-vite, Vite, Vitest, ESLint, electron-builder, and sharp for asynchronous PNG/WebP decoding. A real Electron 43 smoke check confirmed `nativeImage` decodes alpha PNG but returns an empty image for WebP, so the minimal dedicated decoder is necessary for the approved format requirements.
 
 ## Global Constraints
 
@@ -32,7 +32,7 @@
 src/
 ├── main/
 │   ├── images/
-│   │   ├── image-decoder.ts                 # Electron nativeImage adapter and decoded alpha bytes
+│   │   ├── image-decoder.ts                 # Async sharp adapter and decoded RGBA bytes
 │   │   └── image-input.ts                   # Signature, limits, decoded-result validation
 │   ├── ipc/
 │   │   └── register-pet-system-ipc.ts       # Validated pet commands, picker, events, context menu
@@ -141,14 +141,14 @@ pnpm vitest run src/shared/contracts.test.ts src/main/settings/settings-store.te
 - `detectImageFormat(bytes: Uint8Array): 'png' | 'webp' | null` checks PNG magic or RIFF/WEBP structure and never trusts the extension or supplied MIME.
 - `validateImageFileSize(byteSize)` enforces `1..20 * 1024 * 1024`.
 - `validateDecodedImage({ format, width, height, bitmap })` enforces nonempty decode, `1..8192` dimensions, exact four-byte pixel length, at least one visible pixel, and at least one non-opaque pixel; it returns alpha bounds.
-- `ElectronImageDecoder.decode(bytes, expectedFormat)` calls `nativeImage.createFromBuffer(bytes, { scaleFactor: 1 })`, checks nonempty decoded size, obtains the supported-platform bitmap, and passes only decoded facts into pure validation. Supported Windows/macOS targets are little-endian and use alpha byte offset 3; the adapter rejects unexpected bitmap lengths.
+- `SharpImageDecoder.decode(bytes, expectedFormat)` asynchronously decodes with a 8192×8192 pixel limit, verifies decoded format and dimensions, obtains four-channel RGBA bytes, and passes only decoded facts into pure validation.
 - `PetPackService.createPet(name)`, `deletePet(petId)`, `importAssets(petId, sourcePaths)`, `updatePet(input)`, `setActivePet(petId)`, `getSnapshot()`, and `resolveAssetPath(petId, assetId)` own all pet data mutations.
 - Imported copies live at `<userData>/pets/<petId>/assets/<generatedAssetId>.<png|webp>` with mode `0o600`; IDs and filenames are generated internally. Copy uses exclusive creation and cleanup on failure. Original paths are neither persisted nor logged.
 - `PetSystemApi` exposes `getPetSystemSnapshot`, `createPet`, `deletePet`, `chooseAndImportPetAssets(petId)`, `updatePet`, `setActivePet`, `setTargetHeight`, `setPetVisibility`, `movePetBy`, `showPetContextMenu`, and `onPetSystemChanged`. It exposes no path, MIME, filesystem, generic IPC, shell, or command method.
 - Controlled URLs use `app://renderer/pet-assets/<petId>/<assetId>`; protocol resolution delegates to `PetPackService.resolveAssetPath`, verifies the real path stays inside the generated asset directory, and returns 403/404 without revealing local paths.
 
 - [ ] Test signature detection, empty/oversize file rejection, corrupt decode metadata, dimensions above 8192, missing partial transparency, all-transparent input, valid transparent input, and pack-size arithmetic at the 250 MiB boundary.
-- [ ] Implement `ElectronImageDecoder` without adding a dependency. Keep file reads asynchronous; do not log bytes or source paths.
+- [ ] Implement `SharpImageDecoder` as the single image dependency after the recorded Electron smoke-check failure. Keep decoding and file reads asynchronous; do not log bytes or source paths.
 - [ ] Test `PetPackService` with an injected decoder and temporary user-data directory: safe generated names, successful multi-file import, per-file understandable failures without rolling back successful siblings, no settings mutation before the copy succeeds, pack-capacity rejection, cleanup after a failed save, ownership validation, and immutable copied bytes after metadata edits.
 - [ ] Implement pet CRUD and metadata updates through `SettingsStore.update`. Require at least one mapped idle asset before `setActivePet`; deleting the active pet clears `activePetId` but does not affect other packs.
 - [ ] Extend the application protocol with the controlled asset route and security tests for malformed IDs, cross-pet asset guesses, traversal, symlink escape, missing assets, and successful contained access.
@@ -248,4 +248,3 @@ pnpm typecheck
 - [ ] Consolidate all review findings into one fix pass, add a single coherent fix commit if changes are needed, and re-run `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
 - [ ] Re-review only unresolved Critical or Important findings, if any.
 - [ ] Confirm `git status --short` is clean, leave `codex/dear-companion-pet-system` unmerged, and preserve the worktree for user confirmation.
-

@@ -94,6 +94,60 @@ export interface FoundationApi {
   getWindowKind(): WindowKind
 }
 
+export interface PetAssetAdjustment {
+  id: string
+  normalization: AssetNormalization
+}
+
+export interface PetUpdateInput {
+  id: string
+  name: string
+  targetHeight: number
+  assets: readonly PetAssetAdjustment[]
+  actionSlots: PetActionSlots
+  actionTemplates: PetActionTemplates
+}
+
+export type ImageImportErrorCode =
+  | 'unsupported-type'
+  | 'empty-file'
+  | 'file-too-large'
+  | 'read-failed'
+  | 'decode-failed'
+  | 'dimensions-too-large'
+  | 'no-transparency'
+  | 'fully-transparent'
+  | 'pack-too-large'
+  | 'copy-failed'
+
+export interface ImageImportFailure {
+  index: number
+  code: ImageImportErrorCode
+  message: string
+}
+
+export interface ImageImportResult {
+  imported: readonly PetAsset[]
+  failures: readonly ImageImportFailure[]
+}
+
+export interface PetSystemSnapshot {
+  activePetId: string | null
+  petWindow: PetWindowSettings
+  pets: readonly PetConfig[]
+}
+
+export interface PetSystemApi extends FoundationApi {
+  getPetSystemSnapshot(): Promise<PetSystemSnapshot>
+  createPet(name: string): Promise<PetSystemSnapshot>
+  chooseAndImportPetAssets(petId: string): Promise<ImageImportResult>
+  updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>
+  setActivePet(petId: string): Promise<PetSystemSnapshot>
+  movePetBy(deltaX: number, deltaY: number): void
+  showPetContextMenu(): void
+  onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void
+}
+
 export interface SettingsMigrationResult {
   settings: AppSettings
   migrated: boolean
@@ -178,6 +232,60 @@ export function isSafeIdentifier(value: unknown): value is string {
   return typeof value === 'string' && IDENTIFIER_PATTERN.test(value)
 }
 
+export function parsePetIdentifier(value: unknown): string {
+  if (!isSafeIdentifier(value)) throw new Error('Invalid pet identifier')
+  return value
+}
+
+export function parsePetName(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('Invalid pet name')
+  const name = value.trim()
+  if (name.length < 1 || name.length > 80) throw new Error('Invalid pet name')
+  return name
+}
+
+export function parsePetUpdateInput(
+  value: unknown,
+  availableAssetIds: readonly string[]
+): PetUpdateInput {
+  if (!isRecord(value)) throw new Error('Invalid pet update')
+  const id = parsePetIdentifier(value.id)
+  const name = parsePetName(value.name)
+  if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
+    throw new Error('Invalid pet target height')
+  }
+  if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset adjustments')
+  const assets = value.assets.map((entry) => {
+    if (!isRecord(entry)) throw new Error('Invalid pet asset adjustment')
+    return {
+      id: parsePetIdentifier(entry.id),
+      normalization: parseNormalization(entry.normalization)
+    }
+  })
+  assertUnique(assets.map((asset) => asset.id), 'Duplicate pet asset adjustment')
+  const expected = new Set(availableAssetIds)
+  if (assets.length !== expected.size || assets.some((asset) => !expected.has(asset.id))) {
+    throw new Error('Pet update must contain every current asset exactly once')
+  }
+
+  return {
+    id,
+    name,
+    targetHeight: value.targetHeight,
+    assets,
+    actionSlots: parseActionSlots(value.actionSlots, expected),
+    actionTemplates: parseActionTemplates(value.actionTemplates)
+  }
+}
+
+export function createPetSystemSnapshot(settings: AppSettings): PetSystemSnapshot {
+  return {
+    activePetId: settings.activePetId,
+    petWindow: { ...settings.petWindow },
+    pets: settings.pets.map((pet) => parsePetConfig(pet, 0))
+  }
+}
+
 function parseAppSettingsV1(value: Record<string, unknown>): AppSettingsV1 {
   const base = parseFoundationFields(value)
   return {
@@ -258,9 +366,8 @@ function parseFoundationFields(value: Record<string, unknown>): Omit<
 function parsePetConfig(value: unknown, index: number): PetConfig {
   if (!isRecord(value)) throw new Error(`Invalid pet at index ${index}`)
   if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
-  if (typeof value.name !== 'string' || value.name.trim() !== value.name || value.name.length < 1 || value.name.length > 80) {
-    throw new Error('Invalid pet name')
-  }
+  const name = parsePetName(value.name)
+  if (name !== value.name) throw new Error('Invalid pet name')
   if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
     throw new Error('Invalid pet target height')
   }
@@ -273,7 +380,7 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
 
   return {
     id: value.id,
-    name: value.name,
+    name,
     targetHeight: value.targetHeight,
     assets,
     actionSlots: parseActionSlots(value.actionSlots, assetIds),
