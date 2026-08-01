@@ -1,38 +1,49 @@
 import { useEffect, useMemo, useState } from 'react'
 import type {
   AppSettings,
+  AudioImportResult,
+  AudioSourceInput,
+  CreateReminderInput,
   ImageImportResult,
   PetConfig,
-  PetSystemApi,
+  ReminderSchedule,
+  RestSystemApi,
+  RestSystemSnapshot,
   PetSystemSnapshot,
   PetUpdateInput
 } from '@shared/contracts'
 import { ActionSlotEditor } from '../components/ActionSlotEditor'
 import { PetAssetEditor } from '../components/PetAssetEditor'
+import { AudioSettings } from '../components/AudioSettings'
+import { ReminderEditor, type ReminderDraft } from '../components/ReminderEditor'
 
 interface SettingsShellProps {
-  api: PetSystemApi
+  api: RestSystemApi
 }
 
 export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null)
+  const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PetUpdateInput | null>(null)
   const [newPetName, setNewPetName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [importReport, setImportReport] = useState<ImageImportResult | null>(null)
+  const [audioImportReport, setAudioImportReport] = useState<AudioImportResult | null>(null)
+  const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([api.getSettings(), api.getPetSystemSnapshot()]).then(
-      ([loadedSettings, loadedSnapshot]) => {
+    void Promise.all([api.getSettings(), api.getPetSystemSnapshot(), api.getRestSystemSnapshot()]).then(
+      ([loadedSettings, loadedSnapshot, loadedRestSnapshot]) => {
         if (cancelled) return
         const initialPet = loadedSnapshot.pets.find((pet) => pet.id === loadedSnapshot.activePetId) ?? loadedSnapshot.pets[0] ?? null
         setSettings(loadedSettings)
         setSnapshot(loadedSnapshot)
+        setRestSnapshot(loadedRestSnapshot)
         setSelectedPetId((current) => current ?? initialPet?.id ?? null)
         setDraft((current) => current ?? (initialPet ? petToUpdateInput(initialPet) : null))
       },
@@ -49,6 +60,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       petWindow: next.petWindow,
       pets: next.pets
     } : current)
+  }), [api])
+
+  useEffect(() => api.onRestSystemChanged((next) => {
+    setRestSnapshot(next)
+    setSettings((current) => current ? { ...current, reminders: next.reminders, audio: next.audio } : current)
   }), [api])
 
   const selectedPet = useMemo(
@@ -127,8 +143,76 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     })
   }
 
+  const applyRestSnapshot = (next: RestSystemSnapshot): void => {
+    setRestSnapshot(next)
+    setSettings((current) => current ? { ...current, reminders: next.reminders, audio: next.audio } : current)
+  }
+
+  const newReminder = (): void => setReminderDraft({
+    hour: null,
+    minute: null,
+    weekdays: [0, 1, 2, 3, 4, 5, 6],
+    restDurationMinutes: 10,
+    cursorTolerance: 'standard',
+    message: '该休息一下啦，陪我安静待一会儿吧。',
+    sounds: { reminder: false, crying: false },
+    enabled: true
+  })
+
+  const editReminder = (reminder: ReminderSchedule): void => setReminderDraft({
+    ...reminder,
+    weekdays: [...reminder.weekdays],
+    sounds: { ...reminder.sounds }
+  })
+
+  const saveReminder = (): void => {
+    const draftValue = reminderDraft
+    if (!draftValue || draftValue.hour === null || draftValue.minute === null) return
+    const input: CreateReminderInput = {
+      enabled: draftValue.enabled,
+      hour: draftValue.hour,
+      minute: draftValue.minute,
+      weekdays: [...draftValue.weekdays],
+      restDurationMinutes: draftValue.restDurationMinutes,
+      cursorTolerance: draftValue.cursorTolerance,
+      message: draftValue.message,
+      sounds: { ...draftValue.sounds }
+    }
+    void runMutation(async () => {
+      const next = draftValue.id
+        ? await api.updateReminder({ id: draftValue.id, ...input })
+        : await api.createReminder(input)
+      applyRestSnapshot(next)
+      setReminderDraft(null)
+    })
+  }
+
+  const deleteReminder = (): void => {
+    if (!reminderDraft?.id) return
+    void runMutation(async () => {
+      applyRestSnapshot(await api.deleteReminder(reminderDraft.id!))
+      setReminderDraft(null)
+    })
+  }
+
+  const setReminderEnabled = (reminder: ReminderSchedule): void => {
+    void runMutation(async () => applyRestSnapshot(await api.setReminderEnabled(reminder.id, !reminder.enabled)))
+  }
+
+  const importAudio = (): void => {
+    void runMutation(async () => {
+      const report = await api.chooseAndImportAudio()
+      setAudioImportReport(report)
+      applyRestSnapshot(await api.getRestSystemSnapshot())
+    })
+  }
+
+  const updateAudioSources = (input: AudioSourceInput): void => {
+    void runMutation(async () => applyRestSnapshot(await api.updateAudioSources(input)))
+  }
+
   return (
-    <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot}>
+    <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot || !restSnapshot}>
       <header className="settings-header">
         <p className="eyebrow">本地离线桌面伙伴</p>
         <h1>Dear Companion</h1>
@@ -283,8 +367,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </div>
       )}
 
-      {settings && (
-        <section className="settings-sections phase-two-foundation">
+      {settings && restSnapshot && (
+        <section className="settings-sections phase-two-foundation phase-three-settings">
           <article className="settings-card">
             <h2>桌面显示</h2>
             <label className="toggle-control">
@@ -298,14 +382,18 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             </label>
           </article>
           <article className="settings-card">
-            <h2>提醒</h2>
-            <p>尚未设置提醒</p>
-            <p className="supporting-copy">提醒和休息流程属于后续阶段；当前不会自动创建提醒。</p>
+            <div className="editor-heading-row"><div><h2>提醒</h2><p className="supporting-copy">首次安装不会自动创建提醒。</p></div>
+              {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加提醒</button>}
+            </div>
+            {restSnapshot.runtime.serviceStatus === 'error' && <div className="service-error" role="alert"><span>{restSnapshot.runtime.serviceError?.message ?? '提醒服务暂时不可用'}</span><button type="button" onClick={() => void runMutation(async () => applyRestSnapshot(await api.retryReminderService()))}>重试</button></div>}
+            {reminderDraft ? <ReminderEditor value={reminderDraft} disabled={isBusy} onChange={setReminderDraft} onSave={saveReminder} onCancel={() => setReminderDraft(null)} onDelete={reminderDraft.id ? deleteReminder : undefined} /> :
+              <div className="reminder-list">{restSnapshot.reminders.length === 0 ? <p className="empty-editor-state">尚未设置提醒。点击“添加提醒”后，只会创建本地草稿；保存后才会写入。</p> : restSnapshot.reminders.map((reminder) => <div className="reminder-row" key={reminder.id}><button type="button" className="reminder-summary" onClick={() => editReminder(reminder)}><strong>{String(reminder.hour).padStart(2, '0')}:{String(reminder.minute).padStart(2, '0')}</strong><span>{reminder.message}</span></button><label><input type="checkbox" checked={reminder.enabled} disabled={isBusy} onChange={() => setReminderEnabled(reminder)} />启用</label></div>)}</div>}
           </article>
+          <AudioSettings audio={restSnapshot.audio} report={audioImportReport} disabled={isBusy} onImport={importAudio} onChange={updateAudioSources} />
         </section>
       )}
 
-      <footer className="privacy-note">照片和设置只保存在这台电脑上；应用不会上传素材。</footer>
+      <footer className="privacy-note">照片、音频和设置只保存在这台电脑上；应用不会上传素材。</footer>
     </main>
   )
 }

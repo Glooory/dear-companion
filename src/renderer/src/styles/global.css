@@ -458,6 +458,115 @@ input:focus-visible {
   margin-top: 18px;
 }
 
+.phase-three-settings {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+}
+
+.phase-three-settings > .settings-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.reminder-editor,
+.reminder-list,
+.audio-settings {
+  display: grid;
+  gap: 14px;
+}
+
+.reminder-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.reminder-fields label,
+.message-field,
+.audio-source {
+  display: grid;
+  gap: 6px;
+  color: #5a5a54;
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.reminder-fields input,
+.reminder-fields select,
+.message-field textarea,
+.audio-source select {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid #d7d7d0;
+  border-radius: 8px;
+  background: white;
+  color: #34342f;
+}
+
+.message-field textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.weekday-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 11px;
+  border: 1px solid #dfded8;
+  border-radius: 10px;
+}
+
+.weekday-picker label,
+.reminder-toggles,
+.reminder-row,
+.service-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reminder-toggles {
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.reminder-row {
+  justify-content: space-between;
+  padding: 10px;
+  border: 1px solid #e3e2dc;
+  border-radius: 10px;
+}
+
+.reminder-summary {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #34342f;
+  cursor: pointer;
+  text-align: left;
+}
+
+.service-error {
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 9px;
+  background: #fff0ef;
+  color: #8b3532;
+}
+
+.danger-button {
+  margin-right: auto;
+  padding: 9px 13px;
+  border: 1px solid #d8a5a2;
+  border-radius: 9px;
+  background: #fff5f4;
+  color: #8b3532;
+  cursor: pointer;
+}
+
 @media (max-width: 1000px) {
   .asset-editor {
     grid-template-columns: 1fr;
@@ -475,6 +584,15 @@ input:focus-visible {
   .action-slot-grid,
   .phase-two-foundation {
     grid-template-columns: 1fr;
+  }
+
+  .reminder-fields,
+  .phase-three-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .phase-three-settings > .settings-card:first-child {
+    grid-column: auto;
   }
 
   .pet-list-panel {
