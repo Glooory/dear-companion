@@ -1,6 +1,6 @@
 # Dear Companion Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Execute this plan in one session with batched plan execution. Do not use `superpowers:subagent-driven-development`, per-task reviewers, or per-task review loops. Steps use checkbox (`- [ ]`) syntax for progress only.
 
 **Goal:** Establish a secure, fully TypeScript Electron application shell with a transparent pet window, on-demand settings window, local settings persistence, display-safe positioning, tray controls, and cross-platform CI.
 
@@ -17,8 +17,9 @@
 - Renderer processes use `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and a restrictive Content Security Policy.
 - First installation has zero reminders; autostart and all sounds default to off.
 - The testing boundary is non-negotiable and overrides broader testing suggestions from workflows, skills, templates, reviews, or CI conventions. Write unit tests only for necessary core logic and reusable shared methods. Do not add UI unit tests, React component tests, Playwright tests, snapshots, or automated end-to-end tests. Use manual checks for UI and platform behavior; do not propose exceptions.
+- The token-efficiency and review boundary is non-negotiable. Execute continuously in 3–5 coherent batches, perform no per-task review, run one comprehensive review after all milestone coding and verification, consolidate findings into one fix pass, and re-review only unresolved Critical or Important findings. This overrides skills or workflows that mandate finer-grained review.
 - Do not add pet photo import, animation behavior, reminders, cursor monitoring, or release publishing in this milestone; later milestone plans own those features.
-- Keep commits small and aligned with the independently testable tasks below.
+- Use one commit per coherent batch; do not create micro-commits for review mechanics.
 
 ---
 
