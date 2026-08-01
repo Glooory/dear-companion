@@ -5,6 +5,7 @@ import {
   type MenuItemConstructorOptions,
   type NativeImage
 } from 'electron'
+import { join } from 'node:path'
 import type { AppSettings } from '../../shared/contracts'
 import type { SettingsStore } from '../settings/settings-store'
 import type { WindowManager } from '../windows/window-manager'
@@ -18,6 +19,9 @@ interface TrayControllerOptions {
   requestQuit: () => void
   endRestSession?: () => void
   platform?: NodeJS.Platform
+  isPackaged?: boolean
+  resourcesPath?: string
+  projectRoot?: string
 }
 
 export class TrayController {
@@ -28,6 +32,9 @@ export class TrayController {
   private readonly windowManager: TrayControllerOptions['windowManager']
   private readonly requestQuit: () => void
   private readonly platform: NodeJS.Platform
+  private readonly isPackaged: boolean
+  private readonly resourcesPath: string
+  private readonly projectRoot: string
   private readonly endRestSession: () => void
   private restSessionActive = false
 
@@ -36,19 +43,30 @@ export class TrayController {
     windowManager,
     requestQuit,
     platform = process.platform,
+    isPackaged = false,
+    resourcesPath = process.resourcesPath,
+    projectRoot = process.cwd(),
     endRestSession = () => undefined
   }: TrayControllerOptions) {
     this.settingsStore = settingsStore
     this.windowManager = windowManager
     this.requestQuit = requestQuit
     this.platform = platform
+    this.isPackaged = isPackaged
+    this.resourcesPath = resourcesPath
+    this.projectRoot = projectRoot
     this.endRestSession = endRestSession
   }
 
   create(): void {
     if (this.tray && !this.tray.isDestroyed()) return
 
-    const trayIcon = createTrayIcon()
+    const trayIcon = createTrayIcon({
+      platform: this.platform,
+      isPackaged: this.isPackaged,
+      resourcesPath: this.resourcesPath,
+      projectRoot: this.projectRoot
+    })
     if (this.platform === 'darwin') trayIcon.setTemplateImage(true)
 
     this.tray = new Tray(trayIcon)
@@ -124,7 +142,21 @@ export class TrayController {
   }
 }
 
-function createTrayIcon(): NativeImage {
+interface TrayIconOptions {
+  platform: NodeJS.Platform
+  isPackaged: boolean
+  resourcesPath: string
+  projectRoot: string
+}
+
+function createTrayIcon(options: TrayIconOptions): NativeImage {
+  const fileName = options.platform === 'darwin' ? 'trayTemplate.png' : 'tray-win.png'
+  const trayPath = options.isPackaged
+    ? join(options.resourcesPath, 'tray', fileName)
+    : join(options.projectRoot, 'resources', 'tray', fileName)
+  const image = nativeImage.createFromPath(trayPath)
+  if (!image.isEmpty()) return image
+
   return nativeImage.createFromDataURL(
     `data:image/svg+xml;charset=utf-8,${encodeURIComponent(traySvg)}`
   )

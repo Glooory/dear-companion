@@ -2,14 +2,21 @@ appId: com.glooory.dearcompanion
 productName: Dear Companion
 directories:
   output: release
+  buildResources: build
 files:
   - out/**
+extraResources:
+  - from: resources/tray
+    to: tray
+    filter:
+      - "*.png"
 asar: true
+artifactName: Dear-Companion-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.lifestyle
+  identity: null
   target:
     - dmg
-    - zip
 win:
   target:
     - target: nsis
@@ -17,4 +24,5 @@ win:
         - x64
 nsis:
   oneClick: false
+  perMachine: false
   allowToChangeInstallationDirectory: true

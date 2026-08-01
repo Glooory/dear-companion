@@ -255,7 +255,13 @@ if (!hasSingleInstanceLock) {
     })
     runtimeManager = manager
     const endRestSession = (): void => runtimeRestController?.endManually()
-    const tray = new TrayController({ settingsStore: store, windowManager: manager, requestQuit, endRestSession })
+    const tray = new TrayController({
+      settingsStore: store,
+      windowManager: manager,
+      requestQuit,
+      endRestSession,
+      isPackaged: app.isPackaged
+    })
     runtimeTray = tray
     disposePendingStartup = () => {
       for (const dispose of [() => tray.dispose(), () => manager.dispose()]) {
