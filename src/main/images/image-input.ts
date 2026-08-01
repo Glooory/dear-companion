@@ -1,9 +1,14 @@
 import { analyzeAlphaChannel } from '../../shared/alpha-bounds'
-import type { AlphaBounds, ImageImportErrorCode, PetAssetFormat } from '../../shared/contracts'
+import {
+  MAX_PET_PACK_BYTES,
+  type AlphaBounds,
+  type ImageImportErrorCode,
+  type PetAssetFormat
+} from '../../shared/contracts'
 
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
 export const MAX_IMAGE_DIMENSION = 8192
-export const MAX_PET_PACK_BYTES = 250 * 1024 * 1024
+export { MAX_PET_PACK_BYTES }
 
 export interface DecodedImageInput {
   width: number

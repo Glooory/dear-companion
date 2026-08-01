@@ -122,6 +122,21 @@ describe('settings contracts', () => {
     ).toThrow('Invalid asset normalization')
   })
 
+  it('rejects a configured pet pack above 250 MB', () => {
+    const pet = createPet()
+    const template = pet.assets[0]!
+    const assets = Array.from({ length: 13 }, (_, index) => ({
+      ...template,
+      id: `asset-${index}`,
+      fileName: `asset-${index}.png`,
+      byteSize: 20 * 1024 * 1024
+    }))
+    expect(() => parseAppSettings({
+      ...DEFAULT_APP_SETTINGS,
+      pets: [{ ...pet, assets, actionSlots: { ...pet.actionSlots, idle: ['asset-0'] } }]
+    })).toThrow('exceeds 250 MB')
+  })
+
   it('rejects settings with unsupported reminder payloads', () => {
     expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{}] })).toThrow(
       'Unsupported reminder data in schema version 2'

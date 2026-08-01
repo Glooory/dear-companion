@@ -27,13 +27,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    setError(null)
     void Promise.all([api.getSettings(), api.getPetSystemSnapshot()]).then(
       ([loadedSettings, loadedSnapshot]) => {
         if (cancelled) return
+        const initialPet = loadedSnapshot.pets.find((pet) => pet.id === loadedSnapshot.activePetId) ?? loadedSnapshot.pets[0] ?? null
         setSettings(loadedSettings)
         setSnapshot(loadedSnapshot)
-        setSelectedPetId((current) => current ?? loadedSnapshot.activePetId ?? loadedSnapshot.pets[0]?.id ?? null)
+        setSelectedPetId((current) => current ?? initialPet?.id ?? null)
+        setDraft((current) => current ?? (initialPet ? petToUpdateInput(initialPet) : null))
       },
       () => { if (!cancelled) setError('无法读取本地设置，请重试') }
     )
@@ -54,11 +55,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
     [selectedPetId, snapshot]
   )
-
-  useEffect(() => {
-    setDraft(selectedPet ? petToUpdateInput(selectedPet) : null)
-    setImportReport(null)
-  }, [selectedPet])
 
   const runMutation = async (operation: () => Promise<void>): Promise<void> => {
     if (isBusy) return
@@ -84,6 +80,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       const created = next.pets.at(-1)
       setSnapshot(next)
       setSelectedPetId(created?.id ?? null)
+      setDraft(created ? petToUpdateInput(created) : null)
       setNewPetName('')
     })
   }
@@ -93,7 +90,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       const report = await api.chooseAndImportPetAssets(selectedPetId)
       setImportReport(report)
-      setSnapshot(await api.getPetSystemSnapshot())
+      const next = await api.getPetSystemSnapshot()
+      setSnapshot(next)
+      const nextPet = next.pets.find((pet) => pet.id === selectedPetId)
+      if (nextPet) setDraft(petToUpdateInput(nextPet))
     })
   }
 
@@ -102,6 +102,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       const next = await api.updatePet(draft)
       setSnapshot(next)
+      const nextPet = next.pets.find((pet) => pet.id === draft.id)
+      if (nextPet) setDraft(petToUpdateInput(nextPet))
     })
   }
 
@@ -111,6 +113,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       await api.updatePet(draft)
       const next = await api.setActivePet(draft.id)
       setSnapshot(next)
+      const nextPet = next.pets.find((pet) => pet.id === draft.id)
+      if (nextPet) setDraft(petToUpdateInput(nextPet))
       setSettings((current) => current ? { ...current, activePetId: next.activePetId, pets: next.pets } : current)
     })
   }
@@ -134,7 +138,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       {error && (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          {!settings && <button type="button" onClick={() => setLoadAttempt((value) => value + 1)}>重试</button>}
+          {!settings && <button type="button" onClick={() => {
+            setError(null)
+            setLoadAttempt((value) => value + 1)
+          }}>重试</button>}
         </div>
       )}
 
@@ -148,7 +155,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   type="button"
                   key={pet.id}
                   className={pet.id === selectedPetId ? 'selected' : ''}
-                  onClick={() => setSelectedPetId(pet.id)}
+                  onClick={() => {
+                    setSelectedPetId(pet.id)
+                    setDraft(petToUpdateInput(pet))
+                    setImportReport(null)
+                  }}
                 >
                   <span>{pet.name}</span>
                   {pet.id === snapshot.activePetId && <small>当前</small>}
@@ -207,8 +218,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       max={260}
                       value={draft.targetHeight}
                       onChange={(event) => {
+                        if (event.currentTarget.value.trim() === '') return
                         const value = Number(event.currentTarget.value)
-                        if (Number.isFinite(value)) setDraft({ ...draft, targetHeight: value })
+                        if (Number.isFinite(value)) {
+                          setDraft({ ...draft, targetHeight: Math.min(Math.max(value, 80), 260) })
+                        }
                       }}
                     />
                   </label>

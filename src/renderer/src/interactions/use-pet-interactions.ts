@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import type { ActionSlot, PetSystemApi } from '@shared/contracts'
 import { isAngryDragRelease, type PointerSample } from '@shared/drag-gesture'
 import { ClickIntentArbiter } from '@shared/interaction-intents'
@@ -8,7 +8,7 @@ interface UsePetInteractionsOptions {
   api: Pick<PetSystemApi, 'movePetBy' | 'showPetContextMenu'>
   visible: boolean
   angryVelocity: number
-  onAction: (slot: ActionSlot) => void
+  onAction: (slot: ActionSlot, complete: () => void) => void
 }
 
 interface DragSession {
@@ -25,40 +25,40 @@ export function usePetInteractions({
   onAction
 }: UsePetInteractionsOptions) {
   const [state, setState] = useState<PetState>(visible ? 'idle' : 'hidden')
+  const [previousVisible, setPreviousVisible] = useState(visible)
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const drag = useRef<DragSession | null>(null)
   const suppressClick = useRef(false)
-  const actionCallback = useRef(onAction)
-  const clickArbiter = useRef<ClickIntentArbiter | null>(null)
-  actionCallback.current = onAction
+  const [clickArbiter] = useState(() => new ClickIntentArbiter(220))
 
-  if (!clickArbiter.current) clickArbiter.current = new ClickIntentArbiter(220)
-
-  useEffect(() => () => clickArbiter.current?.dispose(), [])
-
-  useEffect(() => {
-    setState((current) => transitionPetState(current, { type: visible ? 'show' : 'hide' }))
-    if (!visible) {
-      drag.current = null
-      setTilt({ x: 0, y: 0 })
-      clickArbiter.current?.dispose()
-    }
-  }, [visible])
-
-  const triggerAction = (slot: 'cute' | 'petting' | 'blink'): void => {
-    setState((current) => {
-      const next = transitionPetState(current, { type: 'action-start' })
-      if (next === 'performingAction' && current !== 'performingAction') actionCallback.current(slot)
-      return next
-    })
+  if (previousVisible !== visible) {
+    setPreviousVisible(visible)
+    setState(visible ? 'idle' : 'hidden')
   }
 
-  const finishAction = (): void => {
+  useEffect(() => () => clickArbiter.dispose(), [clickArbiter])
+
+  useEffect(() => {
+    if (!visible) {
+      drag.current = null
+      clickArbiter.dispose()
+    }
+  }, [clickArbiter, visible])
+
+  const finishAction = useCallback((): void => {
     setState((current) => current === 'angry'
       ? transitionPetState(current, { type: 'anger-complete' })
       : transitionPetState(current, { type: 'action-complete' })
     )
-  }
+  }, [])
+
+  const triggerAction = useCallback((slot: 'cute' | 'petting' | 'blink'): void => {
+    const next = transitionPetState(state, { type: 'action-start' })
+    if (next === 'performingAction' && state !== 'performingAction') {
+      setState(next)
+      onAction(slot, finishAction)
+    }
+  }, [finishAction, onAction, state])
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0 || state === 'hidden') return
@@ -106,8 +106,9 @@ export function usePetInteractions({
     }
     const angry = session.moved && isAngryDragRelease(session.samples, angryVelocity)
     suppressClick.current = session.moved
+    if (session.moved) setTimeout(() => { suppressClick.current = false }, 0)
     setState((current) => transitionPetState(current, { type: 'drag-release', angry }))
-    if (angry) actionCallback.current('angry')
+    if (angry) onAction('angry', finishAction)
   }
 
   const onClick = (): void => {
@@ -115,12 +116,12 @@ export function usePetInteractions({
       suppressClick.current = false
       return
     }
-    clickArbiter.current?.singleClick(() => triggerAction('cute'))
+    clickArbiter.singleClick(() => triggerAction('cute'))
   }
 
   const onDoubleClick = (): void => {
     if (suppressClick.current) return
-    clickArbiter.current?.doubleClick(() => triggerAction('petting'))
+    clickArbiter.doubleClick(() => triggerAction('petting'))
   }
 
   const onPointerLeave = (): void => {
@@ -135,8 +136,8 @@ export function usePetInteractions({
   }
 
   return {
-    state,
-    tilt,
+    state: visible ? state : 'hidden',
+    tilt: visible ? tilt : { x: 0, y: 0 },
     triggerAction,
     finishAction,
     handlers: {

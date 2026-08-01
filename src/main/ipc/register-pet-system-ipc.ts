@@ -1,6 +1,7 @@
 import { Menu, dialog, ipcMain, type IpcMainEvent } from 'electron'
 import {
   createPetSystemSnapshot,
+  parsePetIdentifier,
   type AppSettings,
   type PetSystemSnapshot
 } from '../../shared/contracts'
@@ -115,6 +116,11 @@ export function registerPetSystemIpc({
 
     handle(IPC_CHANNELS.importPetAssets, async (event, petId: unknown) => {
       requireSettingsSender(event.sender.id)
+      const validatedPetId = parsePetIdentifier(petId)
+      const snapshot = await petPackService.getSnapshot()
+      if (!snapshot.pets.some((pet) => pet.id === validatedPetId)) {
+        throw new Error('Pet does not exist')
+      }
       const owner = windowManager.getOwnedWindow(event.sender.id)
       const selection = await dialog.showOpenDialog(owner, {
         title: '导入透明宠物图片',
@@ -124,7 +130,7 @@ export function registerPetSystemIpc({
       if (selection.canceled || selection.filePaths.length === 0) {
         return { imported: [], failures: [] }
       }
-      const result = await petPackService.importAssets(petId, selection.filePaths)
+      const result = await petPackService.importAssets(validatedPetId, selection.filePaths)
       if (result.imported.length > 0) broadcast(await petPackService.getSnapshot())
       return result
     })

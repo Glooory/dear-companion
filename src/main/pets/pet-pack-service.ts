@@ -15,8 +15,7 @@ import {
   type ImageImportResult,
   type PetAsset,
   type PetConfig,
-  type PetSystemSnapshot,
-  type PetUpdateInput
+  type PetSystemSnapshot
 } from '../../shared/contracts'
 import type { SettingsStore } from '../settings/settings-store'
 import type { ImageDecoder } from '../images/image-decoder'
@@ -152,8 +151,8 @@ export class PetPackService {
         const bytes = await readSourceFile(sourcePath)
         const format = detectImageFormat(bytes)
         if (!format) throw new ImageInputError('unsupported-type', '只支持透明 PNG 或 WebP 图片')
-        const decoded = await this.imageDecoder.decode(bytes, format)
         validatePetPackSize(currentBytes, bytes.byteLength)
+        const decoded = await this.imageDecoder.decode(bytes, format)
 
         const id = this.createUniqueId(usedIds)
         usedIds.add(id)

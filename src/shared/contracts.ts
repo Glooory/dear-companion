@@ -12,6 +12,7 @@ export const ACTION_SLOTS = [
 
 export type ActionSlot = (typeof ACTION_SLOTS)[number]
 export type PetAssetFormat = 'png' | 'webp'
+export const MAX_PET_PACK_BYTES = 250 * 1024 * 1024
 
 export interface PetWindowSettings {
   x: number | null
@@ -377,6 +378,9 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
   assertUnique(assets.map((asset) => asset.id), 'Duplicate pet asset identifier')
   assertUnique(assets.map((asset) => asset.fileName), 'Duplicate pet asset filename')
   const assetIds = new Set(assets.map((asset) => asset.id))
+  if (assets.reduce((total, asset) => total + asset.byteSize, 0) > MAX_PET_PACK_BYTES) {
+    throw new Error('Pet pack exceeds 250 MB')
+  }
 
   return {
     id: value.id,

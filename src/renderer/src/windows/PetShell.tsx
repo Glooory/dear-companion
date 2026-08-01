@@ -11,11 +11,10 @@ interface PetShellProps {
 export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null)
   const [error, setError] = useState(false)
-  const [resolvedAction, setResolvedAction] = useState<ResolvedAction | null>(null)
+  const [actionState, setActionState] = useState<{ petId: string; action: ResolvedAction } | null>(null)
   const [frameIndex, setFrameIndex] = useState(0)
   const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
   const actionTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
-  const finishActionRef = useRef<() => void>(() => undefined)
 
   const activePet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null,
@@ -27,16 +26,16 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     actionTimers.current = []
   }, [])
 
-  const performAction = useCallback((slot: ActionSlot): void => {
+  const performAction = useCallback((slot: ActionSlot, complete: () => void): void => {
     if (!activePet) return
     clearActionTimers()
     const action = resolveAction(activePet, slot, Math.floor(Math.random() * 10_000))
-    setResolvedAction(action)
+    setActionState({ petId: activePet.id, action })
     setFrameIndex(0)
     const finish = (): void => {
-      setResolvedAction(resolveAction(activePet, 'idle'))
+      setActionState({ petId: activePet.id, action: resolveAction(activePet, 'idle') })
       setFrameIndex(0)
-      finishActionRef.current()
+      complete()
     }
 
     if (action.template === 'blink-sequence') {
@@ -52,13 +51,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     actionTimers.current.push(setTimeout(finish, duration))
   }, [activePet, clearActionTimers])
 
-  const interactions = usePetInteractions({
+  const {
+    state: interactionState,
+    tilt,
+    triggerAction,
+    handlers: interactionHandlers
+  } = usePetInteractions({
     api,
     visible: Boolean(snapshot?.petWindow.visible && pageVisible),
     angryVelocity: activePet?.actionTemplates.dragAngryVelocity ?? 1_200,
     onAction: performAction
   })
-  finishActionRef.current = interactions.finishAction
 
   useEffect(() => {
     let cancelled = false
@@ -85,20 +88,21 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    clearActionTimers()
-    setResolvedAction(activePet ? resolveAction(activePet, 'idle') : null)
-    setFrameIndex(0)
-  }, [activePet, clearActionTimers])
-
-  useEffect(() => {
-    if (!activePet || interactions.state !== 'idle' || !pageVisible || !snapshot?.petWindow.visible) return
-    const delay = activePet.actionTemplates.idleIntervalMs * (0.8 + Math.random() * 0.4)
+    if (!activePet || interactionState !== 'idle' || !pageVisible || !snapshot?.petWindow.visible) return
+    const shouldBlink = Math.random() < 0.45
+    const baseDelay = shouldBlink
+      ? activePet.actionTemplates.blinkIntervalMs
+      : activePet.actionTemplates.idleIntervalMs
+    const delay = baseDelay * (0.8 + Math.random() * 0.4)
     const timer = setTimeout(() => {
-      const shouldBlink = Math.random() < 0.45
-      interactions.triggerAction(shouldBlink ? 'blink' : 'cute')
+      triggerAction(shouldBlink ? 'blink' : 'cute')
     }, delay)
     return () => clearTimeout(timer)
-  }, [activePet, interactions.state, pageVisible, snapshot?.petWindow.visible])
+  }, [activePet, interactionState, pageVisible, snapshot?.petWindow.visible, triggerAction])
+
+  useEffect(() => {
+    if (!pageVisible || !snapshot?.petWindow.visible) clearActionTimers()
+  }, [clearActionTimers, pageVisible, snapshot?.petWindow.visible])
 
   useEffect(() => () => clearActionTimers(), [clearActionTimers])
 
@@ -115,21 +119,29 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     )
   }
 
+  const resolvedAction = activePet
+    ? (
+        (interactionState === 'performingAction' || interactionState === 'angry') &&
+        actionState?.petId === activePet.id
+          ? actionState.action
+          : resolveAction(activePet, 'idle')
+      )
+    : null
   const assetId = resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0]
   const asset = activePet?.assets.find((candidate) => candidate.id === assetId)
   const geometry = asset
     ? computeAssetGeometry(asset, activePet!.targetHeight, { width: 320, height: 320 })
     : null
   const actorStyle = {
-    '--pet-tilt-x': `${interactions.tilt.x}deg`,
-    '--pet-tilt-y': `${interactions.tilt.y}deg`
+    '--pet-tilt-x': `${tilt.x}deg`,
+    '--pet-tilt-y': `${tilt.y}deg`
   } as CSSProperties
 
   return (
     <main
       className={`pet-shell action-${resolvedAction?.template ?? 'still'}`}
-      data-state={interactions.state}
-      {...interactions.handlers}
+      data-state={interactionState}
+      {...interactionHandlers}
     >
       {activePet && asset && geometry ? (
         <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
@@ -146,7 +158,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             }}
           />
           {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}
-          {(interactions.state === 'angry' || resolvedAction?.overlays.includes('protest-bubble')) && (
+          {(interactionState === 'angry' || resolvedAction?.overlays.includes('protest-bubble')) && (
             <span className="pet-protest" role="status">慢一点呀！</span>
           )}
         </div>

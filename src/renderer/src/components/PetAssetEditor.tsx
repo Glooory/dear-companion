@@ -23,9 +23,11 @@ export function PetAssetEditor({
   })
 
   const update = (key: keyof AssetNormalization, value: string): void => {
+    if (value.trim() === '') return
     const parsed = Number(value)
     if (!Number.isFinite(parsed)) return
-    onChange({ ...normalization, [key]: parsed })
+    const [minimum, maximum] = NORMALIZATION_RANGES[key]
+    onChange({ ...normalization, [key]: clamp(parsed, minimum, maximum) })
   }
 
   return (
@@ -58,6 +60,17 @@ export function PetAssetEditor({
       </div>
     </article>
   )
+}
+
+const NORMALIZATION_RANGES: Record<keyof AssetNormalization, readonly [number, number]> = {
+  scale: [0.25, 4],
+  offsetX: [-512, 512],
+  offsetY: [-512, 512],
+  baselineOffset: [-256, 256]
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(Math.max(value, minimum), maximum)
 }
 
 function NumberControl({
