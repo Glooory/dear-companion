@@ -12,6 +12,7 @@ describe('classifyApplicationUrl', () => {
   it('allows an exact development origin only when explicitly configured', () => {
     const options = { developmentOrigin: 'http://localhost:5173' }
     expect(classifyApplicationUrl('http://localhost:5173/index.html', options)).toBe('allow')
+    expect(classifyApplicationUrl('ws://localhost:5173/socket', options)).toBe('allow')
     expect(classifyApplicationUrl('http://localhost:5173.evil.test/index.html', options)).toBe('deny')
     expect(classifyApplicationUrl('http://127.0.0.1:5173/index.html', options)).toBe('deny')
     expect(classifyApplicationUrl('http://localhost:5173/index.html')).toBe('deny')

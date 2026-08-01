@@ -7,11 +7,15 @@ import { registerAppProtocol } from './app-protocol'
 
 const electronHarness = vi.hoisted(() => ({
   handler: undefined as ((request: Request) => Promise<Response>) | undefined,
-  fetch: vi.fn<(url: string) => Promise<Response>>()
+  fetch: vi.fn<(url: string) => Promise<Response>>(),
+  localFetch: vi.fn<(url: string) => Promise<Response>>()
 }))
 
 vi.mock('electron', () => ({
   net: { fetch: electronHarness.fetch },
+  session: {
+    fromPartition: vi.fn(() => ({ fetch: electronHarness.localFetch }))
+  },
   protocol: {
     handle: vi.fn(
       (_scheme: string, handler: (request: Request) => Promise<Response>): void => {
@@ -41,6 +45,10 @@ async function requestRenderer(url: string): Promise<Response> {
 beforeEach(() => {
   electronHarness.handler = undefined
   electronHarness.fetch.mockImplementation(async (url) => {
+    const contents = await readFile(fileURLToPath(url))
+    return new Response(contents, { status: 200 })
+  })
+  electronHarness.localFetch.mockImplementation(async (url) => {
     const contents = await readFile(fileURLToPath(url))
     return new Response(contents, { status: 200 })
   })
@@ -74,6 +82,18 @@ describe('application protocol', () => {
 
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('pet renderer')
+  })
+
+  it('serves authorized local files when the default session blocks file URLs', async () => {
+    const rendererRoot = await createRendererRoot()
+    await writeFile(join(rendererRoot, 'index.html'), 'isolated local renderer')
+    electronHarness.fetch.mockRejectedValue(new Error('default session denied file URL'))
+    await registerAppProtocol(rendererRoot)
+
+    const response = await requestRenderer('app://renderer/index.html')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('isolated local renderer')
   })
 
   it('rejects a foreign host with 403 before reading a file', async () => {

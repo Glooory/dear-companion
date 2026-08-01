@@ -25,7 +25,13 @@ export function classifyApplicationUrl(
 
   if (developmentOrigin) {
     try {
-      if (url.origin === new URL(developmentOrigin).origin) return 'allow'
+      const developmentUrl = new URL(developmentOrigin)
+      const socketProtocol = developmentUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+      if (
+        url.hostname === developmentUrl.hostname &&
+        url.port === developmentUrl.port &&
+        (url.protocol === developmentUrl.protocol || url.protocol === socketProtocol)
+      ) return 'allow'
     } catch {
       return 'deny'
     }

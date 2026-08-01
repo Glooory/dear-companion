@@ -16,12 +16,17 @@ pnpm test
 pnpm lint
 pnpm typecheck
 pnpm build
+pnpm icons:generate
+pnpm release:validate-tag -- v0.1.0
 pnpm package:dir
+pnpm dist
 ```
 
-`pnpm package:dir` builds an unpacked application in `release/` for local
-smoke testing. It does not create installers, publish a release, or perform
-any network-based update or telemetry work.
+`pnpm icons:generate` deterministically generates committed tray PNGs from
+`build/tray-icon.svg`. `pnpm package:dir` builds an unpacked current-platform
+application, while `pnpm dist` builds the current-platform installer. Neither
+command publishes a release. `pnpm release:validate-tag -- vX.Y.Z` requires an
+exact match with `package.json`; `v0.1.0` is the first-release example.
 
 ## Architecture and scope
 
@@ -30,8 +35,9 @@ Follow the repository boundaries and security requirements in
 data rules, and security model are in the
 [design specification](superpowers/specs/2026-07-31-dear-companion-design.md).
 
-Milestone 3 adds local reminders, rest sessions, movement tolerance, and optional
-local sounds to the offline pet system. Settings schema v3 stores pet names,
+The release-hardened runtime keeps lifecycle, windows, tray, reminders, rest,
+pet packs, settings, audio, autostart, network policy, and crash recovery in
+focused main-process modules. Settings schema v3 stores pet names,
 immutable asset records, alpha bounds,
 non-destructive normalization metadata, action-slot assignments, and action
 template parameters together with reminder schedules and audio metadata. A valid
@@ -61,13 +67,25 @@ decode/playback failure marks the copy unavailable and silently falls back to
 the corresponding built-in tone. Reminder and crying sounds are independently
 enabled per reminder and default to off.
 
+Release hardening adds packaged-only, user-controlled autostart; exact launch
+intent parsing; one-attempt pet renderer recovery with a stable safe mode;
+production denial of remote HTTP/WebSocket and unexpected permission requests;
+packaged tray resources; unsigned native installer configuration; and a
+tag-driven three-platform draft-release workflow. No updater, signing service,
+telemetry, account, remote asset, or runtime image-generation dependency is
+present.
+
 ## User UI checklist — 等待用户验证
 
-Run the unpacked application once from `release/` on a supported macOS or
-Windows desktop, then verify:
+Use the reusable [release acceptance checklist](release-checklist.md) on
+Windows x64, macOS Intel, and macOS Apple Silicon. Every renderer, icon, tray,
+installer, autostart, performance, system-prompt, and cross-platform item is
+`等待用户验证` until a user records it there.
 
 All items below require manual user verification; agent checks do not validate
 renderer appearance, native menus, input feel, platform prompts, or OS behavior.
+
+The detailed phase-three list below remains useful for functional coverage:
 
 1. Confirm first run opens the singleton settings window with zero reminders.
    Create a named pet and import user-prepared transparent PNG and WebP files
@@ -104,15 +122,15 @@ renderer appearance, native menus, input feel, platform prompts, or OS behavior.
    platform network inspector or firewall while exercising these
    flows; the production bundle must make no network requests.
 
-## Phase-three exclusions and agent verification
+## Agent verification boundary
 
-Agent verification is limited to allowed core unit tests, lint, typecheck,
-production build, and one non-visual Electron startup smoke check. It does not
-open a browser, inspect Electron UI, or perform UI acceptance.
+Agent verification is limited to necessary core tests, lint, typecheck,
+production build, deterministic asset generation, command-line packaging checks,
+and a non-visual startup smoke environment. Agents do not open or control a
+browser and do not open Electron for visual or interactive inspection.
 
-Autostart completion, final tray icons, installer/release publishing, code
-signing, notarization, and performance profiling remain later work. This phase
-does not add persistent prompt/snooze/session recovery, arbitrary thresholds or
-snooze durations, input blocking, screen locking, full-screen overlays,
-background removal, AI generation, Linux support, cloud services, accounts,
-telemetry, remote assets, statistics, or automatic updates.
+Code signing, notarization, automatic updates, Linux, a universal macOS binary,
+persistent prompt/snooze/session recovery, arbitrary thresholds or snooze
+durations, input blocking, screen locking, background removal, runtime AI,
+cloud services, accounts, telemetry, remote assets and statistics remain
+explicitly deferred.
