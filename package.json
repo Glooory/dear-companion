@@ -17,6 +17,7 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "icons:generate": "node scripts/generate-icons.mjs",
+    "release:validate-tag": "node scripts/validate-release-tag.mjs",
     "package:dir": "pnpm build && electron-builder --dir",
     "dist": "pnpm build && electron-builder --publish never"
   },

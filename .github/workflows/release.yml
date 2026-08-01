@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate_tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm release:validate-tag -- "${{ github.ref_name }}"
+
+  build_windows_x64:
+    needs: validate_tag
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm icons:generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Build Windows x64 installer
+        run: pnpm exec electron-builder --win --x64 --publish never
+      - name: Smoke packaged Windows executable
+        shell: pwsh
+        run: |
+          $executable = "release\win-unpacked\Dear Companion.exe"
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Packaged executable is missing: $executable"
+          }
+          $env:DEAR_COMPANION_BUILD_SMOKE = "1"
+          $process = Start-Process -FilePath $executable -PassThru -Wait
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged executable exited with $($process.ExitCode)"
+          }
+      - name: Verify Windows installer
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -LiteralPath release -Filter "*.exe" -File)
+          if ($installers.Count -ne 1) {
+            throw "Expected one Windows installer, found $($installers.Count)"
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dear-companion-windows-x64
+          path: release/*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  build_macos_intel:
+    needs: validate_tag
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm icons:generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Build macOS Intel DMG
+        run: pnpm exec electron-builder --mac --x64 --publish never
+      - name: Smoke and verify macOS Intel executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find release -maxdepth 2 -type d -name "Dear Companion.app" -print -quit)"
+          test -n "$app_path"
+          executable="$app_path/Contents/MacOS/Dear Companion"
+          test -x "$executable"
+          file "$executable" | grep -q "x86_64"
+          DEAR_COMPANION_BUILD_SMOKE=1 "$executable"
+          set -- release/*.dmg
+          test "$#" -eq 1
+          test -f "$1"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dear-companion-macos-intel
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  build_macos_arm64:
+    needs: validate_tag
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm icons:generate
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Build macOS Apple Silicon DMG
+        run: pnpm exec electron-builder --mac --arm64 --publish never
+      - name: Smoke and verify macOS Apple Silicon executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find release -maxdepth 2 -type d -name "Dear Companion.app" -print -quit)"
+          test -n "$app_path"
+          executable="$app_path/Contents/MacOS/Dear Companion"
+          test -x "$executable"
+          file "$executable" | grep -q "arm64"
+          DEAR_COMPANION_BUILD_SMOKE=1 "$executable"
+          set -- release/*.dmg
+          test "$#" -eq 1
+          test -f "$1"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dear-companion-macos-arm64
+          path: release/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+
+  create_draft_release:
+    needs: [build_windows_x64, build_macos_intel, build_macos_arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dear-companion-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify artifacts and create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' installers < <(find artifacts -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" \) -print0 | sort -z)
+          test "${#installers[@]}" -eq 3
+          test "$(find artifacts -maxdepth 1 -type f -name "*-win-x64.exe" | wc -l)" -eq 1
+          test "$(find artifacts -maxdepth 1 -type f -name "*-mac-x64.dmg" | wc -l)" -eq 1
+          test "$(find artifacts -maxdepth 1 -type f -name "*-mac-arm64.dmg" | wc -l)" -eq 1
+          (cd artifacts && sha256sum ./*.exe ./*.dmg > SHA256SUMS.txt)
+          cp docs/installing-unsigned.md artifacts/INSTALLING-UNSIGNED.md
+          {
+            echo "# Dear Companion ${{ github.ref_name }}"
+            echo
+            echo "Unsigned Windows x64, macOS Intel, and macOS Apple Silicon installers."
+            echo "Verify SHA256SUMS.txt and read INSTALLING-UNSIGNED.md before installation."
+          } > artifacts/RELEASE-NOTES.md
+      - name: Create or update draft GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ github.ref_name }}"
+          mapfile -d '' installers < <(find artifacts -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" \) -print0 | sort -z)
+          existing="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          if [[ -n "$existing" ]]; then
+            test "$existing" = "true"
+            gh release edit "$tag" --title "Dear Companion $tag" --notes-file artifacts/RELEASE-NOTES.md
+            gh release upload "$tag" "${installers[@]}" artifacts/SHA256SUMS.txt artifacts/INSTALLING-UNSIGNED.md --clobber
+          else
+            gh release create "$tag" "${installers[@]}" artifacts/SHA256SUMS.txt artifacts/INSTALLING-UNSIGNED.md \
+              --draft --verify-tag --title "Dear Companion $tag" --notes-file artifacts/RELEASE-NOTES.md
+          fi

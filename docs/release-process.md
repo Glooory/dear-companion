@@ -7,7 +7,7 @@ Dear Companion 第一版发布 Windows x64、macOS Intel 和 macOS Apple Silicon
 1. 将 `package.json` 中的版本更新为准备发布的 `X.Y.Z`。
 2. 完成本地允许范围内的核心单测、lint、typecheck、生产构建和非视觉启动冒烟检查。
 3. 提交版本变更后创建完全匹配的 `vX.Y.Z` 标签。例如首个版本使用 `package.json` 的 `0.1.0` 与标签 `v0.1.0`。
-4. 推送提交与标签。标签工作流先验证精确匹配，再在三个原生 runner 上构建。
+4. 推送提交与标签。标签工作流先验证精确匹配，再分别在 `windows-latest`、`macos-15-intel` 与 Apple Silicon `macos-15` 原生 runner 上构建。
 
 不要从脏工作树创建标签，不要复用指向不同提交的既有版本标签。
 
@@ -22,6 +22,8 @@ Dear Companion 第一版发布 Windows x64、macOS Intel 和 macOS Apple Silicon
 - 最后在 GitHub 中手动发布草稿。
 
 构建成功或非视觉启动冒烟通过，不代表图标、托盘、安装体验、开机启动、性能或系统安全提示已经验证。
+
+发布工作流使用 GitHub 官方 `checkout`、`setup-node`、`upload-artifact` 和 `download-artifact` actions。只有最终草稿发布作业拥有 `contents: write`；验证和构建作业保持只读。相同标签重跑时仅允许更新仍为草稿的 Release，并用 `--clobber` 替换同名附件。
 
 ## 未签名状态与未来凭据
 
