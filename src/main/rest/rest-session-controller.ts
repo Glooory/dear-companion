@@ -95,7 +95,7 @@ export class RestSessionController {
   }
 
   private sampleCursor(now: number): void {
-    if (!this.session || this.session.state === 'celebrating' || !this.accumulator) return
+    if (!this.session || this.session.state !== 'resting' || !this.accumulator) return
     const point = this.options.getCursorScreenPoint()
     if (this.accumulator.add({ ...point, timestamp: now })) {
       this.session = transitionRestSession(this.session, { type: 'movement' }, now)

@@ -82,6 +82,11 @@ export class AudioService {
       source,
       maxDurationMs: 30_000
     }
+    while (this.pendingRequests.size >= 64) {
+      const oldestRequestId = this.pendingRequests.keys().next().value
+      if (oldestRequestId === undefined) break
+      this.pendingRequests.delete(oldestRequestId)
+    }
     this.pendingRequests.set(request.requestId, source.kind === 'imported' ? source.assetId : null)
     this.options.onPlaybackRequested(request)
     return request
@@ -124,6 +129,7 @@ export class AudioService {
         try {
           await writeFile(destination, bytes, { flag: 'wx', mode: 0o600 })
         } catch {
+          await rm(destination, { force: true }).catch(() => undefined)
           throw new AudioInputError('copy-failed', '无法保存音频副本')
         }
         writtenPaths.push(destination)

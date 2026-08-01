@@ -52,7 +52,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
       ))}</fieldset>
       <label className="message-field"><span>提示文案（1–200 字）</span><textarea maxLength={200} value={value.message} onChange={(event) => onChange({ ...value, message: event.currentTarget.value })} /></label>
       <div className="reminder-toggles">
-        <label><input type="checkbox" checked={value.enabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用提醒</label>
+        <label><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用提醒（新建后默认启用）</label>
         <label><input type="checkbox" checked={value.sounds.reminder} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, reminder: event.currentTarget.checked } })} />播放提醒音</label>
         <label><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} />播放哭闹音</label>
       </div>

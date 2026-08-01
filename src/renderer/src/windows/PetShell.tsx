@@ -107,8 +107,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   useEffect(() => {
     if (!pageVisible || !restSnapshot?.runtime.session || restSnapshot.runtime.session.state === 'celebrating') return
-    const timer = window.setInterval(() => setDisplayNow(Date.now()), 250)
-    return () => window.clearInterval(timer)
+    const refresh = (): void => setDisplayNow(Date.now())
+    const initialTimer = window.setTimeout(refresh, 0)
+    const timer = window.setInterval(refresh, 250)
+    return () => {
+      window.clearTimeout(initialTimer)
+      window.clearInterval(timer)
+    }
   }, [pageVisible, restSnapshot?.runtime.session])
 
   useEffect(() => {
