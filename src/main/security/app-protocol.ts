@@ -17,10 +17,12 @@ export function registerAppScheme(): void {
 }
 
 export type PetAssetResolver = (petId: string, assetId: string) => Promise<string | null>
+export type AudioAssetResolver = (assetId: string) => Promise<string | null>
 
 export async function registerAppProtocol(
   rendererRoot: string,
-  resolvePetAsset?: PetAssetResolver
+  resolvePetAsset?: PetAssetResolver,
+  resolveAudioAsset?: AudioAssetResolver
 ): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot)
 
@@ -32,6 +34,9 @@ export async function registerAppProtocol(
       const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'index.html'
       if (relativePath.startsWith('pet-assets/')) {
         return servePetAsset(relativePath, resolvePetAsset)
+      }
+      if (relativePath.startsWith('audio-assets/')) {
+        return serveAudioAsset(relativePath, resolveAudioAsset)
       }
       const resolvedPath = resolve(resolvedRendererRoot, relativePath)
 
@@ -62,6 +67,25 @@ export async function registerAppProtocol(
       return forbiddenResponse()
     }
   })
+}
+
+async function serveAudioAsset(
+  relativePath: string,
+  resolveAudioAsset: AudioAssetResolver | undefined
+): Promise<Response> {
+  const segments = relativePath.split('/')
+  if (segments.length !== 2 || segments[0] !== 'audio-assets' || !isSafeIdentifier(segments[1])) {
+    return forbiddenResponse()
+  }
+  if (!resolveAudioAsset) return notFoundResponse()
+  try {
+    const path = await resolveAudioAsset(segments[1])
+    if (!path) return notFoundResponse()
+    const canonicalPath = await realpath(path)
+    return await net.fetch(pathToFileURL(canonicalPath).toString())
+  } catch {
+    return notFoundResponse()
+  }
 }
 
 async function servePetAsset(

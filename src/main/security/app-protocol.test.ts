@@ -169,4 +169,16 @@ describe('application protocol', () => {
     expect((await requestRenderer('app://renderer/pet-assets/pet-1')).status).toBe(403)
     expect(resolver).not.toHaveBeenCalled()
   })
+
+  it('serves only persisted audio asset identifiers through the audio resolver', async () => {
+    const rendererRoot = await createRendererRoot()
+    const assetPath = join(dirname(rendererRoot), 'owned.ogg')
+    await writeFile(assetPath, 'audio bytes')
+    const audioResolver = vi.fn(async (assetId: string) => assetId === 'sound-1' ? assetPath : null)
+    await registerAppProtocol(rendererRoot, undefined, audioResolver)
+    expect((await requestRenderer('app://renderer/audio-assets/sound-1')).status).toBe(200)
+    expect((await requestRenderer('app://renderer/audio-assets/missing')).status).toBe(404)
+    expect((await requestRenderer('app://renderer/audio-assets/..%2Fsecret')).status).toBe(403)
+    expect((await requestRenderer('app://renderer/audio-assets/sound_1')).status).toBe(403)
+  })
 })
