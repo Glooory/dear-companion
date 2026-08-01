@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import type {
   AppSettings,
+  AutostartStatus,
   AudioImportResult,
   AudioSourceInput,
   CreateReminderInput,
   ImageImportResult,
   PetConfig,
+  PetRendererStatus,
   ReminderSchedule,
-  RestSystemApi,
+  ReleaseHardeningApi,
   RestSystemSnapshot,
   PetSystemSnapshot,
   PetUpdateInput
@@ -18,13 +20,15 @@ import { AudioSettings } from '../components/AudioSettings'
 import { ReminderEditor, type ReminderDraft } from '../components/ReminderEditor'
 
 interface SettingsShellProps {
-  api: RestSystemApi
+  api: ReleaseHardeningApi
 }
 
 export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null)
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null)
+  const [autostartStatus, setAutostartStatus] = useState<AutostartStatus | null>(null)
+  const [petRendererStatus, setPetRendererStatus] = useState<PetRendererStatus | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PetUpdateInput | null>(null)
   const [newPetName, setNewPetName] = useState('')
@@ -37,13 +41,21 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([api.getSettings(), api.getPetSystemSnapshot(), api.getRestSystemSnapshot()]).then(
-      ([loadedSettings, loadedSnapshot, loadedRestSnapshot]) => {
+    void Promise.all([
+      api.getSettings(),
+      api.getPetSystemSnapshot(),
+      api.getRestSystemSnapshot(),
+      api.getAutostartStatus(),
+      api.getPetRendererStatus()
+    ]).then(
+      ([loadedSettings, loadedSnapshot, loadedRestSnapshot, loadedAutostart, loadedRenderer]) => {
         if (cancelled) return
         const initialPet = loadedSnapshot.pets.find((pet) => pet.id === loadedSnapshot.activePetId) ?? loadedSnapshot.pets[0] ?? null
         setSettings(loadedSettings)
         setSnapshot(loadedSnapshot)
         setRestSnapshot(loadedRestSnapshot)
+        setAutostartStatus(loadedAutostart)
+        setPetRendererStatus(loadedRenderer)
         setSelectedPetId((current) => current ?? initialPet?.id ?? null)
         setDraft((current) => current ?? (initialPet ? petToUpdateInput(initialPet) : null))
       },
@@ -66,6 +78,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     setRestSnapshot(next)
     setSettings((current) => current ? { ...current, reminders: next.reminders, audio: next.audio } : current)
   }), [api])
+
+  useEffect(
+    () => api.onPetRendererStatusChanged(setPetRendererStatus),
+    [api]
+  )
 
   const selectedPet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
@@ -140,6 +157,19 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       const next = await api.setPetVisibility(!settings.petWindow.visible)
       setSettings(next)
+    })
+  }
+
+  const updateAutostart = (): void => {
+    if (!autostartStatus) return
+    void runMutation(async () => {
+      setAutostartStatus(await api.setAutostartEnabled(!autostartStatus.requested))
+    })
+  }
+
+  const retryPetRenderer = (): void => {
+    void runMutation(async () => {
+      setPetRendererStatus(await api.retryPetRenderer())
     })
   }
 
@@ -382,6 +412,39 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             </label>
           </article>
           <article className="settings-card">
+            <h2>随系统登录启动</h2>
+            {autostartStatus ? (
+              <>
+                <label className="toggle-control">
+                  <input
+                    type="checkbox"
+                    checked={autostartStatus.requested}
+                    disabled={isBusy || !autostartStatus.supported}
+                    onChange={updateAutostart}
+                  />
+                  <span>开机后自动运行 Dear Companion</span>
+                </label>
+                {!autostartStatus.supported && (
+                  <p className="supporting-copy">仅安装后的 Windows 与 macOS 应用支持；开发模式不会写入系统启动项。</p>
+                )}
+                {autostartStatus.errorCode && (
+                  <p className="inline-status-error" role="status">
+                    开机启动设置未能完成（{autostartErrorMessage(autostartStatus.errorCode)}）。原设置已尽量保留。
+                  </p>
+                )}
+              </>
+            ) : <p className="supporting-copy">正在读取系统状态…</p>}
+          </article>
+          {petRendererStatus?.state === 'safe-mode' && (
+            <article className="settings-card recovery-card">
+              <h2>宠物窗口已进入安全模式</h2>
+              <p className="supporting-copy">宠物渲染连续失败，应用已停止自动重建；提醒、设置和托盘仍然可用。</p>
+              <button type="button" className="secondary-button" disabled={isBusy} onClick={retryPetRenderer}>
+                重试宠物窗口
+              </button>
+            </article>
+          )}
+          <article className="settings-card">
             <div className="editor-heading-row"><div><h2>提醒</h2><p className="supporting-copy">首次安装不会自动创建提醒。</p></div>
               {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加提醒</button>}
             </div>
@@ -396,6 +459,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       <footer className="privacy-note">照片、音频和设置只保存在这台电脑上；应用不会上传素材。</footer>
     </main>
   )
+}
+
+function autostartErrorMessage(errorCode: NonNullable<AutostartStatus['errorCode']>): string {
+  switch (errorCode) {
+    case 'os-read-failed': return '无法读取系统状态'
+    case 'os-write-failed': return '系统拒绝写入'
+    case 'readback-mismatch': return '系统读回状态不一致'
+    case 'settings-save-failed': return '本地偏好保存失败'
+    case 'rollback-failed': return '系统状态恢复失败'
+  }
 }
 
 function petToUpdateInput(pet: PetConfig): PetUpdateInput {

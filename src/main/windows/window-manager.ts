@@ -1,11 +1,13 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from 'electron'
 import type {
   AudioPlaybackRequest,
+  PetRendererStatus,
   PetSystemSnapshot,
   RestSystemSnapshot,
   WindowKind
 } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
+import { CrashRecoveryBudget } from '../app/crash-recovery'
 import type { SettingsStore } from '../settings/settings-store'
 import {
   resolvePetWindowBounds,
@@ -32,6 +34,8 @@ export class WindowManager {
   private petWindowPlaced = false
   private petVisibilityRequested = false
   private settingsWindowReady = false
+  private readonly crashRecoveryBudget = new CrashRecoveryBudget()
+  private petRendererStatus: PetRendererStatus = { state: 'healthy' }
   private readonly settingsStore: WindowSettingsStore
   private readonly preloadPath: string
   private readonly isPackaged: boolean
@@ -45,6 +49,7 @@ export class WindowManager {
 
   async showPet(): Promise<void> {
     if (this.disposed) return
+    if (this.crashRecoveryBudget.getState() === 'safe-mode') return
     this.petVisibilityRequested = true
     if (this.petWindow && !this.petWindow.isDestroyed()) {
       if (this.petWindowReady && this.petWindowPlaced) this.petWindow.show()
@@ -60,6 +65,7 @@ export class WindowManager {
     const showWhenReady = (): void => {
       if (this.petWindow !== petWindow || petWindow.isDestroyed()) return
       this.petWindowReady = true
+      this.markPetRendererReady()
       if (this.petWindowPlaced && this.petVisibilityRequested) petWindow.show()
     }
     petWindow.once('ready-to-show', showWhenReady)
@@ -87,6 +93,16 @@ export class WindowManager {
     petWindow.once('closed', clearPetWindow)
     this.addListenerDisposer(petWindow, () => {
       petWindow.removeListener('closed', clearPetWindow)
+    })
+
+    const handleRendererGone = (): void => {
+      this.handlePetRendererFailure(petWindow)
+    }
+    petWindow.webContents.on('render-process-gone', handleRendererGone)
+    this.addListenerDisposer(petWindow, () => {
+      if (!petWindow.webContents.isDestroyed()) {
+        petWindow.webContents.removeListener('render-process-gone', handleRendererGone)
+      }
     })
 
     try {
@@ -233,6 +249,25 @@ export class WindowManager {
     return Boolean(this.petWindow && !this.petWindow.isDestroyed() && this.petWindow.isVisible())
   }
 
+  getPetRendererStatus(): PetRendererStatus {
+    return { ...this.petRendererStatus }
+  }
+
+  async retryPetRenderer(): Promise<PetRendererStatus> {
+    if (this.disposed || !this.crashRecoveryBudget.retry()) {
+      return this.getPetRendererStatus()
+    }
+    this.setPetRendererStatus({ state: 'recovering' })
+    try {
+      const settings = await this.settingsStore.load()
+      await this.rebuildPetWindow(settings.petWindow.visible)
+    } catch {
+      this.crashRecoveryBudget.rendererFailed()
+      this.setPetRendererStatus({ state: 'safe-mode', errorCode: 'pet-renderer-failed' })
+    }
+    return this.getPetRendererStatus()
+  }
+
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
@@ -262,6 +297,53 @@ export class WindowManager {
         window.webContents.removeListener('will-navigate', denyNavigation)
       }
     })
+  }
+
+  private handlePetRendererFailure(petWindow: BrowserWindow): void {
+    if (this.disposed || this.petWindow !== petWindow) return
+    const shouldShow = this.petVisibilityRequested
+    this.petWindow = null
+    this.petWindowReady = false
+    this.petWindowPlaced = false
+    this.releaseWindowListeners(petWindow)
+    if (!petWindow.isDestroyed()) petWindow.destroy()
+
+    if (this.crashRecoveryBudget.rendererFailed() === 'safe-mode') {
+      this.petVisibilityRequested = false
+      this.setPetRendererStatus({ state: 'safe-mode', errorCode: 'pet-renderer-failed' })
+      return
+    }
+
+    this.setPetRendererStatus({ state: 'recovering' })
+    void this.rebuildPetWindow(shouldShow)
+  }
+
+  private async rebuildPetWindow(shouldShow: boolean): Promise<void> {
+    try {
+      const rebuilding = this.showPet()
+      if (!shouldShow) this.hidePet()
+      await rebuilding
+    } catch {
+      if (this.crashRecoveryBudget.rendererFailed() === 'safe-mode') {
+        this.petVisibilityRequested = false
+        this.setPetRendererStatus({ state: 'safe-mode', errorCode: 'pet-renderer-failed' })
+      }
+    }
+  }
+
+  private markPetRendererReady(): void {
+    if (this.crashRecoveryBudget.getState() !== 'rebuilding') return
+    this.crashRecoveryBudget.rendererReady()
+    this.setPetRendererStatus({ state: 'healthy' })
+  }
+
+  private setPetRendererStatus(status: PetRendererStatus): void {
+    if (
+      this.petRendererStatus.state === status.state &&
+      this.petRendererStatus.errorCode === status.errorCode
+    ) return
+    this.petRendererStatus = { ...status }
+    this.broadcast(IPC_CHANNELS.petRendererStatusChanged, this.getPetRendererStatus())
   }
 
   private broadcast(channel: string, payload: unknown): void {

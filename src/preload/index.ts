@@ -1,13 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AudioPlaybackRequest,
+  PetRendererStatus,
   PetSystemSnapshot,
-  RestSystemApi,
+  ReleaseHardeningApi,
   RestSystemSnapshot
 } from '@shared/contracts'
 import { IPC_CHANNELS } from '@shared/ipc-channels'
 
-const api: RestSystemApi = {
+const api: ReleaseHardeningApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getSettings),
   setPetVisibility: (visible) => ipcRenderer.invoke(IPC_CHANNELS.setPetVisibility, visible),
   openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings),
@@ -47,6 +48,17 @@ const api: RestSystemApi = {
     const wrapped = (_event: Electron.IpcRendererEvent, request: AudioPlaybackRequest): void => listener(request)
     ipcRenderer.on(IPC_CHANNELS.audioPlaybackRequested, wrapped)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.audioPlaybackRequested, wrapped)
+  },
+  getAutostartStatus: () => ipcRenderer.invoke(IPC_CHANNELS.getAutostartStatus),
+  setAutostartEnabled: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.setAutostartEnabled, enabled),
+  getPetRendererStatus: () => ipcRenderer.invoke(IPC_CHANNELS.getPetRendererStatus),
+  retryPetRenderer: () => ipcRenderer.invoke(IPC_CHANNELS.retryPetRenderer),
+  onPetRendererStatusChanged: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, status: PetRendererStatus): void => {
+      listener(status)
+    }
+    ipcRenderer.on(IPC_CHANNELS.petRendererStatusChanged, wrapped)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.petRendererStatusChanged, wrapped)
   }
 }
 

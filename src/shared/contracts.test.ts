@@ -5,6 +5,9 @@ import {
   DEFAULT_ASSET_NORMALIZATION,
   EMPTY_ACTION_SLOTS,
   migrateAppSettings,
+  parseAutostartEnabledInput,
+  parseAutostartStatus,
+  parsePetRendererStatus,
   parseAppSettings,
   type AppSettingsV1,
   type AppSettingsV2,
@@ -200,5 +203,37 @@ describe('settings contracts', () => {
       ...DEFAULT_APP_SETTINGS,
       audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: 'builtin', id: 'soft-whimper' } }
     })).toThrow('Unknown built-in audio source')
+  })
+
+  it('validates and clones sanitized release-hardening statuses', () => {
+    const autostart = {
+      supported: true,
+      requested: false,
+      effective: true,
+      errorCode: 'readback-mismatch'
+    } as const
+    const parsedAutostart = parseAutostartStatus(autostart)
+    expect(parsedAutostart).toEqual(autostart)
+    expect(parsedAutostart).not.toBe(autostart)
+
+    const recovery = { state: 'safe-mode', errorCode: 'pet-renderer-failed' } as const
+    const parsedRecovery = parsePetRendererStatus(recovery)
+    expect(parsedRecovery).toEqual(recovery)
+    expect(parsedRecovery).not.toBe(recovery)
+  })
+
+  it('rejects invalid autostart payloads and unsanitized status errors', () => {
+    expect(parseAutostartEnabledInput(true)).toBe(true)
+    expect(() => parseAutostartEnabledInput('true')).toThrow('enabled must be a boolean')
+    expect(() => parseAutostartStatus({
+      supported: true,
+      requested: true,
+      effective: false,
+      errorCode: '/Users/private/login-item-error'
+    })).toThrow('Invalid autostart status')
+    expect(() => parsePetRendererStatus({
+      state: 'safe-mode',
+      errorCode: 'render-process-gone: crashed'
+    })).toThrow('Invalid pet renderer status')
   })
 })

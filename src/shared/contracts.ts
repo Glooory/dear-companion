@@ -218,6 +218,25 @@ export interface FoundationApi {
   getWindowKind(): WindowKind
 }
 
+export type AutostartErrorCode =
+  | 'os-read-failed'
+  | 'os-write-failed'
+  | 'readback-mismatch'
+  | 'settings-save-failed'
+  | 'rollback-failed'
+
+export interface AutostartStatus {
+  supported: boolean
+  requested: boolean
+  effective: boolean
+  errorCode?: AutostartErrorCode
+}
+
+export interface PetRendererStatus {
+  state: 'healthy' | 'recovering' | 'safe-mode'
+  errorCode?: 'pet-renderer-failed'
+}
+
 export interface PetAssetAdjustment {
   id: string
   normalization: AssetNormalization
@@ -289,6 +308,14 @@ export interface RestSystemApi extends PetSystemApi {
   onAudioPlaybackRequested(listener: (request: AudioPlaybackRequest) => void): () => void
 }
 
+export interface ReleaseHardeningApi extends RestSystemApi {
+  getAutostartStatus(): Promise<AutostartStatus>
+  setAutostartEnabled(enabled: boolean): Promise<AutostartStatus>
+  getPetRendererStatus(): Promise<PetRendererStatus>
+  retryPetRenderer(): Promise<PetRendererStatus>
+  onPetRendererStatusChanged(listener: (status: PetRendererStatus) => void): () => void
+}
+
 export interface SettingsMigrationResult {
   settings: AppSettings
   migrated: boolean
@@ -346,6 +373,59 @@ const INTERNAL_AUDIO_FILE_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}\.(mp3|wav|ogg)$/
 
 export function parseAppSettings(value: unknown): AppSettings {
   return migrateAppSettings(value).settings
+}
+
+export function parseAutostartEnabledInput(value: unknown): boolean {
+  if (typeof value !== 'boolean') throw new TypeError('enabled must be a boolean')
+  return value
+}
+
+export function parseAutostartStatus(value: unknown): AutostartStatus {
+  if (!isRecord(value)) throw new Error('Invalid autostart status')
+  assertExactKeys(
+    value,
+    value.errorCode === undefined
+      ? ['supported', 'requested', 'effective']
+      : ['supported', 'requested', 'effective', 'errorCode'],
+    'Invalid autostart status'
+  )
+  if (
+    typeof value.supported !== 'boolean' ||
+    typeof value.requested !== 'boolean' ||
+    typeof value.effective !== 'boolean' ||
+    (value.errorCode !== undefined && !isAutostartErrorCode(value.errorCode))
+  ) {
+    throw new Error('Invalid autostart status')
+  }
+  return {
+    supported: value.supported,
+    requested: value.requested,
+    effective: value.effective,
+    ...(value.errorCode ? { errorCode: value.errorCode } : {})
+  }
+}
+
+export function parsePetRendererStatus(value: unknown): PetRendererStatus {
+  if (!isRecord(value)) throw new Error('Invalid pet renderer status')
+  assertExactKeys(
+    value,
+    value.errorCode === undefined ? ['state'] : ['state', 'errorCode'],
+    'Invalid pet renderer status'
+  )
+  if (
+    value.state !== 'healthy' &&
+    value.state !== 'recovering' &&
+    value.state !== 'safe-mode'
+  ) {
+    throw new Error('Invalid pet renderer status')
+  }
+  if (value.errorCode !== undefined && value.errorCode !== 'pet-renderer-failed') {
+    throw new Error('Invalid pet renderer status')
+  }
+  return {
+    state: value.state,
+    ...(value.errorCode ? { errorCode: value.errorCode } : {})
+  }
 }
 
 export function migrateAppSettings(value: unknown): SettingsMigrationResult {
@@ -747,6 +827,12 @@ function assertExactKeys(value: Record<string, unknown>, keys: readonly string[]
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
     throw new Error(message)
   }
+}
+
+function isAutostartErrorCode(value: unknown): value is AutostartErrorCode {
+  return value === 'os-read-failed' || value === 'os-write-failed' ||
+    value === 'readback-mismatch' || value === 'settings-save-failed' ||
+    value === 'rollback-failed'
 }
 
 function parsePetConfig(value: unknown, index: number): PetConfig {

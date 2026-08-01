@@ -1,4 +1,4 @@
-import { app, dialog, powerMonitor, screen } from 'electron'
+import { app, dialog, powerMonitor, screen, session } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -13,15 +13,19 @@ import {
   runStartup,
   terminateFailedStartup
 } from './app/startup'
+import { parseLaunchIntent } from './app/launch-intent'
+import { AutostartService } from './autostart/autostart-service'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
 import { registerPetSystemIpc } from './ipc/register-pet-system-ipc'
 import { registerRestSystemIpc } from './ipc/register-rest-system-ipc'
+import { registerReleaseHardeningIpc } from './ipc/register-release-hardening-ipc'
 import { SharpImageDecoder } from './images/image-decoder'
 import { PetPackService } from './pets/pet-pack-service'
 import { AudioService } from './audio/audio-service'
 import { ReminderScheduler } from './reminders/reminder-scheduler'
 import { RestSessionController } from './rest/rest-session-controller'
 import { registerAppProtocol, registerAppScheme } from './security/app-protocol'
+import { registerNetworkPolicy } from './security/network-policy'
 import { SettingsStore } from './settings/settings-store'
 import { TrayController } from './tray/tray-controller'
 import { WindowManager } from './windows/window-manager'
@@ -35,6 +39,8 @@ let trayController: TrayController | null = null
 let disposeFoundationIpc: (() => void) | null = null
 let disposePetSystemIpc: (() => void) | null = null
 let disposeRestSystemIpc: (() => void) | null = null
+let disposeReleaseHardeningIpc: (() => void) | null = null
+let disposeNetworkPolicy: (() => void) | null = null
 let disposePowerResume: (() => void) | null = null
 let reminderScheduler: ReminderScheduler | null = null
 let restSessionController: RestSessionController | null = null
@@ -99,6 +105,8 @@ function disposeApplication(): void {
     disposeFoundationIpc,
     disposePetSystemIpc,
     disposeRestSystemIpc,
+    disposeReleaseHardeningIpc,
+    disposeNetworkPolicy,
     disposePowerResume,
     ownedScheduler ? () => ownedScheduler.dispose() : null,
     ownedRestController ? () => ownedRestController.dispose() : null,
@@ -109,6 +117,8 @@ function disposeApplication(): void {
   disposeFoundationIpc = null
   disposePetSystemIpc = null
   disposeRestSystemIpc = null
+  disposeReleaseHardeningIpc = null
+  disposeNetworkPolicy = null
   disposePowerResume = null
   reminderScheduler = null
   restSessionController = null
@@ -173,6 +183,11 @@ if (!hasSingleInstanceLock) {
     const mainDirectory = dirname(fileURLToPath(import.meta.url))
     const preloadPath = join(mainDirectory, '../preload/index.js')
     const rendererRoot = join(mainDirectory, '../renderer')
+    const developmentOrigin = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
+    disposeNetworkPolicy = registerNetworkPolicy(
+      session.defaultSession,
+      developmentOrigin ? { developmentOrigin } : {}
+    )
 
     if (process.env.DEAR_COMPANION_BUILD_SMOKE === '1') {
       await registerAppProtocol(rendererRoot)
@@ -182,6 +197,14 @@ if (!hasSingleInstanceLock) {
 
     const store = new SettingsStore(app.getPath('userData'))
     await store.load()
+    const autostartService = new AutostartService({ app, settingsStore: store })
+    const loginItemSettings = process.platform === 'darwin' && app.isPackaged
+      ? app.getLoginItemSettings()
+      : {}
+    const launchIntent = app.isPackaged
+      ? parseLaunchIntent(process.argv, loginItemSettings)
+      : { autostart: false }
+    if (!launchIntent.autostart) await autostartService.reconcilePersistedPreference()
     const petPackService = new PetPackService(
       app.getPath('userData'),
       store,
@@ -316,6 +339,10 @@ if (!hasSingleInstanceLock) {
       windowManager: manager,
       getRuntimeSnapshot
     })
+    disposeReleaseHardeningIpc = registerReleaseHardeningIpc({
+      autostartService,
+      windowManager: manager
+    })
     const handleResume = (): void => {
       scheduler.handleResume()
       restController.handleResume()
@@ -334,9 +361,11 @@ if (!hasSingleInstanceLock) {
     }
 
     tray.refresh(settings)
-    if (settings.petWindow.visible) await manager.showPet()
+    if (settings.petWindow.visible && (!launchIntent.autostart || settings.activePetId !== null)) {
+      await manager.showPet()
+    }
     if (isQuitting || windowManager !== manager) return
-    if (settings.activePetId === null) await manager.openSettings()
+    if (!launchIntent.autostart && settings.activePetId === null) await manager.openSettings()
     if (isQuitting || windowManager !== manager) return
     startupReady = true
     startupIntents.markReady()

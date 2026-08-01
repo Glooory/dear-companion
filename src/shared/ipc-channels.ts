@@ -24,5 +24,10 @@ export const IPC_CHANNELS = {
   updateAudioSources: 'rest-system:update-audio-sources',
   reportAudioPlaybackFailure: 'rest-system:audio-playback-failure',
   restSystemChanged: 'rest-system:changed',
-  audioPlaybackRequested: 'rest-system:audio-playback-requested'
+  audioPlaybackRequested: 'rest-system:audio-playback-requested',
+  getAutostartStatus: 'release-hardening:get-autostart-status',
+  setAutostartEnabled: 'release-hardening:set-autostart-enabled',
+  getPetRendererStatus: 'release-hardening:get-pet-renderer-status',
+  retryPetRenderer: 'release-hardening:retry-pet-renderer',
+  petRendererStatusChanged: 'release-hardening:pet-renderer-status-changed'
 } as const
