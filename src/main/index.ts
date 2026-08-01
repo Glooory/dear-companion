@@ -72,10 +72,15 @@ async function persistAndShowPet(): Promise<AppSettings | null> {
   }))
   if (manager !== windowManager || isQuitting) return null
 
-  trayController?.refresh(settings)
+  notifySettingsChanged(settings)
   await manager.showPet()
   if (manager !== windowManager || isQuitting) return null
   return settings
+}
+
+function notifySettingsChanged(settings: AppSettings): void {
+  trayController?.refresh(settings)
+  windowManager?.broadcastPetSystemChanged(createPetSystemSnapshot(settings))
 }
 
 function activateSecondInstance(): void {
@@ -255,10 +260,15 @@ if (!hasSingleInstanceLock) {
     })
     runtimeManager = manager
     const endRestSession = (): void => runtimeRestController?.endManually()
+    const notifyRuntimeSettingsChanged = (nextSettings: AppSettings): void => {
+      runtimeTray?.refresh(nextSettings)
+      manager.broadcastPetSystemChanged(createPetSystemSnapshot(nextSettings))
+    }
     const tray = new TrayController({
       settingsStore: store,
       windowManager: manager,
       requestQuit,
+      onSettingsChanged: notifyRuntimeSettingsChanged,
       endRestSession,
       isPackaged: app.isPackaged
     })
@@ -320,8 +330,7 @@ if (!hasSingleInstanceLock) {
     restSessionController = restController
 
     const onSettingsChanged = (nextSettings: AppSettings): void => {
-      trayController?.refresh(nextSettings)
-      manager.broadcastPetSystemChanged(createPetSystemSnapshot(nextSettings))
+      notifySettingsChanged(nextSettings)
     }
     disposeFoundationIpc = registerFoundationIpc({
       settingsStore: store,

@@ -9,6 +9,7 @@ import {
   parseAutostartStatus,
   parsePetRendererStatus,
   parseAppSettings,
+  parsePetUpdateInput,
   type AppSettingsV1,
   type AppSettingsV2,
   type PetConfig
@@ -134,6 +135,28 @@ describe('settings contracts', () => {
         pets: [{ ...pet, assets: [{ ...asset, normalization: { ...asset.normalization, scale: 9 } }] }]
       })
     ).toThrow('Invalid asset normalization')
+  })
+
+  it('rejects unknown fields in pet update payloads', () => {
+    const pet = createPet()
+    const input = {
+      id: pet.id,
+      name: pet.name,
+      targetHeight: pet.targetHeight,
+      assets: pet.assets.map((asset) => ({
+        id: asset.id,
+        normalization: asset.normalization
+      })),
+      actionSlots: pet.actionSlots,
+      actionTemplates: pet.actionTemplates
+    }
+
+    expect(() => parsePetUpdateInput({ ...input, unexpected: true }, ['asset-1']))
+      .toThrow('Invalid pet update')
+    expect(() => parsePetUpdateInput({
+      ...input,
+      assets: [{ ...input.assets[0], unexpected: true }]
+    }, ['asset-1'])).toThrow('Invalid pet asset adjustment')
   })
 
   it('rejects a configured pet pack above 250 MB', () => {

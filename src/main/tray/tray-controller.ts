@@ -17,6 +17,7 @@ interface TrayControllerOptions {
   settingsStore: Pick<SettingsStore, 'update'>
   windowManager: Pick<WindowManager, 'hidePet' | 'showPet' | 'openSettings'>
   requestQuit: () => void
+  onSettingsChanged?: (settings: AppSettings) => void
   endRestSession?: () => void
   platform?: NodeJS.Platform
   isPackaged?: boolean
@@ -31,6 +32,7 @@ export class TrayController {
   private readonly settingsStore: TrayControllerOptions['settingsStore']
   private readonly windowManager: TrayControllerOptions['windowManager']
   private readonly requestQuit: () => void
+  private readonly onSettingsChanged: (settings: AppSettings) => void
   private readonly platform: NodeJS.Platform
   private readonly isPackaged: boolean
   private readonly resourcesPath: string
@@ -42,6 +44,7 @@ export class TrayController {
     settingsStore,
     windowManager,
     requestQuit,
+    onSettingsChanged = () => undefined,
     platform = process.platform,
     isPackaged = false,
     resourcesPath = process.resourcesPath,
@@ -51,6 +54,7 @@ export class TrayController {
     this.settingsStore = settingsStore
     this.windowManager = windowManager
     this.requestQuit = requestQuit
+    this.onSettingsChanged = onSettingsChanged
     this.platform = platform
     this.isPackaged = isPackaged
     this.resourcesPath = resourcesPath
@@ -136,7 +140,7 @@ export class TrayController {
     }))
     if (!this.active) return
 
-    this.refresh(settings)
+    this.onSettingsChanged(settings)
     if (visible) await this.windowManager.showPet()
     else this.windowManager.hidePet()
   }

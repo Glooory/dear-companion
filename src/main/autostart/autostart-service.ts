@@ -1,4 +1,5 @@
 import type { App } from 'electron'
+import { win32 } from 'node:path'
 import type { AutostartErrorCode, AutostartStatus } from '../../shared/contracts'
 import type { SettingsStore } from '../settings/settings-store'
 
@@ -147,7 +148,16 @@ export class AutostartService {
     const settings = this.platform === 'win32'
       ? this.app.getLoginItemSettings({ path: this.executablePath, args: ['--autostart'] })
       : this.app.getLoginItemSettings()
-    return settings.openAtLogin
+    if (this.platform === 'win32') {
+      const executablePath = normalizeWindowsPath(this.executablePath)
+      return settings.launchItems.some((item) =>
+        item.enabled &&
+        normalizeWindowsPath(item.path) === executablePath &&
+        item.args.length === 1 &&
+        item.args[0] === '--autostart'
+      )
+    }
+    return settings.status === 'enabled'
   }
 
   private writeEffective(enabled: boolean): void {
@@ -184,4 +194,8 @@ export class AutostartService {
     this.mutationQueue = result.then(() => undefined, () => undefined)
     return result
   }
+}
+
+function normalizeWindowsPath(path: string): string {
+  return win32.normalize(path).toLowerCase()
 }

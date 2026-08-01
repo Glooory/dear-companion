@@ -53,7 +53,9 @@ export class ReminderScheduler {
     this.clearWake()
     try {
       const schedules = await this.options.loadSchedules()
-      const validIds = new Set(schedules.map((schedule) => schedule.id))
+      const validIds = new Set(
+        schedules.filter((schedule) => schedule.enabled).map((schedule) => schedule.id)
+      )
       this.schedules = schedules.map(cloneSchedule)
       this.queue = this.queue.filter((item) => validIds.has(item.scheduleId))
       for (const [id, snooze] of this.snoozes) if (!validIds.has(snooze.occurrence.scheduleId)) this.snoozes.delete(id)

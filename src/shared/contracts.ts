@@ -283,6 +283,7 @@ export interface PetSystemSnapshot {
 export interface PetSystemApi extends FoundationApi {
   getPetSystemSnapshot(): Promise<PetSystemSnapshot>
   createPet(name: string): Promise<PetSystemSnapshot>
+  deletePet(petId: string): Promise<PetSystemSnapshot>
   chooseAndImportPetAssets(petId: string): Promise<ImageImportResult>
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>
   setActivePet(petId: string): Promise<PetSystemSnapshot>
@@ -533,6 +534,11 @@ export function parsePetUpdateInput(
   availableAssetIds: readonly string[]
 ): PetUpdateInput {
   if (!isRecord(value)) throw new Error('Invalid pet update')
+  assertExactKeys(
+    value,
+    ['id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates'],
+    'Invalid pet update'
+  )
   const id = parsePetIdentifier(value.id)
   const name = parsePetName(value.name)
   if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
@@ -541,6 +547,7 @@ export function parsePetUpdateInput(
   if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset adjustments')
   const assets = value.assets.map((entry) => {
     if (!isRecord(entry)) throw new Error('Invalid pet asset adjustment')
+    assertExactKeys(entry, ['id', 'normalization'], 'Invalid pet asset adjustment')
     return {
       id: parsePetIdentifier(entry.id),
       normalization: parseNormalization(entry.normalization)

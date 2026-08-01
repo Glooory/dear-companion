@@ -24,7 +24,9 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - run: pnpm release:validate-tag -- "${{ github.ref_name }}"
+      - run: pnpm release:validate-tag -- "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
 
   build_windows_x64:
     needs: validate_tag
@@ -168,6 +170,8 @@ jobs:
           merge-multiple: true
       - name: Verify artifacts and create checksums
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           mapfile -d '' installers < <(find artifacts -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" \) -print0 | sort -z)
@@ -178,16 +182,18 @@ jobs:
           (cd artifacts && sha256sum ./*.exe ./*.dmg > SHA256SUMS.txt)
           cp docs/installing-unsigned.md artifacts/INSTALLING-UNSIGNED.md
           {
-            echo "# Dear Companion ${{ github.ref_name }}"
+            echo "# Dear Companion $RELEASE_TAG"
             echo
             echo "Unsigned Windows x64, macOS Intel, and macOS Apple Silicon installers."
             echo "Verify SHA256SUMS.txt and read INSTALLING-UNSIGNED.md before installation."
           } > artifacts/RELEASE-NOTES.md
       - name: Create or update draft GitHub Release
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.ref_name }}"
+          tag="$RELEASE_TAG"
           mapfile -d '' installers < <(find artifacts -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" \) -print0 | sort -z)
           existing="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
           if [[ -n "$existing" ]]; then

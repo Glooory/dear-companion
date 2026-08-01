@@ -130,6 +130,28 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     })
   }
 
+  const deletePet = (): void => {
+    if (
+      !selectedPet ||
+      !window.confirm(`确定删除宠物“${selectedPet.name}”及其本地素材副本吗？`)
+    ) return
+    void runMutation(async () => {
+      const next = await api.deletePet(selectedPet.id)
+      const replacement = next.pets.find((pet) => pet.id === next.activePetId) ??
+        next.pets[0] ??
+        null
+      setSnapshot(next)
+      setSelectedPetId(replacement?.id ?? null)
+      setDraft(replacement ? petToUpdateInput(replacement) : null)
+      setImportReport(null)
+      setSettings((current) => current ? {
+        ...current,
+        activePetId: next.activePetId,
+        pets: next.pets
+      } : current)
+    })
+  }
+
   const saveDraft = (): void => {
     if (!draft) return
     void runMutation(async () => {
@@ -378,6 +400,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <div className="editor-actions">
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={deletePet}>删除宠物</button>
                   <button type="button" className="secondary-button" disabled={isBusy} onClick={saveDraft}>保存配置</button>
                   <button
                     type="button"

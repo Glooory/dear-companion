@@ -15,6 +15,7 @@ const api: ReleaseHardeningApi = {
   getWindowKind: () => ipcRenderer.sendSync(IPC_CHANNELS.getWindowKind),
   getPetSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getPetSystemSnapshot),
   createPet: (name) => ipcRenderer.invoke(IPC_CHANNELS.createPet, name),
+  deletePet: (petId) => ipcRenderer.invoke(IPC_CHANNELS.deletePet, petId),
   chooseAndImportPetAssets: (petId) => ipcRenderer.invoke(IPC_CHANNELS.importPetAssets, petId),
   updatePet: (input) => ipcRenderer.invoke(IPC_CHANNELS.updatePet, input),
   setActivePet: (petId) => ipcRenderer.invoke(IPC_CHANNELS.setActivePet, petId),

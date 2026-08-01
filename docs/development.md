@@ -100,6 +100,8 @@ The detailed phase-three list below remains useful for functional coverage:
 4. Assign at least one idle image and optional cute, petting, angry, crying,
    resting, and blink images. Set the active pet and confirm the transparent,
    borderless, always-on-top window displays the imported local asset.
+   Delete a disposable pet and confirm its local copied assets are removed
+   without affecting another configured pet.
 5. Exercise single click, double click, hover tilt, ordinary drag, fast-drag
    protest, right-click menu, mapped blink, and missing-slot fallbacks. Verify
    the pending single click does not fire after a double click.

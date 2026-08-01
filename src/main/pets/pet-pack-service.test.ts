@@ -122,6 +122,34 @@ describe('PetPackService', () => {
     await service.createPet('Mochi')
     await expect(service.setActivePet('pet-1')).rejects.toThrow('at least one idle asset')
   })
+
+  it('deletes an active pet and its copied assets without affecting other pets', async () => {
+    const { userDataPath, service } = await createHarness()
+    const first = await service.createPet('Mochi')
+    const second = await service.createPet('Yuki')
+    const firstPetId = first.pets[0]!.id
+    const secondPetId = second.pets.find((pet) => pet.id !== firstPetId)!.id
+    const sourcePath = join(userDataPath, 'source.png')
+    await writeFile(sourcePath, pngBytes)
+    const imported = await service.importAssets(firstPetId, [sourcePath])
+    const asset = imported.imported[0]!
+    await service.updatePet({
+      id: firstPetId,
+      name: 'Mochi',
+      targetHeight: 180,
+      assets: [{ id: asset.id, normalization: { ...asset.normalization } }],
+      actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
+      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES }
+    })
+    await service.setActivePet(firstPetId)
+
+    const deleted = await service.deletePet(firstPetId)
+
+    expect(deleted.activePetId).toBeNull()
+    expect(deleted.pets.map((pet) => pet.id)).toEqual([secondPetId])
+    await expect(readFile(join(userDataPath, 'pets', firstPetId, 'assets', asset.fileName)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+  })
 })
 
 function validDecoder(): ImageDecoder {

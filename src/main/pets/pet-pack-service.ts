@@ -1,4 +1,4 @@
-import { open, mkdir, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import { open, mkdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
@@ -57,6 +57,50 @@ export class PetPackService {
         }
         return { ...current, pets: [...current.pets, pet] }
       })
+      return createPetSystemSnapshot(settings)
+    })
+  }
+
+  deletePet(petIdValue: unknown): Promise<PetSystemSnapshot> {
+    const petId = parsePetIdentifier(petIdValue)
+    return this.enqueue(async () => {
+      const current = await this.settingsStore.load()
+      requirePet(current, petId)
+      const petsRoot = resolve(this.userDataPath, 'pets')
+      const petDirectory = resolve(petsRoot, petId)
+      const stagedDirectory = resolve(petsRoot, `.deleting-${petId}-${randomUUID()}`)
+      let staged = false
+
+      try {
+        await mkdir(petsRoot, { recursive: true, mode: 0o700 })
+        await rename(petDirectory, stagedDirectory)
+        staged = true
+      } catch (error) {
+        if (!isMissingFileError(error)) {
+          throw new Error('Pet assets could not be prepared for deletion', { cause: error })
+        }
+      }
+
+      let settings: AppSettings
+      try {
+        settings = await this.settingsStore.update((latest) => {
+          requirePet(latest, petId)
+          return {
+            ...latest,
+            activePetId: latest.activePetId === petId ? null : latest.activePetId,
+            pets: latest.pets.filter((pet) => pet.id !== petId)
+          }
+        })
+      } catch {
+        if (staged) {
+          await rename(stagedDirectory, petDirectory).catch(() => undefined)
+        }
+        throw new Error('Pet could not be deleted')
+      }
+
+      if (staged) {
+        await rm(stagedDirectory, { recursive: true, force: true }).catch(() => undefined)
+      }
       return createPetSystemSnapshot(settings)
     })
   }
@@ -279,4 +323,8 @@ function isPathInside(root: string, candidate: string): boolean {
 
 function isRecordWithId(value: unknown): value is { id: unknown } {
   return typeof value === 'object' && value !== null && 'id' in value
+}
+
+function isMissingFileError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }

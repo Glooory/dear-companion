@@ -56,6 +56,72 @@ describe('ReminderScheduler', () => {
     expect(prompts).toHaveBeenCalledTimes(2)
   })
 
+  it('dismisses active and snoozed occurrences when a schedule is disabled', async () => {
+    let now = new Date(2026, 0, 5, 9, 29).getTime()
+    let timer: (() => void) | null = null
+    let schedules = [schedule()]
+    const prompts = vi.fn()
+    const dismissed = vi.fn()
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => schedules,
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback
+        return 1 as unknown as ReturnType<typeof setTimeout>
+      },
+      clearTimeout: () => { timer = null },
+      isRestActive: () => false,
+      onPrompt: prompts,
+      onPromptDismissed: dismissed
+    })
+
+    await scheduler.start()
+    now = new Date(2026, 0, 5, 9, 30).getTime()
+    timer!()
+    const occurrenceId = prompts.mock.calls[0]![0].occurrenceId
+    scheduler.snooze(occurrenceId, 5)
+
+    schedules = [schedule('reminder-a', { enabled: false })]
+    await scheduler.refresh()
+    now += 5 * 60_000
+    timer!()
+
+    expect(scheduler.getActivePrompt()).toBeNull()
+    expect(prompts).toHaveBeenCalledTimes(1)
+    expect(dismissed).toHaveBeenCalledWith(occurrenceId)
+  })
+
+  it('removes a disabled schedule from the queued prompt order', async () => {
+    let now = new Date(2026, 0, 5, 9, 29).getTime()
+    let timer: (() => void) | null = null
+    let schedules = [schedule('reminder-a'), schedule('reminder-b')]
+    const prompts = vi.fn()
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => schedules,
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback
+        return 1 as unknown as ReturnType<typeof setTimeout>
+      },
+      clearTimeout: () => { timer = null },
+      isRestActive: () => false,
+      onPrompt: prompts
+    })
+
+    await scheduler.start()
+    now = new Date(2026, 0, 5, 9, 30).getTime()
+    timer!()
+    schedules = [schedule('reminder-a'), schedule('reminder-b', { enabled: false })]
+    await scheduler.refresh()
+    scheduler.resolvePrompt(prompts.mock.calls[0]![0].occurrenceId)
+
+    expect(prompts).toHaveBeenCalledTimes(1)
+  })
+
   it('skips due occurrences during rest and on resume, and reports refresh failure once', async () => {
     let now = new Date(2026, 0, 5, 9, 29).getTime()
     let timer: (() => void) | null = null

@@ -1,6 +1,5 @@
 import { Menu, dialog, ipcMain, type IpcMainEvent } from 'electron'
 import {
-  createPetSystemSnapshot,
   parsePetIdentifier,
   type AppSettings,
   type PetSystemSnapshot
@@ -13,7 +12,7 @@ import type { WindowManager } from '../windows/window-manager'
 interface PetSystemIpcDependencies {
   petPackService: Pick<
     PetPackService,
-    'getSnapshot' | 'createPet' | 'importAssets' | 'updatePet' | 'setActivePet'
+    'getSnapshot' | 'createPet' | 'deletePet' | 'importAssets' | 'updatePet' | 'setActivePet'
   >
   settingsStore: Pick<SettingsStore, 'update'>
   windowManager: Pick<
@@ -98,7 +97,6 @@ export function registerPetSystemIpc({
     }))
     if (!active) return
     onSettingsChanged(settings)
-    windowManager.broadcastPetSystemChanged(createPetSystemSnapshot(settings))
     if (visible) await windowManager.showPet()
     else windowManager.hidePet()
   }
@@ -117,6 +115,11 @@ export function registerPetSystemIpc({
     handle(IPC_CHANNELS.createPet, async (event, name: unknown) => {
       requireSettingsSender(event.sender.id)
       return broadcast(await petPackService.createPet(name))
+    })
+
+    handle(IPC_CHANNELS.deletePet, async (event, petId: unknown) => {
+      requireSettingsSender(event.sender.id)
+      return broadcast(await petPackService.deletePet(petId))
     })
 
     handle(IPC_CHANNELS.importPetAssets, async (event, petId: unknown) => {
