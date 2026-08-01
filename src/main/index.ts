@@ -1,7 +1,7 @@
 import { app, dialog } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { AppSettings } from '../shared/contracts'
+import { createPetSystemSnapshot, type AppSettings } from '../shared/contracts'
 import {
   StartupIntentQueue,
   prepareTray,
@@ -9,6 +9,9 @@ import {
   terminateFailedStartup
 } from './app/startup'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
+import { registerPetSystemIpc } from './ipc/register-pet-system-ipc'
+import { SharpImageDecoder } from './images/image-decoder'
+import { PetPackService } from './pets/pet-pack-service'
 import { registerAppProtocol, registerAppScheme } from './security/app-protocol'
 import { SettingsStore } from './settings/settings-store'
 import { TrayController } from './tray/tray-controller'
@@ -21,6 +24,7 @@ let windowManager: WindowManager | null = null
 let settingsStore: SettingsStore | null = null
 let trayController: TrayController | null = null
 let disposeFoundationIpc: (() => void) | null = null
+let disposePetSystemIpc: (() => void) | null = null
 let disposePendingStartup: (() => void) | null = null
 let isQuitting = false
 let startupReady = false
@@ -78,11 +82,13 @@ function disposeApplication(): void {
   const disposers = [
     disposePendingStartup,
     disposeFoundationIpc,
+    disposePetSystemIpc,
     ownedTray ? () => ownedTray.dispose() : null,
     ownedWindowManager ? () => ownedWindowManager.dispose() : null
   ]
   disposePendingStartup = null
   disposeFoundationIpc = null
+  disposePetSystemIpc = null
   trayController = null
   windowManager = null
   settingsStore = null
@@ -145,15 +151,24 @@ if (!hasSingleInstanceLock) {
     const preloadPath = join(mainDirectory, '../preload/index.js')
     const rendererRoot = join(mainDirectory, '../renderer')
 
-    await registerAppProtocol(rendererRoot)
-    if (isQuitting) return
-
     if (process.env.DEAR_COMPANION_BUILD_SMOKE === '1') {
+      await registerAppProtocol(rendererRoot)
       app.quit()
       return
     }
 
     const store = new SettingsStore(app.getPath('userData'))
+    const petPackService = new PetPackService(
+      app.getPath('userData'),
+      store,
+      new SharpImageDecoder()
+    )
+    await registerAppProtocol(
+      rendererRoot,
+      (petId, assetId) => petPackService.resolveAssetPath(petId, assetId)
+    )
+    if (isQuitting) return
+
     const manager = new WindowManager({
       settingsStore: store,
       preloadPath,
@@ -186,10 +201,21 @@ if (!hasSingleInstanceLock) {
     trayController = tray
     disposePendingStartup = null
 
+    const onSettingsChanged = (nextSettings: AppSettings): void => {
+      trayController?.refresh(nextSettings)
+      manager.broadcastPetSystemChanged(createPetSystemSnapshot(nextSettings))
+    }
     disposeFoundationIpc = registerFoundationIpc({
       settingsStore: store,
       windowManager: manager,
-      onSettingsChanged: (nextSettings) => trayController?.refresh(nextSettings)
+      onSettingsChanged
+    })
+    disposePetSystemIpc = registerPetSystemIpc({
+      petPackService,
+      settingsStore: store,
+      windowManager: manager,
+      onSettingsChanged,
+      requestQuit
     })
     if (
       isQuitting ||

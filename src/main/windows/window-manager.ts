@@ -1,5 +1,7 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from 'electron'
 import type { WindowKind } from '../../shared/contracts'
+import type { PetSystemSnapshot } from '../../shared/contracts'
+import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { SettingsStore } from '../settings/settings-store'
 import {
   resolvePetWindowBounds,
@@ -171,6 +173,41 @@ export class WindowManager {
       return 'settings'
     }
     throw new Error('Unrecognized renderer sender')
+  }
+
+  getOwnedWindow(webContentsId: number): BrowserWindow {
+    const kind = this.getWindowKind(webContentsId)
+    const window = kind === 'pet' ? this.petWindow : this.settingsWindow
+    if (!window || window.isDestroyed()) throw new Error('Unrecognized renderer sender')
+    return window
+  }
+
+  movePetBy(deltaX: number, deltaY: number): void {
+    if (
+      this.disposed ||
+      !Number.isFinite(deltaX) ||
+      !Number.isFinite(deltaY) ||
+      Math.abs(deltaX) > 256 ||
+      Math.abs(deltaY) > 256
+    ) {
+      return
+    }
+    const petWindow = this.petWindow
+    if (!petWindow || petWindow.isDestroyed()) return
+    const [x, y] = petWindow.getPosition()
+    if (x === undefined || y === undefined) return
+    petWindow.setPosition(Math.round(x + deltaX), Math.round(y + deltaY))
+  }
+
+  broadcastPetSystemChanged(snapshot: PetSystemSnapshot): void {
+    for (const window of [this.petWindow, this.settingsWindow]) {
+      if (!window || window.isDestroyed() || window.webContents.isDestroyed()) continue
+      window.webContents.send(IPC_CHANNELS.petSystemChanged, snapshot)
+    }
+  }
+
+  isPetVisible(): boolean {
+    return Boolean(this.petWindow && !this.petWindow.isDestroyed() && this.petWindow.isVisible())
   }
 
   dispose(): void {
