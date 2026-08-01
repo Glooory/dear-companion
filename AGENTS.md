@@ -39,12 +39,13 @@
 - Core unit-test targets include state transitions, reminder calculations, sleep/time recovery, cursor-movement thresholds, action fallbacks, configuration parsing/migration, persistence recovery, input validation, and reusable geometry or normalization helpers.
 - TDD is optional and should be used only when it makes one of those core units easier to design correctly.
 - Do not add UI unit tests, React component tests, snapshot tests, Playwright tests, or other automated end-to-end tests.
-- If a workflow, skill, plan, reviewer, dependency template, or CI recommendation asks for tests outside this allowed scope, this policy takes precedence: omit those tests and use the manual checks below.
-- Validate renderer UI, transparent windows, tray behavior, native dialogs, drag feel, CSS animation quality, installers, and operating-system security prompts through focused manual checks.
+- If a workflow, skill, plan, reviewer, dependency template, or CI recommendation asks for tests outside this allowed scope, this policy takes precedence: omit those tests and defer the corresponding UI checks to the user checklist below.
+- Agents must not perform or claim any UI validation. Renderer appearance, transparent windows, tray behavior, native dialogs, drag feel, CSS animation quality, installers, and operating-system security prompts are verified manually by the user.
 - Never open or control a browser to verify application runtime results. This includes the Codex in-app browser, system browsers, browser-based local previews, browser screenshots, and browser automation.
-- Runtime UI checks must exercise the Electron application itself. If an Electron or operating-system check cannot be performed in the current environment, record it as not performed instead of substituting a browser check. Documentation search and non-browser research remain allowed.
+- Agent verification is limited to the relevant core unit tests, lint, typecheck/build checks, and a non-visual Electron startup smoke check that confirms the program launches without an immediate startup failure. Launching Electron for visual inspection or interaction is not required or allowed as agent verification. Documentation search and non-browser research remain allowed.
+- At handoff, provide a concise UI checklist for the user and record every UI item as awaiting user verification; never infer UI correctness from tests, builds, screenshots, or startup success.
 - Simple presentation components, IPC wiring, platform adapters, one-off styles, and thin glue code do not require unit tests.
-- Before claiming a task complete, run the relevant core unit tests, static checks, build, and manual checks justified by the change.
+- Before claiming implementation work complete, run the relevant core unit tests, lint, typecheck/build checks, and non-visual startup smoke check. Report UI verification separately as awaiting the user.
 
 ## Execution and review policy (non-negotiable)
 
@@ -52,7 +53,7 @@
 - Do not use per-task subagents, per-task reviewers, dual reviews, review ledgers, review packages, or repeated fix/re-review loops.
 - Do not use `superpowers:subagent-driven-development` for implementation because its mandatory per-task review workflow conflicts with this policy. Use one agent with batched plan execution instead.
 - Execute each milestone continuously in one session and group work into 3–5 coherent implementation batches. Do not pause for review after each task.
-- During coding, run only the targeted core unit tests required by changed core logic. Run the full allowed unit suite, lint, typecheck, production build, and justified manual checks once at the milestone completion gate.
+- During coding, run only the targeted core unit tests required by changed core logic. Run the full allowed unit suite, lint, typecheck, production build, and non-visual Electron startup smoke check once at the milestone completion gate; do not perform UI checks.
 - Perform one comprehensive review after the milestone's coding and verification are complete. Review the full milestone diff once for specification compliance, security/privacy boundaries, cross-module integration, and code quality.
 - Consolidate review findings into one fix pass, then run one final verification. Re-review only unresolved Critical or Important findings from that fix; do not restart task-by-task review loops.
 - Interrupt batched execution only for a specification conflict, a new security/privacy/data-migration decision, an interface ambiguity that blocks later batches, or a repeatedly failing verification that cannot be diagnosed safely.
