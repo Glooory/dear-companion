@@ -30,38 +30,52 @@ Follow the repository boundaries and security requirements in
 data rules, and security model are in the
 [design specification](superpowers/specs/2026-07-31-dear-companion-design.md).
 
-Milestone 1 is a desktop foundation: it starts a hardened Electron shell,
-persists local window visibility and placement, provides a singleton settings
-window, and exposes show, hide, settings, and quit through the tray. The first
-run has `activePetId: null`, so settings opens to the empty-state view with zero
-reminders.
+Milestone 2 adds the offline pet system on top of the hardened desktop shell.
+Settings schema v2 stores pet names, immutable asset records, alpha bounds,
+non-destructive normalization metadata, action-slot assignments, and action
+template parameters. A valid schema v1 file migrates in memory and is retained
+as the last-good backup before schema v2 atomically replaces the primary file.
 
-The visible pet is a temporary CSS development placeholder, and the tray uses
-a temporary inline SVG asset. Both are foundation-only visuals; replace them
-with the final pet rendering and platform icons in later milestones.
+Imported copies live under `userData/pets/<pet-id>/assets/` with generated IDs;
+the application never persists or logs the user's source path. Only actual PNG
+or WebP bytes are accepted. The decoded image must contain visible content and
+at least one transparent pixel, each file is limited to 20 MiB and 8192×8192,
+and each pet pack is limited to 250 MiB. Renderers access assets only through
+controlled `app://renderer/pet-assets/<pet-id>/<asset-id>` URLs.
 
-## Manual foundation checks
+## Manual phase-two checks
 
 Run the unpacked application once from `release/` on a supported macOS or
 Windows desktop, then verify:
 
-1. The pet window is transparent, borderless, and stays above normal windows.
-2. On first run, settings opens because `activePetId` is null and it reports
-   zero reminders.
-3. Reopening settings focuses the existing settings window instead of creating
-   a second one; closing settings does not quit the application.
-4. Hide the pet with the tray, exit and restart once, and confirm it stays
-   hidden. Then show it with the tray, exit and restart a second time, and
-   confirm it returns visible.
-5. Move the pet near a display edge, then remove or change that display; the
-   pet falls back to a visible position on the remaining display.
-6. Choose the tray exit command and confirm the application fully quits.
-7. Use the platform network inspector or firewall while exercising these
+1. Confirm first run opens the singleton settings window with zero reminders.
+   Create a named pet and import user-prepared transparent PNG and WebP files
+   through the native picker.
+2. Confirm corrupt, opaque, fully transparent, wrong-format, over-20-MiB, and
+   over-8192-pixel inputs show understandable per-file failures without losing
+   successful sibling imports. Confirm the 250-MiB pack limit when suitable
+   fixtures are available.
+3. Preview alpha cropping and a common visible height. Change scale, horizontal
+   offset, vertical offset, and foot baseline, save, restart, and confirm the
+   copied image bytes remain unchanged while the visual alignment persists.
+4. Assign at least one idle image and optional cute, petting, angry, crying,
+   resting, and blink images. Set the active pet and confirm the transparent,
+   borderless, always-on-top window displays the imported local asset.
+5. Exercise single click, double click, hover tilt, ordinary drag, fast-drag
+   protest, right-click menu, mapped blink, and missing-slot fallbacks. Verify
+   the pending single click does not fire after a double click.
+6. Hide and show the pet from settings and tray. Confirm hidden/invisible
+   windows pause idle work, position and active pet survive restart, settings
+   remains a singleton, and tray exit fully quits.
+7. Move the pet near a display edge or onto a second display and confirm the
+   phase-one safe-position recovery still works after restart/display removal.
+8. Use the platform network inspector or firewall while exercising these
    flows; the production bundle must make no network requests.
 
 ## Later milestones
 
-Photo import, pet interactions and animations, reminders and rest sessions,
-autostart, final pet and tray icons, installer packaging, and release
-publishing are intentionally excluded from this foundation milestone. Do not
-add cloud services, accounts, telemetry, remote assets, or automatic updates.
+Reminders, rest sessions, rest cursor monitoring, audio, autostart, final tray
+icons, installer publishing, and releases remain later milestones. This phase
+does not add background removal, face detection, AI image generation, an
+animation timeline, Linux support, cloud services, accounts, telemetry, remote
+assets, or automatic updates.

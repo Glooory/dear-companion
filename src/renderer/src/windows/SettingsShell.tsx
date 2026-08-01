@@ -1,134 +1,319 @@
-import { useEffect, useRef, useState } from 'react'
-import type { AppSettings, FoundationApi } from '@shared/contracts'
+import { useEffect, useMemo, useState } from 'react'
+import type {
+  AppSettings,
+  ImageImportResult,
+  PetConfig,
+  PetSystemApi,
+  PetSystemSnapshot,
+  PetUpdateInput
+} from '@shared/contracts'
+import { ActionSlotEditor } from '../components/ActionSlotEditor'
+import { PetAssetEditor } from '../components/PetAssetEditor'
 
 interface SettingsShellProps {
-  api: FoundationApi
+  api: PetSystemApi
 }
 
 export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
+  const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null)
+  const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<PetUpdateInput | null>(null)
+  const [newPetName, setNewPetName] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasLoadError, setHasLoadError] = useState(false)
+  const [importReport, setImportReport] = useState<ImageImportResult | null>(null)
+  const [isBusy, setIsBusy] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
-  const [isSavingVisibility, setIsSavingVisibility] = useState(false)
-  const isMounted = useRef(false)
-  const visibilityRequestGeneration = useRef(0)
-
-  useEffect(() => {
-    isMounted.current = true
-
-    return () => {
-      isMounted.current = false
-      visibilityRequestGeneration.current += 1
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
-    visibilityRequestGeneration.current += 1
-
-    void api.getSettings().then(
-      (loadedSettings) => {
-        if (cancelled || !isMounted.current) return
+    setError(null)
+    void Promise.all([api.getSettings(), api.getPetSystemSnapshot()]).then(
+      ([loadedSettings, loadedSnapshot]) => {
+        if (cancelled) return
         setSettings(loadedSettings)
-        setIsSavingVisibility(false)
-        setIsLoading(false)
+        setSnapshot(loadedSnapshot)
+        setSelectedPetId((current) => current ?? loadedSnapshot.activePetId ?? loadedSnapshot.pets[0]?.id ?? null)
       },
-      () => {
-        if (cancelled || !isMounted.current) return
-        setError('无法读取本地设置')
-        setHasLoadError(true)
-        setIsSavingVisibility(false)
-        setIsLoading(false)
-      }
+      () => { if (!cancelled) setError('无法读取本地设置，请重试') }
     )
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [api, loadAttempt])
 
-  const retryLoadingSettings = (): void => {
-    setIsLoading(true)
-    setHasLoadError(false)
+  useEffect(() => api.onPetSystemChanged((next) => {
+    setSnapshot(next)
+    setSettings((current) => current ? {
+      ...current,
+      activePetId: next.activePetId,
+      petWindow: next.petWindow,
+      pets: next.pets
+    } : current)
+  }), [api])
+
+  const selectedPet = useMemo(
+    () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
+    [selectedPetId, snapshot]
+  )
+
+  useEffect(() => {
+    setDraft(selectedPet ? petToUpdateInput(selectedPet) : null)
+    setImportReport(null)
+  }, [selectedPet])
+
+  const runMutation = async (operation: () => Promise<void>): Promise<void> => {
+    if (isBusy) return
+    setIsBusy(true)
     setError(null)
-    setLoadAttempt((currentAttempt) => currentAttempt + 1)
+    try {
+      await operation()
+    } catch {
+      setError('操作未能保存，本地旧配置保持不变，请重试')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const createPet = (): void => {
+    const name = newPetName.trim()
+    if (!name || name.length > 80) {
+      setError('宠物名称需为 1–80 个字符')
+      return
+    }
+    void runMutation(async () => {
+      const next = await api.createPet(name)
+      const created = next.pets.at(-1)
+      setSnapshot(next)
+      setSelectedPetId(created?.id ?? null)
+      setNewPetName('')
+    })
+  }
+
+  const importAssets = (): void => {
+    if (!selectedPetId) return
+    void runMutation(async () => {
+      const report = await api.chooseAndImportPetAssets(selectedPetId)
+      setImportReport(report)
+      setSnapshot(await api.getPetSystemSnapshot())
+    })
+  }
+
+  const saveDraft = (): void => {
+    if (!draft) return
+    void runMutation(async () => {
+      const next = await api.updatePet(draft)
+      setSnapshot(next)
+    })
+  }
+
+  const activateDraft = (): void => {
+    if (!draft || draft.actionSlots.idle.length === 0) return
+    void runMutation(async () => {
+      await api.updatePet(draft)
+      const next = await api.setActivePet(draft.id)
+      setSnapshot(next)
+      setSettings((current) => current ? { ...current, activePetId: next.activePetId, pets: next.pets } : current)
+    })
   }
 
   const updatePetVisibility = (): void => {
-    if (!settings || isSavingVisibility) return
-
-    setError(null)
-    setIsSavingVisibility(true)
-    const requestGeneration = visibilityRequestGeneration.current + 1
-    visibilityRequestGeneration.current = requestGeneration
-    void api.setPetVisibility(!settings.petWindow.visible).then(
-      (updatedSettings) => {
-        if (!isMounted.current || visibilityRequestGeneration.current !== requestGeneration) return
-        setSettings(updatedSettings)
-        setIsSavingVisibility(false)
-      },
-      () => {
-        if (!isMounted.current || visibilityRequestGeneration.current !== requestGeneration) return
-        setError('无法保存宠物显示设置')
-        setIsSavingVisibility(false)
-      }
-    )
+    if (!settings) return
+    void runMutation(async () => {
+      const next = await api.setPetVisibility(!settings.petWindow.visible)
+      setSettings(next)
+    })
   }
 
   return (
-    <main className="settings-shell" aria-busy={isLoading}>
+    <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot}>
       <header className="settings-header">
         <p className="eyebrow">本地离线桌面伙伴</p>
         <h1>Dear Companion</h1>
+        <p className="supporting-copy">创建宠物、导入已抠好的透明图片，并用非破坏性参数统一视觉尺寸。</p>
       </header>
 
       {error && (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          {hasLoadError && <button type="button" onClick={retryLoadingSettings}>重试</button>}
+          {!settings && <button type="button" onClick={() => setLoadAttempt((value) => value + 1)}>重试</button>}
+        </div>
+      )}
+
+      {settings && snapshot && (
+        <div className="pet-settings-layout">
+          <aside className="pet-list-panel" aria-label="宠物列表">
+            <h2>宠物</h2>
+            <div className="pet-list">
+              {snapshot.pets.map((pet) => (
+                <button
+                  type="button"
+                  key={pet.id}
+                  className={pet.id === selectedPetId ? 'selected' : ''}
+                  onClick={() => setSelectedPetId(pet.id)}
+                >
+                  <span>{pet.name}</span>
+                  {pet.id === snapshot.activePetId && <small>当前</small>}
+                </button>
+              ))}
+              {snapshot.pets.length === 0 && <p className="supporting-copy">还没有宠物，先创建一个。</p>}
+            </div>
+            <label className="new-pet-control">
+              <span>宠物名称</span>
+              <input
+                value={newPetName}
+                maxLength={80}
+                placeholder="例如：小桃"
+                onChange={(event) => setNewPetName(event.currentTarget.value)}
+              />
+            </label>
+            <button type="button" className="primary-button" disabled={isBusy} onClick={createPet}>创建宠物</button>
+          </aside>
+
+          <section className="pet-editor-panel">
+            {draft && selectedPet ? (
+              <>
+                <div className="editor-heading-row">
+                  <div>
+                    <p className="eyebrow">宠物配置</p>
+                    <h2>{selectedPet.name}</h2>
+                  </div>
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={importAssets}>
+                    导入透明 PNG / WebP
+                  </button>
+                </div>
+
+                {importReport && (
+                  <div className="import-report" role="status">
+                    <strong>已导入 {importReport.imported.length} 张</strong>
+                    {importReport.failures.map((failure) => (
+                      <p key={`${failure.index}-${failure.code}`}>第 {failure.index + 1} 张：{failure.message}</p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pet-basic-fields">
+                  <label>
+                    <span>名称</span>
+                    <input
+                      value={draft.name}
+                      maxLength={80}
+                      onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })}
+                    />
+                  </label>
+                  <label>
+                    <span>默认人物高度（80–260 px）</span>
+                    <input
+                      type="number"
+                      min={80}
+                      max={260}
+                      value={draft.targetHeight}
+                      onChange={(event) => {
+                        const value = Number(event.currentTarget.value)
+                        if (Number.isFinite(value)) setDraft({ ...draft, targetHeight: value })
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <section className="editor-section">
+                  <h2>素材归一化</h2>
+                  <p className="supporting-copy">虚线为统一脚底基线；所有调整只保存为元数据，原始副本不会改变。</p>
+                  <div className="asset-editor-list">
+                    {selectedPet.assets.map((asset) => {
+                      const adjustment = draft.assets.find((entry) => entry.id === asset.id)
+                      if (!adjustment) return null
+                      return (
+                        <PetAssetEditor
+                          key={asset.id}
+                          petId={selectedPet.id}
+                          asset={asset}
+                          targetHeight={draft.targetHeight}
+                          normalization={adjustment.normalization}
+                          onChange={(normalization) => setDraft({
+                            ...draft,
+                            assets: draft.assets.map((entry) => entry.id === asset.id ? { ...entry, normalization } : entry)
+                          })}
+                        />
+                      )
+                    })}
+                    {selectedPet.assets.length === 0 && <p className="empty-editor-state">请通过系统文件选择框导入透明图片。</p>}
+                  </div>
+                </section>
+
+                <section className="editor-section">
+                  <h2>动作槽</h2>
+                  <p className="supporting-copy">除空闲外均可不分配；缺失动作会使用内置安全回退。</p>
+                  <ActionSlotEditor
+                    assets={selectedPet.assets}
+                    slots={draft.actionSlots}
+                    onChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
+                  />
+                </section>
+
+                <div className="editor-actions">
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={saveDraft}>保存配置</button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={isBusy || draft.actionSlots.idle.length === 0}
+                    title={draft.actionSlots.idle.length === 0 ? '请先为宠物分配至少一张空闲素材' : undefined}
+                    onClick={activateDraft}
+                  >
+                    {snapshot.activePetId === draft.id ? '保存并保持当前宠物' : '保存并设为当前宠物'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="empty-editor-state">创建或选择一个宠物后开始配置。</div>
+            )}
+          </section>
         </div>
       )}
 
       {settings && (
-        <section className="settings-sections" aria-label="基础设置">
+        <section className="settings-sections phase-two-foundation">
           <article className="settings-card">
-            <h2>宠物</h2>
-            {settings.activePetId === null && (
-              <>
-                <p>还没有添加宠物照片</p>
-                <button type="button" disabled>下一阶段添加照片</button>
-              </>
-            )}
-          </article>
-
-          <article className="settings-card">
-            <h2>提醒</h2>
-            <p>尚未设置提醒</p>
-            <p className="supporting-copy">提醒功能将在下一阶段提供；首次安装不会自动创建提醒。</p>
-          </article>
-
-          <article className="settings-card">
-            <h2>基础控制</h2>
+            <h2>桌面显示</h2>
             <label className="toggle-control">
               <input
                 type="checkbox"
                 checked={settings.petWindow.visible}
-                disabled={isSavingVisibility}
+                disabled={isBusy}
                 onChange={updatePetVisibility}
               />
               <span>显示桌面宠物</span>
             </label>
-            <label className="height-control">
-              <span>默认高度</span>
-              <input type="text" readOnly value="180 px" aria-label="默认高度" />
-            </label>
+          </article>
+          <article className="settings-card">
+            <h2>提醒</h2>
+            <p>尚未设置提醒</p>
+            <p className="supporting-copy">提醒和休息流程属于后续阶段；当前不会自动创建提醒。</p>
           </article>
         </section>
       )}
 
-      <footer className="privacy-note">照片和设置只保存在这台电脑上</footer>
+      <footer className="privacy-note">照片和设置只保存在这台电脑上；应用不会上传素材。</footer>
     </main>
   )
+}
+
+function petToUpdateInput(pet: PetConfig): PetUpdateInput {
+  return {
+    id: pet.id,
+    name: pet.name,
+    targetHeight: pet.targetHeight,
+    assets: pet.assets.map((asset) => ({
+      id: asset.id,
+      normalization: { ...asset.normalization }
+    })),
+    actionSlots: {
+      idle: [...pet.actionSlots.idle],
+      cute: [...pet.actionSlots.cute],
+      petting: [...pet.actionSlots.petting],
+      angry: [...pet.actionSlots.angry],
+      crying: [...pet.actionSlots.crying],
+      resting: [...pet.actionSlots.resting],
+      blink: [...pet.actionSlots.blink]
+    },
+    actionTemplates: { ...pet.actionTemplates }
+  }
 }

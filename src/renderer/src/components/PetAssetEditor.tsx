@@ -1,0 +1,95 @@
+import type { AssetNormalization, PetAsset } from '@shared/contracts'
+import { computeAssetGeometry } from '@shared/image-normalization'
+
+interface PetAssetEditorProps {
+  petId: string
+  asset: PetAsset
+  targetHeight: number
+  normalization: AssetNormalization
+  onChange(normalization: AssetNormalization): void
+}
+
+export function PetAssetEditor({
+  petId,
+  asset,
+  targetHeight,
+  normalization,
+  onChange
+}: PetAssetEditorProps): React.JSX.Element {
+  const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, {
+    width: 220,
+    height: 260,
+    baselineY: 242
+  })
+
+  const update = (key: keyof AssetNormalization, value: string): void => {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return
+    onChange({ ...normalization, [key]: parsed })
+  }
+
+  return (
+    <article className="asset-editor">
+      <div className="asset-preview" aria-label="透明边界和统一尺寸预览">
+        <span className="asset-baseline" aria-hidden="true" />
+        <img
+          src={petAssetUrl(petId, asset.id)}
+          alt=""
+          draggable={false}
+          style={{
+            left: geometry.left,
+            top: geometry.top,
+            width: geometry.renderedWidth,
+            height: geometry.renderedHeight
+          }}
+        />
+      </div>
+      <div className="asset-editor-details">
+        <h3>素材 {asset.id.slice(0, 8)}</h3>
+        <p className="asset-metadata">
+          {asset.format.toUpperCase()} · {asset.width}×{asset.height} · 可见边界 {asset.alphaBounds.width}×{asset.alphaBounds.height}
+        </p>
+        <div className="normalization-grid">
+          <NumberControl label="缩放" value={normalization.scale} min={0.25} max={4} step={0.05} onChange={(value) => update('scale', value)} />
+          <NumberControl label="水平偏移" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(value) => update('offsetX', value)} />
+          <NumberControl label="垂直偏移" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(value) => update('offsetY', value)} />
+          <NumberControl label="脚底基线" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(value) => update('baselineOffset', value)} />
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function NumberControl({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange(value: string): void
+}): React.JSX.Element {
+  return (
+    <label>
+      <span>{label}</span>
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    </label>
+  )
+}
+
+function petAssetUrl(petId: string, assetId: string): string {
+  return `app://renderer/pet-assets/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`
+}
