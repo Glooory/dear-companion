@@ -20,16 +20,29 @@ describe('pet state machine', () => {
     expect(transitionPetState('angry', { type: 'action-start' })).toBe('angry')
   })
 
-  it('makes hidden dominant until show', () => {
+  it('makes hidden dominant over daily states until show', () => {
     expect(transitionPetState('dragging', { type: 'hide' })).toBe('hidden')
     expect(transitionPetState('hidden', { type: 'drag-start' })).toBe('hidden')
     expect(transitionPetState('hidden', { type: 'show' })).toBe('idle')
   })
 
-  it('keeps an explicit future priority boundary above daily interactions', () => {
+  it('uses the complete runtime priority order', () => {
     expect(RESERVED_PET_STATE_PRIORITY.reminding).toBeGreaterThan(PET_STATE_PRIORITY.angry)
     expect(RESERVED_PET_STATE_PRIORITY.resting).toBeGreaterThan(RESERVED_PET_STATE_PRIORITY.reminding)
     expect(RESERVED_PET_STATE_PRIORITY.crying).toBeGreaterThan(RESERVED_PET_STATE_PRIORITY.resting)
-    expect(PET_STATE_PRIORITY.hidden).toBeGreaterThan(RESERVED_PET_STATE_PRIORITY.crying)
+    expect(RESERVED_PET_STATE_PRIORITY.celebrating).toBeGreaterThan(PET_STATE_PRIORITY.hidden)
+  })
+
+  it('lets reminder and rest runtime override hidden and reject daily input', () => {
+    expect(transitionPetState('hidden', { type: 'system-state', state: 'reminding' })).toBe('reminding')
+    expect(transitionPetState('reminding', { type: 'drag-start' })).toBe('reminding')
+    expect(transitionPetState('resting', { type: 'system-state', state: 'crying' })).toBe('crying')
+    expect(transitionPetState('crying', { type: 'hover-start' })).toBe('crying')
+  })
+
+  it('celebrates and restores persisted visibility after runtime completion', () => {
+    expect(transitionPetState('resting', { type: 'system-state', state: 'celebrating' })).toBe('celebrating')
+    expect(transitionPetState('celebrating', { type: 'system-complete', visible: false })).toBe('hidden')
+    expect(transitionPetState('celebrating', { type: 'system-complete', visible: true })).toBe('idle')
   })
 })

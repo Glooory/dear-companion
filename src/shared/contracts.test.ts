@@ -7,6 +7,7 @@ import {
   migrateAppSettings,
   parseAppSettings,
   type AppSettingsV1,
+  type AppSettingsV2,
   type PetConfig
 } from './contracts'
 
@@ -42,13 +43,17 @@ function createPet(): PetConfig {
 }
 
 describe('settings contracts', () => {
-  it('uses privacy-preserving schema v2 first-run defaults', () => {
+  it('uses privacy-preserving schema v3 first-run defaults', () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
-      audio: { reminderEnabled: false, cryingEnabled: false },
+      audio: {
+        reminderSource: { kind: 'builtin', id: 'gentle-chime' },
+        cryingSource: { kind: 'builtin', id: 'soft-whimper' },
+        assets: []
+      },
       reminders: [],
       pets: []
     })
@@ -59,14 +64,20 @@ describe('settings contracts', () => {
       migrated: true,
       settings: {
         ...legacySettings,
-        schemaVersion: 2,
+        schemaVersion: 3,
         activePetId: null,
+        audio: {
+          reminderSource: { kind: 'builtin', id: 'gentle-chime' },
+          cryingSource: { kind: 'builtin', id: 'soft-whimper' },
+          assets: []
+        },
+        reminders: [],
         pets: []
       }
     })
   })
 
-  it('round-trips v2 into newly allocated nested values', () => {
+  it('round-trips v3 into newly allocated nested values', () => {
     const pet = createPet()
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] }
     const parsed = parseAppSettings(input)
@@ -137,9 +148,57 @@ describe('settings contracts', () => {
     })).toThrow('exceeds 250 MB')
   })
 
-  it('rejects settings with unsupported reminder payloads', () => {
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{}] })).toThrow(
-      'Unsupported reminder data in schema version 2'
-    )
+  it('migrates v2 with every pet field and zero reminders', () => {
+    const pet = createPet()
+    const legacy: AppSettingsV2 = {
+      schemaVersion: 2,
+      activePetId: pet.id,
+      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow },
+      autostartEnabled: false,
+      audio: { reminderEnabled: true, cryingEnabled: true },
+      reminders: [],
+      pets: [pet]
+    }
+    const result = migrateAppSettings(legacy)
+    expect(result.migrated).toBe(true)
+    expect(result.settings.pets).toEqual([pet])
+    expect(result.settings.reminders).toEqual([])
+    expect(result.settings.audio.assets).toEqual([])
+  })
+
+  it('validates reminder and audio ownership strictly', () => {
+    const reminder = {
+      id: 'reminder-1', enabled: true, hour: 9, minute: 30,
+      weekdays: [1, 2, 3, 4, 5], restDurationMinutes: 10,
+      cursorTolerance: 'standard', message: '  休息一下  ',
+      sounds: { reminder: false, crying: false }
+    }
+    const parsed = parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder] })
+    expect(parsed.reminders[0]?.message).toBe('休息一下')
+    expect(parsed.reminders[0]).not.toBe(reminder)
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, weekdays: [1, 1] }] })).toThrow('Duplicate reminder weekday')
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder, reminder] })).toThrow('Duplicate reminder identifier')
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, hour: Number.NaN }] })).toThrow('Invalid reminder time')
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, unknown: true }] })).toThrow('Invalid reminder schedule')
+    expect(() => parseAppSettings({
+      ...DEFAULT_APP_SETTINGS,
+      audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: 'imported', assetId: 'missing' } }
+    })).toThrow('Stale imported audio source')
+  })
+
+  it('rejects malformed audio assets and unknown sound sources', () => {
+    const asset = { id: 'sound-1', fileName: 'sound-1.mp3', format: 'mp3', byteSize: 10, available: true }
+    expect(parseAppSettings({
+      ...DEFAULT_APP_SETTINGS,
+      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [asset], reminderSource: { kind: 'imported', assetId: 'sound-1' } }
+    }).audio.assets).toEqual([asset])
+    expect(() => parseAppSettings({
+      ...DEFAULT_APP_SETTINGS,
+      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [asset, asset] }
+    })).toThrow('Duplicate audio asset identifier')
+    expect(() => parseAppSettings({
+      ...DEFAULT_APP_SETTINGS,
+      audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: 'builtin', id: 'soft-whimper' } }
+    })).toThrow('Unknown built-in audio source')
   })
 })

@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_APP_SETTINGS,
   type AppSettings,
-  type AppSettingsV1
+  type AppSettingsV1,
+  type AppSettingsV2
 } from '../../shared/contracts'
 import { SettingsRecoveryError, SettingsStore } from './settings-store'
 
@@ -303,7 +304,18 @@ describe('SettingsStore', () => {
 
     const migrated = await new SettingsStore(userDataPath).load()
 
-    expect(migrated).toEqual({ ...legacy, schemaVersion: 2, activePetId: null, pets: [] })
+    expect(migrated).toEqual({
+      ...legacy,
+      schemaVersion: 3,
+      activePetId: null,
+      audio: {
+        reminderSource: { kind: 'builtin', id: 'gentle-chime' },
+        cryingSource: { kind: 'builtin', id: 'soft-whimper' },
+        assets: []
+      },
+      reminders: [],
+      pets: []
+    })
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.json'), 'utf8'))).toEqual(migrated)
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
   })
@@ -323,7 +335,12 @@ describe('SettingsStore', () => {
 
     await expect(new SettingsStore(userDataPath).load()).resolves.toEqual({
       ...legacy,
-      schemaVersion: 2,
+      schemaVersion: 3,
+      audio: {
+        reminderSource: { kind: 'builtin', id: 'gentle-chime' },
+        cryingSource: { kind: 'builtin', id: 'soft-whimper' },
+        assets: []
+      },
       pets: []
     })
   })
@@ -363,5 +380,40 @@ describe('SettingsStore', () => {
     await expect(new SettingsStore(userDataPath).load()).rejects.toBeInstanceOf(SettingsRecoveryError)
     expect(JSON.parse(await readFile(settingsPath, 'utf8'))).toEqual(legacy)
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
+  })
+
+  it('migrates a v2 primary atomically and preserves the v2 backup', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV2 = {
+      schemaVersion: 2,
+      activePetId: null,
+      petWindow: { x: 10, y: 20, displayId: '2', height: 190, visible: true },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: [],
+      pets: []
+    }
+    await writeFile(join(userDataPath, 'settings.json'), JSON.stringify(legacy))
+    const migrated = await new SettingsStore(userDataPath).load()
+    expect(migrated).toMatchObject({ schemaVersion: 3, reminders: [], pets: [], petWindow: legacy.petWindow })
+    expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
+  })
+
+  it('recovers a corrupt primary from a v2 backup and writes strict v3', async () => {
+    const userDataPath = await createUserDataPath()
+    const legacy: AppSettingsV2 = {
+      schemaVersion: 2,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: { reminderEnabled: false, cryingEnabled: false },
+      reminders: [],
+      pets: []
+    }
+    await writeFile(join(userDataPath, 'settings.json'), '{broken')
+    await writeFile(join(userDataPath, 'settings.backup.json'), JSON.stringify(legacy))
+    const migrated = await new SettingsStore(userDataPath).load()
+    expect(migrated.schemaVersion).toBe(3)
+    expect(JSON.parse(await readFile(join(userDataPath, 'settings.json'), 'utf8'))).toEqual(migrated)
   })
 })
