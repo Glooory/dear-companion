@@ -1,6 +1,10 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from 'electron'
-import type { WindowKind } from '../../shared/contracts'
-import type { PetSystemSnapshot } from '../../shared/contracts'
+import type {
+  AudioPlaybackRequest,
+  PetSystemSnapshot,
+  RestSystemSnapshot,
+  WindowKind
+} from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { SettingsStore } from '../settings/settings-store'
 import {
@@ -206,6 +210,25 @@ export class WindowManager {
     }
   }
 
+  broadcastRestSystemChanged(snapshot: RestSystemSnapshot): void {
+    this.broadcast(IPC_CHANNELS.restSystemChanged, snapshot)
+  }
+
+  broadcastAudioPlaybackRequested(request: AudioPlaybackRequest): void {
+    const window = this.petWindow
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return
+    window.webContents.send(IPC_CHANNELS.audioPlaybackRequested, request)
+  }
+
+  async showPetForRuntime(): Promise<void> {
+    await this.showPet()
+  }
+
+  async restorePersistedPetVisibility(): Promise<void> {
+    const settings = await this.settingsStore.load()
+    if (!settings.petWindow.visible) this.hidePet()
+  }
+
   isPetVisible(): boolean {
     return Boolean(this.petWindow && !this.petWindow.isDestroyed() && this.petWindow.isVisible())
   }
@@ -239,6 +262,13 @@ export class WindowManager {
         window.webContents.removeListener('will-navigate', denyNavigation)
       }
     })
+  }
+
+  private broadcast(channel: string, payload: unknown): void {
+    for (const window of [this.petWindow, this.settingsWindow]) {
+      if (!window || window.isDestroyed() || window.webContents.isDestroyed()) continue
+      window.webContents.send(channel, payload)
+    }
   }
 
   private async initializePetPlacement(petWindow: BrowserWindow): Promise<boolean> {

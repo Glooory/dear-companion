@@ -10,5 +10,19 @@ export const IPC_CHANNELS = {
   setActivePet: 'pet-system:set-active-pet',
   movePetBy: 'pet-system:move-pet-by',
   showPetContextMenu: 'pet-system:show-context-menu',
-  petSystemChanged: 'pet-system:changed'
+  petSystemChanged: 'pet-system:changed',
+  getRestSystemSnapshot: 'rest-system:get-snapshot',
+  createReminder: 'rest-system:create-reminder',
+  updateReminder: 'rest-system:update-reminder',
+  deleteReminder: 'rest-system:delete-reminder',
+  setReminderEnabled: 'rest-system:set-reminder-enabled',
+  retryReminderService: 'rest-system:retry-service',
+  startPromptedRest: 'rest-system:start-prompted-rest',
+  snoozePrompt: 'rest-system:snooze-prompt',
+  endRestSession: 'rest-system:end-session',
+  importAudio: 'rest-system:import-audio',
+  updateAudioSources: 'rest-system:update-audio-sources',
+  reportAudioPlaybackFailure: 'rest-system:audio-playback-failure',
+  restSystemChanged: 'rest-system:changed',
+  audioPlaybackRequested: 'rest-system:audio-playback-requested'
 } as const

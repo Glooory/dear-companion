@@ -1,7 +1,12 @@
-import { app, dialog } from 'electron'
+import { app, dialog, powerMonitor, screen } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createPetSystemSnapshot, type AppSettings } from '../shared/contracts'
+import {
+  createPetSystemSnapshot,
+  createRestSystemSnapshot,
+  type AppSettings,
+  type RestRuntimeSnapshot
+} from '../shared/contracts'
 import {
   StartupIntentQueue,
   prepareTray,
@@ -10,8 +15,12 @@ import {
 } from './app/startup'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
 import { registerPetSystemIpc } from './ipc/register-pet-system-ipc'
+import { registerRestSystemIpc } from './ipc/register-rest-system-ipc'
 import { SharpImageDecoder } from './images/image-decoder'
 import { PetPackService } from './pets/pet-pack-service'
+import { AudioService } from './audio/audio-service'
+import { ReminderScheduler } from './reminders/reminder-scheduler'
+import { RestSessionController } from './rest/rest-session-controller'
 import { registerAppProtocol, registerAppScheme } from './security/app-protocol'
 import { SettingsStore } from './settings/settings-store'
 import { TrayController } from './tray/tray-controller'
@@ -25,6 +34,10 @@ let settingsStore: SettingsStore | null = null
 let trayController: TrayController | null = null
 let disposeFoundationIpc: (() => void) | null = null
 let disposePetSystemIpc: (() => void) | null = null
+let disposeRestSystemIpc: (() => void) | null = null
+let disposePowerResume: (() => void) | null = null
+let reminderScheduler: ReminderScheduler | null = null
+let restSessionController: RestSessionController | null = null
 let disposePendingStartup: (() => void) | null = null
 let isQuitting = false
 let startupReady = false
@@ -79,16 +92,26 @@ function disposeApplication(): void {
   startupIntents.reset()
   const ownedTray = trayController
   const ownedWindowManager = windowManager
+  const ownedScheduler = reminderScheduler
+  const ownedRestController = restSessionController
   const disposers = [
     disposePendingStartup,
     disposeFoundationIpc,
     disposePetSystemIpc,
+    disposeRestSystemIpc,
+    disposePowerResume,
+    ownedScheduler ? () => ownedScheduler.dispose() : null,
+    ownedRestController ? () => ownedRestController.dispose() : null,
     ownedTray ? () => ownedTray.dispose() : null,
     ownedWindowManager ? () => ownedWindowManager.dispose() : null
   ]
   disposePendingStartup = null
   disposeFoundationIpc = null
   disposePetSystemIpc = null
+  disposeRestSystemIpc = null
+  disposePowerResume = null
+  reminderScheduler = null
+  restSessionController = null
   trayController = null
   windowManager = null
   settingsStore = null
@@ -158,14 +181,46 @@ if (!hasSingleInstanceLock) {
     }
 
     const store = new SettingsStore(app.getPath('userData'))
+    await store.load()
     const petPackService = new PetPackService(
       app.getPath('userData'),
       store,
       new SharpImageDecoder()
     )
+    let runtimeManager: WindowManager | null = null
+    let runtimeTray: TrayController | null = null
+    let runtimeScheduler: ReminderScheduler | null = null
+    let runtimeRestController: RestSessionController | null = null
+    let reminderServiceStatus: RestRuntimeSnapshot['serviceStatus'] = 'healthy'
+    let reminderServiceError: RestRuntimeSnapshot['serviceError']
+
+    const getRuntimeSnapshot = (): RestRuntimeSnapshot => ({
+      serviceStatus: reminderServiceStatus,
+      ...(reminderServiceError ? { serviceError: { ...reminderServiceError } } : {}),
+      prompt: runtimeScheduler?.getActivePrompt() ?? null,
+      session: runtimeRestController?.getSnapshot().session ?? null
+    })
+
+    const broadcastRestRuntime = async (): Promise<void> => {
+      const manager = runtimeManager
+      if (!manager || isQuitting) return
+      const runtime = getRuntimeSnapshot()
+      const settings = await store.load()
+      manager.broadcastRestSystemChanged(createRestSystemSnapshot(settings, runtime))
+      runtimeTray?.setRestSessionActive(runtime.session !== null)
+      if (!runtime.prompt && !runtime.session) await manager.restorePersistedPetVisibility()
+    }
+
+    const localAudioService = new AudioService({
+      userDataPath: app.getPath('userData'),
+      settingsStore: store,
+      getRuntimeSnapshot,
+      onPlaybackRequested: (request) => runtimeManager?.broadcastAudioPlaybackRequested(request)
+    })
     await registerAppProtocol(
       rendererRoot,
-      (petId, assetId) => petPackService.resolveAssetPath(petId, assetId)
+      (petId, assetId) => petPackService.resolveAssetPath(petId, assetId),
+      (assetId) => localAudioService.resolveAssetPath(assetId)
     )
     if (isQuitting) return
 
@@ -175,7 +230,10 @@ if (!hasSingleInstanceLock) {
       rendererRoot,
       isPackaged: app.isPackaged
     })
-    const tray = new TrayController({ settingsStore: store, windowManager: manager, requestQuit })
+    runtimeManager = manager
+    const endRestSession = (): void => runtimeRestController?.endManually()
+    const tray = new TrayController({ settingsStore: store, windowManager: manager, requestQuit, endRestSession })
+    runtimeTray = tray
     disposePendingStartup = () => {
       for (const dispose of [() => tray.dispose(), () => manager.dispose()]) {
         try {
@@ -201,6 +259,37 @@ if (!hasSingleInstanceLock) {
     trayController = tray
     disposePendingStartup = null
 
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => (await store.load()).reminders,
+      isRestActive: () => Boolean(runtimeRestController?.getSnapshot().session),
+      onPrompt: async (prompt) => {
+        await manager.showPetForRuntime()
+        await broadcastRestRuntime()
+        await localAudioService.requestPlayback('reminder', prompt.sounds.reminder)
+      },
+      onPromptDismissed: () => { void broadcastRestRuntime().catch(() => undefined) },
+      onError: (error) => {
+        reminderServiceStatus = 'error'
+        reminderServiceError = error
+        void broadcastRestRuntime().catch(() => undefined)
+      },
+      onHealthy: () => {
+        reminderServiceStatus = 'healthy'
+        reminderServiceError = undefined
+        void broadcastRestRuntime().catch(() => undefined)
+      }
+    })
+    runtimeScheduler = scheduler
+    const restController = new RestSessionController({
+      getCursorScreenPoint: () => screen.getCursorScreenPoint(),
+      onPromptConsumed: (occurrenceId) => scheduler.resolvePrompt(occurrenceId),
+      onCryingAudio: (enabled) => { void localAudioService.requestPlayback('crying', enabled).catch(() => undefined) },
+      onChanged: () => { void broadcastRestRuntime().catch(() => undefined) }
+    })
+    runtimeRestController = restController
+    reminderScheduler = scheduler
+    restSessionController = restController
+
     const onSettingsChanged = (nextSettings: AppSettings): void => {
       trayController?.refresh(nextSettings)
       manager.broadcastPetSystemChanged(createPetSystemSnapshot(nextSettings))
@@ -215,8 +304,26 @@ if (!hasSingleInstanceLock) {
       settingsStore: store,
       windowManager: manager,
       onSettingsChanged,
-      requestQuit
+      requestQuit,
+      isRestSessionActive: () => restController.getSnapshot().session !== null,
+      endRestSession
     })
+    disposeRestSystemIpc = registerRestSystemIpc({
+      settingsStore: store,
+      scheduler,
+      restController,
+      audioService: localAudioService,
+      windowManager: manager,
+      getRuntimeSnapshot
+    })
+    const handleResume = (): void => {
+      scheduler.handleResume()
+      restController.handleResume()
+      void broadcastRestRuntime().catch(() => undefined)
+    }
+    powerMonitor.on('resume', handleResume)
+    disposePowerResume = () => powerMonitor.removeListener('resume', handleResume)
+    await scheduler.start()
     if (
       isQuitting ||
       settingsStore !== store ||

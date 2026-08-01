@@ -12,6 +12,7 @@ export interface ReminderSchedulerOptions {
   onPrompt(prompt: ReminderPrompt): void | Promise<void>
   onPromptDismissed?(occurrenceId: string): void
   onError?(error: { code: string; message: string }): void
+  onHealthy?(): void
 }
 
 interface SnoozeEntry { occurrence: ReminderOccurrence; dueAt: number }
@@ -66,6 +67,7 @@ export class ReminderScheduler {
       if (this.lastScanAt === 0) this.lastScanAt = now
       this.recordClock(now)
       this.errorBroadcast = false
+      this.options.onHealthy?.()
       this.scheduleWake(now)
     } catch {
       this.schedules = []

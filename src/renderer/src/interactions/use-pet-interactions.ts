@@ -9,6 +9,7 @@ interface UsePetInteractionsOptions {
   visible: boolean
   angryVelocity: number
   onAction: (slot: ActionSlot, complete: () => void) => void
+  runtimeState?: 'reminding' | 'resting' | 'crying' | 'celebrating' | null
 }
 
 interface DragSession {
@@ -22,16 +23,21 @@ export function usePetInteractions({
   api,
   visible,
   angryVelocity,
-  onAction
+  onAction,
+  runtimeState = null
 }: UsePetInteractionsOptions) {
   const [state, setState] = useState<PetState>(visible ? 'idle' : 'hidden')
   const [previousVisible, setPreviousVisible] = useState(visible)
+  const [previousRuntimeState, setPreviousRuntimeState] = useState(runtimeState)
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const drag = useRef<DragSession | null>(null)
   const suppressClick = useRef(false)
   const [clickArbiter] = useState(() => new ClickIntentArbiter(220))
 
-  if (previousVisible !== visible) {
+  if (previousRuntimeState !== runtimeState) {
+    setPreviousRuntimeState(runtimeState)
+    setState(runtimeState ?? (visible ? 'idle' : 'hidden'))
+  } else if (!runtimeState && previousVisible !== visible) {
     setPreviousVisible(visible)
     setState(visible ? 'idle' : 'hidden')
   }
@@ -39,11 +45,11 @@ export function usePetInteractions({
   useEffect(() => () => clickArbiter.dispose(), [clickArbiter])
 
   useEffect(() => {
-    if (!visible) {
+    if (!visible || runtimeState) {
       drag.current = null
       clickArbiter.dispose()
     }
-  }, [clickArbiter, visible])
+  }, [clickArbiter, runtimeState, visible])
 
   const finishAction = useCallback((): void => {
     setState((current) => current === 'angry'
@@ -61,7 +67,7 @@ export function usePetInteractions({
   }, [finishAction, onAction, state])
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
-    if (event.button !== 0 || state === 'hidden') return
+    if (event.button !== 0 || state === 'hidden' || runtimeState) return
     event.currentTarget.setPointerCapture(event.pointerId)
     drag.current = {
       lastScreenX: event.screenX,
@@ -112,6 +118,7 @@ export function usePetInteractions({
   }
 
   const onClick = (): void => {
+    if (runtimeState) return
     if (suppressClick.current) {
       suppressClick.current = false
       return
@@ -120,6 +127,7 @@ export function usePetInteractions({
   }
 
   const onDoubleClick = (): void => {
+    if (runtimeState) return
     if (suppressClick.current) return
     clickArbiter.doubleClick(() => triggerAction('petting'))
   }
@@ -136,7 +144,7 @@ export function usePetInteractions({
   }
 
   return {
-    state: visible ? state : 'hidden',
+    state: runtimeState ?? (visible ? state : 'hidden'),
     tilt: visible ? tilt : { x: 0, y: 0 },
     triggerAction,
     finishAction,

@@ -28,8 +28,53 @@ html[data-window='pet'] #root {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+}
+
+.rest-bubble {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  padding: 10px;
+  border: 1px solid rgb(79 123 110 / 35%);
+  border-radius: 14px;
+  background: rgb(255 254 250 / 94%);
+  box-shadow: 0 8px 24px rgb(30 40 36 / 18%);
+  color: #293b35;
+  font-size: 12px;
+}
+
+.rest-bubble p {
+  margin: 0 0 7px;
+  font-weight: 700;
+}
+
+.rest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rest-bubble button {
+  padding: 4px 7px;
+  border: 1px solid #b8cbc4;
+  border-radius: 7px;
+  background: #f5faf8;
+  color: #315448;
+  cursor: pointer;
+}
+
+.pet-shell[data-state='crying'] .pet-actor {
+  animation: pet-angry .3s ease-in-out infinite;
+}
+
+.pet-shell[data-state='celebrating'] .pet-actor {
+  animation: pet-cute .65s ease-in-out infinite alternate;
 }
 
 button:focus-visible,

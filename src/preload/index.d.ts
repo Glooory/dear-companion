@@ -1,8 +1,8 @@
-import type { PetSystemApi } from '@shared/contracts'
+import type { RestSystemApi } from '@shared/contracts'
 
 declare global {
   interface Window {
-    dearCompanion: PetSystemApi
+    dearCompanion: RestSystemApi
   }
 }
 

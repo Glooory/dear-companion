@@ -16,6 +16,7 @@ interface TrayControllerOptions {
   settingsStore: Pick<SettingsStore, 'update'>
   windowManager: Pick<WindowManager, 'hidePet' | 'showPet' | 'openSettings'>
   requestQuit: () => void
+  endRestSession?: () => void
   platform?: NodeJS.Platform
 }
 
@@ -27,17 +28,21 @@ export class TrayController {
   private readonly windowManager: TrayControllerOptions['windowManager']
   private readonly requestQuit: () => void
   private readonly platform: NodeJS.Platform
+  private readonly endRestSession: () => void
+  private restSessionActive = false
 
   constructor({
     settingsStore,
     windowManager,
     requestQuit,
-    platform = process.platform
+    platform = process.platform,
+    endRestSession = () => undefined
   }: TrayControllerOptions) {
     this.settingsStore = settingsStore
     this.windowManager = windowManager
     this.requestQuit = requestQuit
     this.platform = platform
+    this.endRestSession = endRestSession
   }
 
   create(): void {
@@ -70,6 +75,10 @@ export class TrayController {
           void this.windowManager.openSettings().catch(() => undefined)
         }
       },
+      ...(this.restSessionActive ? [{
+        label: '结束本次休息',
+        click: this.endRestSession
+      } satisfies MenuItemConstructorOptions] : []),
       { type: 'separator' },
       { label: '退出 Dear Companion', click: this.requestQuit }
     ]
@@ -78,11 +87,18 @@ export class TrayController {
     this.tray.setContextMenu(Menu.buildFromTemplate(menuTemplate))
   }
 
+  setRestSessionActive(active: boolean): void {
+    if (this.restSessionActive === active) return
+    this.restSessionActive = active
+    if (this.settings) this.refresh(this.settings)
+  }
+
   dispose(): void {
     this.active = false
     const tray = this.tray
     this.tray = null
     this.settings = null
+    this.restSessionActive = false
     if (!tray) return
 
     if (this.platform === 'win32') tray.removeListener('click', this.handleClick)

@@ -23,6 +23,8 @@ interface PetSystemIpcDependencies {
   >
   onSettingsChanged?: (settings: AppSettings) => void
   requestQuit: () => void
+  isRestSessionActive?: () => boolean
+  endRestSession?: () => void
 }
 
 export function registerPetSystemIpc({
@@ -30,7 +32,9 @@ export function registerPetSystemIpc({
   settingsStore,
   windowManager,
   onSettingsChanged = () => undefined,
-  requestQuit
+  requestQuit,
+  isRestSessionActive = () => false,
+  endRestSession = () => undefined
 }: PetSystemIpcDependencies): () => void {
   let active = true
   const handledChannels: string[] = []
@@ -77,6 +81,7 @@ export function registerPetSystemIpc({
           label: '设置…',
           click: () => { void windowManager.openSettings().catch(() => undefined) }
         },
+        ...(isRestSessionActive() ? [{ label: '结束本次休息', click: endRestSession }] : []),
         { type: 'separator' },
         { label: '退出 Dear Companion', click: requestQuit }
       ])
