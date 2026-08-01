@@ -1,4 +1,5 @@
 .superpowers/
+.pnpm-store/
 .worktrees/
 node_modules/
 out/

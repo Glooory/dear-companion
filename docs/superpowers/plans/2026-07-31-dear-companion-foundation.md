@@ -1,12 +1,12 @@
 # Dear Companion Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Execute this plan in one session with batched plan execution. Do not use `superpowers:subagent-driven-development`, per-task reviewers, or per-task review loops. Steps use checkbox (`- [ ]`) syntax for progress only.
 
 **Goal:** Establish a secure, fully TypeScript Electron application shell with a transparent pet window, on-demand settings window, local settings persistence, display-safe positioning, tray controls, and cross-platform CI.
 
 **Architecture:** electron-vite builds separate main, preload, and React renderer bundles. The Electron main process owns all privileged behavior; a narrow typed preload bridge connects two renderer modes selected by the `window` query parameter. Focused services manage settings, windows, display placement, tray state, and lifecycle.
 
-**Tech Stack:** Node.js 24, pnpm 10.33, Electron, electron-vite, React, TypeScript, Vite, electron-builder, Vitest, React Testing Library, ESLint
+**Tech Stack:** Node.js 24, pnpm 10.33, Electron, electron-vite, React, TypeScript, Vite, electron-builder, Vitest, ESLint
 
 ## Global Constraints
 
@@ -16,9 +16,10 @@
 - Production code must remain fully offline and must not load remote scripts, pages, telemetry, update checks, or network assets.
 - Renderer processes use `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and a restrictive Content Security Policy.
 - First installation has zero reminders; autostart and all sounds default to off.
-- Testing is risk-driven rather than blanket TDD. Use strict test-first cycles for pure logic with meaningful edge cases; use focused integration or manual checks for window chrome, tray behavior, and visual styling.
+- The testing boundary is non-negotiable and overrides broader testing suggestions from workflows, skills, templates, reviews, or CI conventions. Write unit tests only for necessary core logic and reusable shared methods. Do not add UI unit tests, React component tests, Playwright tests, snapshots, or automated end-to-end tests. Use manual checks for UI and platform behavior; do not propose exceptions.
+- The token-efficiency and review boundary is non-negotiable. Execute continuously in 3–5 coherent batches, perform no per-task review, run one comprehensive review after all milestone coding and verification, consolidate findings into one fix pass, and re-review only unresolved Critical or Important findings. This overrides skills or workflows that mandate finer-grained review.
 - Do not add pet photo import, animation behavior, reminders, cursor monitoring, or release publishing in this milestone; later milestone plans own those features.
-- Keep commits small and aligned with the independently testable tasks below.
+- Use one commit per coherent batch; do not create micro-commits for review mechanics.
 
 ---
 
@@ -49,7 +50,7 @@ Write each later plan only after the previous milestone is implemented and revie
 ├── tsconfig.json                          # Project references
 ├── tsconfig.node.json                     # Main/preload/tooling types
 ├── tsconfig.web.json                      # Renderer types
-├── vitest.config.ts                       # Node default; component files opt into jsdom
+├── vitest.config.ts                       # Core TypeScript unit tests only
 ├── src
 │   ├── main
 │   │   ├── index.ts                       # Electron entry point and lifecycle composition
@@ -74,8 +75,7 @@ Write each later plan only after the previous milestone is implemented and revie
 │   │       ├── main.tsx                   # React bootstrap
 │   │       ├── styles/global.css           # Transparent pet and normal settings bases
 │   │       ├── windows/PetShell.tsx        # Development pet-shell placeholder
-│   │       ├── windows/SettingsShell.tsx   # Foundation status/settings view
-│   │       └── windows/SettingsShell.test.tsx
+│   │       └── windows/SettingsShell.tsx   # Foundation status/settings view
 │   └── shared
 │       ├── contracts.ts                   # Serializable settings and API types
 │       ├── contracts.test.ts              # Default/validation contract tests
@@ -147,7 +147,7 @@ Run:
 
 ```bash
 pnpm add react react-dom write-file-atomic
-pnpm add -D electron electron-vite vite @vitejs/plugin-react typescript @types/node @types/react @types/react-dom @types/write-file-atomic electron-builder vitest jsdom @testing-library/react @testing-library/jest-dom eslint @eslint/js globals typescript-eslint eslint-plugin-react-hooks
+pnpm add -D electron electron-vite vite @vitejs/plugin-react typescript @types/node @types/react @types/react-dom @types/write-file-atomic electron-builder vitest eslint @eslint/js globals typescript-eslint eslint-plugin-react-hooks
 ```
 
 Expected: `package.json` contains resolved version ranges and `pnpm-lock.yaml` is created. Do not add an updater, router, state-management library, schema library, or CSS framework.
@@ -246,7 +246,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.ts'],
     clearMocks: true
   }
 })
@@ -950,34 +950,12 @@ git commit -m "feat: register validated foundation ipc"
 - Create: `src/renderer/src/styles/global.css`
 - Create: `src/renderer/src/windows/PetShell.tsx`
 - Create: `src/renderer/src/windows/SettingsShell.tsx`
-- Create: `src/renderer/src/windows/SettingsShell.test.tsx`
 
 **Interfaces:**
 - Consumes: `window.dearCompanion.getWindowKind()`, `getSettings()`, `setPetVisibility()`, and `openSettings()`.
 - Produces: separate pet/settings render trees without a routing dependency.
 
-- [ ] **Step 1: Write the behavior-rich settings shell tests**
-
-At the top of `SettingsShell.test.tsx`, add `// @vitest-environment jsdom` and import `@testing-library/jest-dom/vitest`.
-
-Test:
-
-```ts
-it('shows the no-pet foundation state when activePetId is null')
-it('shows that reminders are not configured by default')
-it('hides the pet only after setPetVisibility resolves')
-it('shows an inline error and preserves the current toggle when persistence rejects')
-```
-
-Pass a typed `FoundationApi` mock to `SettingsShell` as a prop so the component does not replace the global during tests.
-
-- [ ] **Step 2: Run the component test and verify failure**
-
-Run: `pnpm vitest run src/renderer/src/windows/SettingsShell.test.tsx`
-
-Expected: FAIL because `SettingsShell` does not exist.
-
-- [ ] **Step 3: Implement the settings shell**
+- [ ] **Step 1: Implement the settings shell**
 
 Render these foundation sections only:
 
@@ -989,7 +967,7 @@ Render these foundation sections only:
 
 Use local loading and error state. Do not add a component framework or global state library.
 
-Use a prop boundary that remains testable:
+Keep the Electron API behind an explicit prop boundary:
 
 ```tsx
 export function SettingsShell({ api }: { api: FoundationApi }): React.JSX.Element {
@@ -1000,7 +978,7 @@ export function SettingsShell({ api }: { api: FoundationApi }): React.JSX.Elemen
 }
 ```
 
-- [ ] **Step 4: Implement the pet shell placeholder**
+- [ ] **Step 2: Implement the pet shell placeholder**
 
 The pet shell contains a CSS-only rounded silhouette labeled `Dear Companion` and a small `设置` button that calls `openSettings`. It is a development/foundation placeholder, not a permanent bundled pet.
 
@@ -1020,7 +998,7 @@ html[data-window='pet'] #root {
 
 Settings mode uses an opaque neutral background. Respect `prefers-reduced-motion`; the placeholder must not animate when reduced motion is requested.
 
-- [ ] **Step 5: Select the shell by the trusted preload value**
+- [ ] **Step 3: Select the shell by the trusted preload value**
 
 `App` calls `getWindowKind()` synchronously, sets `document.documentElement.dataset.window`, and renders only the matching shell. It must not trust the query string directly.
 
@@ -1034,20 +1012,19 @@ export function App(): React.JSX.Element {
 }
 ```
 
-- [ ] **Step 6: Run component, static, and visual checks**
+- [ ] **Step 4: Run static and manual visual checks**
 
 Run:
 
 ```bash
-pnpm vitest run src/renderer/src/windows/SettingsShell.test.tsx
 pnpm typecheck
 pnpm lint
 pnpm dev
 ```
 
-Expected: tests pass. Manual check: pet background is transparent; settings is opaque; the settings button focuses a single settings window; the visibility toggle hides the pet and remains correct after restart.
+Expected: static checks pass. Manual check: the empty pet card and zero-reminder copy render correctly; pet background is transparent; settings is opaque; the settings button focuses a single settings window; the visibility toggle hides the pet only after persistence succeeds and remains correct after restart. Review the error branch to confirm it preserves the current toggle when persistence rejects.
 
-- [ ] **Step 7: Commit renderer shells**
+- [ ] **Step 5: Commit renderer shells**
 
 ```bash
 git add src/renderer
