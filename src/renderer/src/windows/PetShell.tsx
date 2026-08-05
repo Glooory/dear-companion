@@ -47,6 +47,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     () => activePet ? resolveLifeAsset(activePet, lifeState, dailyIndex) : null,
     [activePet, dailyIndex, lifeState]
   )
+  const dailyFallbackAsset = useMemo(
+    () => activePet?.assets.find((asset) => asset.id === activePet.actionSlots.idle[0]) ?? null,
+    [activePet]
+  )
   const { dialogue, show: showDialogue, clear: clearDialogue } = useDialogue(
     activePet?.interactionBubblesEnabled ?? true
   )
@@ -293,12 +297,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   return (
     <main className={`pet-shell action-${template}`} data-state={interactionState} {...interactionHandlers}>
-      {activePet && desiredAsset ? (
+      {activePet && desiredAsset && dailyFallbackAsset ? (
         <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
           <PhotoTransition
-            key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}`}
+            key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}:${runtimeActive}`}
             petId={activePet.id}
             asset={desiredAsset}
+            fallbackAsset={dailyFallbackAsset}
             targetHeight={activePet.targetHeight}
             veil={veil}
           />

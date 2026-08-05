@@ -237,6 +237,7 @@ if (!hasSingleInstanceLock) {
     let runtimeRestController: RestSessionController | null = null
     let runtimeCompanionController: CompanionStateController | null = null
     let runtimePettingTracker: PettingTracker | null = null
+    let companionSnapshotGeneration = 0
     let reminderServiceStatus: RestRuntimeSnapshot['serviceStatus'] = 'healthy'
     let reminderServiceError: RestRuntimeSnapshot['serviceError']
 
@@ -354,8 +355,9 @@ if (!hasSingleInstanceLock) {
     const companionController = new CompanionStateController({
       loadSettings: () => store.load(),
       onChanged: (runtime) => {
+        const generation = ++companionSnapshotGeneration
         void store.load().then((current) => {
-          if (!isQuitting && runtimeManager === manager) {
+          if (!isQuitting && runtimeManager === manager && generation === companionSnapshotGeneration) {
             manager.broadcastCompanionSystemChanged(createCompanionSystemSnapshot(current, runtime))
           }
         }).catch(() => undefined)

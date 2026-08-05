@@ -1,36 +1,54 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PetAsset } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
 
 export type PhotoVeil = 'bubbles' | 'stars' | 'clouds'
 
-export function PhotoTransition({ petId, asset, targetHeight, veil }: {
+export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, veil }: {
   petId: string
   asset: PetAsset
+  fallbackAsset: PetAsset
   targetHeight: number
   veil: PhotoVeil
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset)
+  const currentRef = useRef(asset)
   const [phase, setPhase] = useState<'idle' | 'covering' | 'revealing'>('idle')
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
   const desiredUrl = useMemo(() => petAssetUrl(petId, asset.id), [asset.id, petId])
 
+  const clearTimers = useCallback((): void => {
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+  }, [])
+
   useEffect(() => {
-    if (asset.id === current.id) return
+    currentRef.current = current
+  }, [current])
+
+  useEffect(() => {
+    clearTimers()
+    if (asset.id === currentRef.current.id) {
+      currentRef.current = asset
+      setCurrent(asset)
+      setPhase('idle')
+      return
+    }
+
     let cancelled = false
     const image = new Image()
     image.onload = () => {
       if (cancelled) return
       setPhase('covering')
-      timers.current.push(
-        setTimeout(() => {
-          if (!cancelled) {
-            setCurrent(asset)
-            setPhase('revealing')
-          }
-        }, 220),
-        setTimeout(() => { if (!cancelled) setPhase('idle') }, 500)
-      )
+      timers.current.push(setTimeout(() => {
+        if (cancelled) return
+        currentRef.current = asset
+        setCurrent(asset)
+        setPhase('revealing')
+        timers.current.push(setTimeout(() => {
+          if (!cancelled) setPhase('idle')
+        }, 280))
+      }, 220))
     }
     image.onerror = () => {
       // Preserve the last successfully loaded photo.
@@ -38,17 +56,21 @@ export function PhotoTransition({ petId, asset, targetHeight, veil }: {
     image.src = desiredUrl
     return () => {
       cancelled = true
-      timers.current.forEach(clearTimeout)
-      timers.current = []
+      clearTimers()
       image.onload = null
       image.onerror = null
     }
-  }, [asset, current.id, desiredUrl])
+  }, [asset, clearTimers, desiredUrl])
 
-  useEffect(() => () => {
-    timers.current.forEach(clearTimeout)
-    timers.current = []
-  }, [])
+  useEffect(() => () => clearTimers(), [clearTimers])
+
+  const handleCurrentLoadFailure = (): void => {
+    if (current.id === fallbackAsset.id) return
+    clearTimers()
+    currentRef.current = fallbackAsset
+    setCurrent(fallbackAsset)
+    setPhase('idle')
+  }
 
   const geometry = computeAssetGeometry(current, targetHeight, { width: 320, height: 320 })
   return (
@@ -57,7 +79,13 @@ export function PhotoTransition({ petId, asset, targetHeight, veil }: {
         className={`pet-image-frame ${phase === 'covering' ? 'photo-outgoing' : 'photo-incoming'}`}
         style={{ left: geometry.left, top: geometry.top, width: geometry.renderedWidth, height: geometry.renderedHeight }}
       >
-        <img className="pet-image" draggable={false} src={petAssetUrl(petId, current.id)} alt="" />
+        <img
+          className="pet-image"
+          draggable={false}
+          src={petAssetUrl(petId, current.id)}
+          alt=""
+          onError={handleCurrentLoadFailure}
+        />
       </span>
       {phase !== 'idle' && <span className={`photo-veil veil-${veil}`} aria-hidden="true"><i /><i /><i /><i /><i /></span>}
     </>

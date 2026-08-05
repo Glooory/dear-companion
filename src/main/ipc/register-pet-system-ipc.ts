@@ -25,7 +25,7 @@ interface PetSystemIpcDependencies {
   requestQuit: () => void
   isRestSessionActive?: () => boolean
   endRestSession?: () => void
-  companionController?: Pick<CompanionStateController, 'getSnapshot' | 'selectManualState' | 'setManualWork'>
+  companionController?: Pick<CompanionStateController, 'getSnapshot' | 'selectManualState' | 'setManualWork' | 'refresh'>
 }
 
 export function registerPetSystemIpc({
@@ -41,7 +41,8 @@ export function registerPetSystemIpc({
   let active = true
   const handledChannels: string[] = []
 
-  const broadcast = (snapshot: PetSystemSnapshot): PetSystemSnapshot => {
+  const broadcast = async (snapshot: PetSystemSnapshot): Promise<PetSystemSnapshot> => {
+    await companionController?.refresh()
     if (active) windowManager.broadcastPetSystemChanged(snapshot)
     return snapshot
   }
@@ -172,7 +173,7 @@ export function registerPetSystemIpc({
         return { imported: [], failures: [] }
       }
       const result = await petPackService.importAssets(validatedPetId, selection.filePaths)
-      if (result.imported.length > 0) broadcast(await petPackService.getSnapshot())
+      if (result.imported.length > 0) await broadcast(await petPackService.getSnapshot())
       return result
     })
 

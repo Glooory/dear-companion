@@ -35,11 +35,14 @@ function settings(overrides: Partial<AppSettings> = {}): AppSettings {
 function harness(initial = settings()) {
   let current = initial
   let now = new Date('2026-08-05T10:00:00').getTime()
+  let monotonicNow = 0
+  let timezoneOffset = 0
   const timers: Array<{ callback: () => void; delay: number; cleared: boolean }> = []
   const changes: ReturnType<CompanionStateController['getSnapshot']>[] = []
   const controller = new CompanionStateController({
     loadSettings: async () => current,
-    onChanged: (snapshot) => changes.push(snapshot), now: () => now, random: () => 0,
+    onChanged: (snapshot) => changes.push(snapshot), now: () => now,
+    monotonicNow: () => monotonicNow, timezoneOffset: () => timezoneOffset, random: () => 0,
     setTimer: (callback, delay) => {
       const timer = { callback, delay, cleared: false }
       timers.push(timer)
@@ -51,7 +54,9 @@ function harness(initial = settings()) {
     controller, timers, changes,
     setSettings(value: AppSettings) { current = value },
     setNow(value: number) { now = value },
-    advance(ms: number) { now += ms }
+    advance(ms: number) { now += ms; monotonicNow += ms },
+    advanceWall(ms: number) { now += ms },
+    setTimezoneOffset(value: number) { timezoneOffset = value }
   }
 }
 
@@ -142,5 +147,26 @@ describe('CompanionStateController', () => {
     h.controller.wakeFromSleep()
     expect(h.changes).toHaveLength(before)
     expect(vi.isMockFunction(h.controller.wakeFromSleep)).toBe(false)
+  })
+
+  it('checks for wall-clock changes while scheduled work is active instead of waiting for the stale boundary', async () => {
+    const start = new Date('2026-08-05T10:00:00')
+    const h = harness(settings({ workSchedules: [{
+      id: 'work-1', enabled: true, startHour: 9, startMinute: 0,
+      endHour: 17, endMinute: 0,
+      weekdays: [start.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6]
+    }] }))
+    h.setNow(start.getTime())
+    await h.controller.start()
+    expect(h.controller.getSnapshot().scheduledWorkActive).toBe(true)
+    expect(h.timers.at(-1)!.delay).toBeLessThanOrEqual(30_000)
+
+    h.advanceWall(8 * 60 * 60_000)
+    h.timers.at(-1)!.callback()
+
+    expect(h.controller.getSnapshot()).toMatchObject({
+      lifeState: 'daily-calm',
+      scheduledWorkActive: false
+    })
   })
 })

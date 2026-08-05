@@ -1,69 +1,86 @@
-import type { Weekday, WorkSchedule } from './contracts'
+import type { WorkSchedule } from './contracts'
+import {
+  SYSTEM_LOCAL_CALENDAR,
+  type LocalCalendarAdapter,
+  type LocalDateParts
+} from './reminder-time'
 
-export interface LocalCalendarParts {
-  year: number
-  month: number
-  day: number
-  weekday: Weekday
-  hour: number
-  minute: number
-}
+export type { LocalCalendarAdapter } from './reminder-time'
 
-export interface LocalCalendarAdapter {
-  parts(timestamp: number): LocalCalendarParts
-}
-
-const defaultCalendar: LocalCalendarAdapter = {
-  parts(timestamp) {
-    const date = new Date(timestamp)
-    return {
-      year: date.getFullYear(),
-      month: date.getMonth(),
-      day: date.getDate(),
-      weekday: date.getDay() as Weekday,
-      hour: date.getHours(),
-      minute: date.getMinutes()
-    }
-  }
+interface WorkInterval {
+  startAt: number
+  endAt: number
 }
 
 export function isWorkScheduleActive(
   schedule: WorkSchedule,
   now: number,
-  calendar: LocalCalendarAdapter = defaultCalendar
+  calendar: LocalCalendarAdapter = SYSTEM_LOCAL_CALENDAR
 ): boolean {
   if (!Number.isFinite(now) || !isValidSchedule(schedule) || !schedule.enabled) return false
-  const current = calendar.parts(now)
-  const minute = current.hour * 60 + current.minute
-  const start = schedule.startHour * 60 + schedule.startMinute
-  const end = schedule.endHour * 60 + schedule.endMinute
-  const days = new Set(schedule.weekdays)
-  if (start < end) return days.has(current.weekday) && minute >= start && minute < end
-  if (minute >= start) return days.has(current.weekday)
-  const previousDay = ((current.weekday + 6) % 7) as Weekday
-  return minute < end && days.has(previousDay)
+  const current = calendar.toLocalParts(now)
+  return [-1, 0].some((offset) => {
+    const date = calendar.addCalendarDays(current, offset)
+    const interval = workIntervalForDate(schedule, date, calendar)
+    return interval !== null && now >= interval.startAt && now < interval.endAt
+  })
 }
 
 export function nextWorkBoundary(
   schedules: readonly WorkSchedule[],
   now: number,
-  calendar: LocalCalendarAdapter = defaultCalendar
+  calendar: LocalCalendarAdapter = SYSTEM_LOCAL_CALENDAR
 ): number | null {
   if (!Number.isFinite(now)) return null
   const valid = schedules.filter((schedule) => schedule.enabled && isValidSchedule(schedule))
   if (valid.length === 0) return null
+
+  const current = calendar.toLocalParts(now)
+  const candidates = new Set<number>()
+  for (const schedule of valid) {
+    for (let offset = -1; offset <= 8; offset += 1) {
+      const date = calendar.addCalendarDays(current, offset)
+      const interval = workIntervalForDate(schedule, date, calendar)
+      if (!interval) continue
+      if (interval.startAt > now) candidates.add(interval.startAt)
+      if (interval.endAt > now) candidates.add(interval.endAt)
+    }
+  }
+
   const isAnyActive = (at: number): boolean => valid.some((schedule) =>
     isWorkScheduleActive(schedule, at, calendar)
   )
-  let previous = isAnyActive(now)
-  const firstMinute = Math.floor(now / 60_000) * 60_000 + 60_000
-  const limit = firstMinute + 8 * 24 * 60 * 60_000
-  for (let candidate = firstMinute; candidate <= limit; candidate += 60_000) {
-    const current = isAnyActive(candidate)
-    if (current !== previous) return candidate
-    previous = current
+  for (const candidate of [...candidates].sort((left, right) => left - right)) {
+    if (isAnyActive(candidate - 1) !== isAnyActive(candidate)) return candidate
   }
   return null
+}
+
+function workIntervalForDate(
+  schedule: WorkSchedule,
+  date: Pick<LocalDateParts, 'year' | 'month' | 'day'>,
+  calendar: LocalCalendarAdapter
+): WorkInterval | null {
+  const noon = calendar.fromLocalParts({ ...date, hour: 12, minute: 0 })
+  if (noon === null) return null
+  const weekday = calendar.toLocalParts(noon).weekday
+  if (!schedule.weekdays.includes(weekday as 0 | 1 | 2 | 3 | 4 | 5 | 6)) return null
+
+  const startAt = calendar.fromLocalParts({
+    ...date,
+    hour: schedule.startHour,
+    minute: schedule.startMinute
+  })
+  const startMinutes = schedule.startHour * 60 + schedule.startMinute
+  const endMinutes = schedule.endHour * 60 + schedule.endMinute
+  const endDate = calendar.addCalendarDays(date, startMinutes > endMinutes ? 1 : 0)
+  const endAt = calendar.fromLocalParts({
+    ...endDate,
+    hour: schedule.endHour,
+    minute: schedule.endMinute
+  })
+  if (startAt === null || endAt === null || endAt <= startAt) return null
+  return { startAt, endAt }
 }
 
 function isValidSchedule(schedule: WorkSchedule): boolean {

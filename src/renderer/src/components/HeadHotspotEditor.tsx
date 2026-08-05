@@ -55,7 +55,10 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
         onPointerUp={() => { drag.current = null }}
       >
         {(['left', 'right', 'top', 'bottom'] as const).map((kind) => (
-          <span key={kind} className={`hotspot-handle ${kind}`} onPointerDown={(event) => begin(event, kind)} />
+          <span key={kind} className={`hotspot-handle ${kind}`} onPointerDown={(event) => {
+            event.stopPropagation()
+            begin(event, kind)
+          }} />
         ))}
       </div>
       <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>关闭摸头区域</button>

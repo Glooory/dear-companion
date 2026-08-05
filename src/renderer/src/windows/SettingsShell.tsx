@@ -144,8 +144,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setSnapshot(next)
       const nextPet = next.pets.find((pet) => pet.id === selectedPetId)
       if (nextPet) {
-        setDraft(petToUpdateInput(nextPet))
-        setTargetHeightText(String(nextPet.targetHeight))
+        setDraft((current) => mergeImportedAssetsIntoDraft(current, nextPet))
+        if (!draft || draft.id !== nextPet.id) setTargetHeightText(String(nextPet.targetHeight))
       }
     })
   }
@@ -628,6 +628,28 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
     },
     companionPace: pet.companionPace,
     interactionBubblesEnabled: pet.interactionBubblesEnabled
+  }
+}
+
+function mergeImportedAssetsIntoDraft(
+  current: PetUpdateInput | null,
+  persistedPet: PetConfig
+): PetUpdateInput {
+  const persisted = petToUpdateInput(persistedPet)
+  if (!current || current.id !== persistedPet.id) return persisted
+  const existingAdjustments = new Map(current.assets.map((asset) => [asset.id, asset]))
+  return {
+    ...current,
+    assets: persisted.assets.map((asset) => {
+      const existing = existingAdjustments.get(asset.id)
+      return existing
+        ? {
+            id: existing.id,
+            normalization: { ...existing.normalization },
+            headHotspot: existing.headHotspot ? { ...existing.headHotspot } : null
+          }
+        : asset
+    })
   }
 }
 

@@ -13,10 +13,15 @@ interface Dependencies {
   loadSettings(): Promise<AppSettings>
   onChanged(snapshot: CompanionRuntimeSnapshot): void
   now?: () => number
+  monotonicNow?: () => number
+  timezoneOffset?: () => number
   random?: () => number
   setTimer?: (callback: () => void, delay: number) => ReturnType<typeof setTimeout>
   clearTimer?: (timer: ReturnType<typeof setTimeout>) => void
 }
+
+const CLOCK_CHECK_INTERVAL_MS = 30_000
+const CLOCK_CHANGE_TOLERANCE_MS = 2_000
 
 export class CompanionStateController {
   private settings: AppSettings | null = null
@@ -32,12 +37,19 @@ export class CompanionStateController {
   private timer: ReturnType<typeof setTimeout> | null = null
   private disposed = false
   private readonly now: () => number
+  private readonly monotonicNow: () => number
+  private readonly timezoneOffset: () => number
   private readonly random: () => number
   private readonly setTimer: NonNullable<Dependencies['setTimer']>
   private readonly clearTimer: NonNullable<Dependencies['clearTimer']>
+  private lastWall = 0
+  private lastMonotonic = 0
+  private lastTimezoneOffset = 0
 
   constructor(private readonly dependencies: Dependencies) {
     this.now = dependencies.now ?? Date.now
+    this.monotonicNow = dependencies.monotonicNow ?? (() => performance.now())
+    this.timezoneOffset = dependencies.timezoneOffset ?? (() => new Date().getTimezoneOffset())
     this.random = dependencies.random ?? Math.random
     this.setTimer = dependencies.setTimer ?? setTimeout
     this.clearTimer = dependencies.clearTimer ?? clearTimeout
@@ -127,6 +139,7 @@ export class CompanionStateController {
     this.cancelTimer()
     if (!this.settings || this.disposed) return
     const now = this.now()
+    this.recordClock(now)
     const wasWorking = this.lifeState === 'working'
     this.scheduledWorkActive = this.settings.workSchedules.some((schedule) =>
       isWorkScheduleActive(schedule, now)
@@ -172,12 +185,26 @@ export class CompanionStateController {
       .sort((a, b) => a - b)[0] ?? null
     this.nextTransitionAt = dueAt
     if (dueAt === null) return
-    this.timer = this.setTimer(() => this.handleTimer(dueAt, rhythmBoundary), Math.max(0, dueAt - now))
+    this.armTimer(dueAt, rhythmBoundary, now)
   }
 
   private handleTimer(expected: number, rhythmBoundary: number | null): void {
     if (this.disposed || this.nextTransitionAt !== expected) return
     this.timer = null
+    const now = this.now()
+    const elapsedWall = now - this.lastWall
+    const elapsedMonotonic = this.monotonicNow() - this.lastMonotonic
+    const clockChanged = Math.abs(elapsedWall - elapsedMonotonic) > CLOCK_CHANGE_TOLERANCE_MS ||
+      this.timezoneOffset() !== this.lastTimezoneOffset
+    this.recordClock(now)
+    if (clockChanged) {
+      this.recompute(true)
+      return
+    }
+    if (now < expected) {
+      this.armTimer(expected, rhythmBoundary, now)
+      return
+    }
     if (rhythmBoundary === expected && this.pendingAutomaticState) {
       this.automaticState = this.pendingAutomaticState
       if (this.manualSelection !== 'auto') this.manualSelection = 'auto'
@@ -186,6 +213,17 @@ export class CompanionStateController {
       }
     }
     this.recompute(true)
+  }
+
+  private armTimer(expected: number, rhythmBoundary: number | null, now: number): void {
+    const delay = Math.max(0, Math.min(CLOCK_CHECK_INTERVAL_MS, expected - now))
+    this.timer = this.setTimer(() => this.handleTimer(expected, rhythmBoundary), delay)
+  }
+
+  private recordClock(now: number): void {
+    this.lastWall = now
+    this.lastMonotonic = this.monotonicNow()
+    this.lastTimezoneOffset = this.timezoneOffset()
   }
 
   private activePet(): PetConfig | null {

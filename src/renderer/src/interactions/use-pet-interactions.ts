@@ -70,7 +70,6 @@ export function usePetInteractions({
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0 || state === 'hidden' || runtimeState) return
     event.currentTarget.setPointerCapture(event.pointerId)
-    onDragStarted?.()
     drag.current = {
       lastScreenX: event.screenX,
       lastScreenY: event.screenY,
@@ -89,7 +88,9 @@ export function usePetInteractions({
       const deltaY = clamp(rawDeltaY, -256, 256)
       if (deltaX !== 0 || deltaY !== 0) {
         api.movePetBy(deltaX, deltaY)
-        session.moved ||= Math.hypot(event.screenX - session.samples[0]!.x, event.screenY - session.samples[0]!.y) > 4
+        const moved = Math.hypot(event.screenX - session.samples[0]!.x, event.screenY - session.samples[0]!.y) > 4
+        if (!session.moved && moved) onDragStarted?.()
+        session.moved ||= moved
       }
       session.lastScreenX = event.screenX
       session.lastScreenY = event.screenY

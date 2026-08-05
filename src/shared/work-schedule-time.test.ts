@@ -33,4 +33,25 @@ describe('work schedule time', () => {
     expect(isWorkScheduleActive(schedule(), Number.NaN)).toBe(false)
     expect(nextWorkBoundary([schedule()], Number.POSITIVE_INFINITY)).toBeNull()
   })
+
+  it('uses only the first occurrence of a repeated local interval during a DST fold', () => {
+    const previousTimezone = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      const folded = schedule({
+        startHour: 1,
+        startMinute: 30,
+        endHour: 1,
+        endMinute: 45,
+        weekdays: [0]
+      })
+      expect(isWorkScheduleActive(folded, Date.parse('2026-11-01T05:30:00Z'))).toBe(true)
+      expect(isWorkScheduleActive(folded, Date.parse('2026-11-01T06:30:00Z'))).toBe(false)
+      expect(nextWorkBoundary([folded], Date.parse('2026-11-01T05:45:00Z')))
+        .toBe(Date.parse('2026-11-08T06:30:00Z'))
+    } finally {
+      if (previousTimezone === undefined) delete process.env.TZ
+      else process.env.TZ = previousTimezone
+    }
+  })
 })
