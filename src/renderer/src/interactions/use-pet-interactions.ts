@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import type { ActionSlot, PetSystemApi } from '@shared/contracts'
 import { isAngryDragRelease, type PointerSample } from '@shared/drag-gesture'
-import { ClickIntentArbiter } from '@shared/interaction-intents'
 import { transitionPetState, type PetState } from '@shared/pet-state-machine'
 
 interface UsePetInteractionsOptions {
@@ -9,6 +8,9 @@ interface UsePetInteractionsOptions {
   visible: boolean
   angryVelocity: number
   onAction: (slot: ActionSlot, complete: () => void) => void
+  onPrimaryClick(): void
+  onDragStarted?(): void
+  onLocalPointerMove?(event: PointerEvent<HTMLElement>): void
   runtimeState?: 'reminding' | 'resting' | 'crying' | 'celebrating' | null
 }
 
@@ -24,6 +26,9 @@ export function usePetInteractions({
   visible,
   angryVelocity,
   onAction,
+  onPrimaryClick,
+  onDragStarted,
+  onLocalPointerMove,
   runtimeState = null
 }: UsePetInteractionsOptions) {
   const [state, setState] = useState<PetState>(visible ? 'idle' : 'hidden')
@@ -32,7 +37,6 @@ export function usePetInteractions({
   const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const drag = useRef<DragSession | null>(null)
   const suppressClick = useRef(false)
-  const [clickArbiter] = useState(() => new ClickIntentArbiter(220))
 
   if (previousRuntimeState !== runtimeState) {
     setPreviousRuntimeState(runtimeState)
@@ -42,14 +46,11 @@ export function usePetInteractions({
     setState(visible ? 'idle' : 'hidden')
   }
 
-  useEffect(() => () => clickArbiter.dispose(), [clickArbiter])
-
   useEffect(() => {
     if (!visible || runtimeState) {
       drag.current = null
-      clickArbiter.dispose()
     }
-  }, [clickArbiter, runtimeState, visible])
+  }, [runtimeState, visible])
 
   const finishAction = useCallback((): void => {
     setState((current) => current === 'angry'
@@ -69,6 +70,7 @@ export function usePetInteractions({
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0 || state === 'hidden' || runtimeState) return
     event.currentTarget.setPointerCapture(event.pointerId)
+    onDragStarted?.()
     drag.current = {
       lastScreenX: event.screenX,
       lastScreenY: event.screenY,
@@ -95,6 +97,8 @@ export function usePetInteractions({
       if (session.samples.length > 12) session.samples.shift()
       return
     }
+
+    onLocalPointerMove?.(event)
 
     const rect = event.currentTarget.getBoundingClientRect()
     const normalizedX = rect.width > 0 ? (event.clientX - rect.left) / rect.width - 0.5 : 0
@@ -123,13 +127,7 @@ export function usePetInteractions({
       suppressClick.current = false
       return
     }
-    clickArbiter.singleClick(() => triggerAction('cute'))
-  }
-
-  const onDoubleClick = (): void => {
-    if (runtimeState) return
-    if (suppressClick.current) return
-    clickArbiter.doubleClick(() => triggerAction('petting'))
+    onPrimaryClick()
   }
 
   const onPointerLeave = (): void => {
@@ -155,7 +153,6 @@ export function usePetInteractions({
       onPointerCancel: onPointerUp,
       onPointerLeave,
       onClick,
-      onDoubleClick,
       onContextMenu
     }
   }

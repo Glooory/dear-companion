@@ -802,6 +802,84 @@ input:focus-visible {
   animation: bubble-in 180ms ease-out both;
 }
 
+.pet-dialogue {
+  position: absolute;
+  z-index: 7;
+  top: 18px;
+  left: 50%;
+  max-width: 250px;
+  padding: 8px 11px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(65 52 44 / 14%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 6px 18px rgb(47 38 32 / 15%);
+  color: #59483e;
+  font-size: 13px;
+  text-align: center;
+  animation: bubble-in 180ms ease-out both;
+}
+
+.pet-heart {
+  position: absolute;
+  z-index: 6;
+  top: 28%;
+  left: 58%;
+  color: #dd6f79;
+  font-size: 26px;
+  text-shadow: 0 2px 8px rgb(255 255 255 / 90%);
+  animation: heart-rise 900ms ease-out both;
+}
+
+.photo-veil {
+  position: absolute;
+  z-index: 5;
+  inset: 36px 24px 22px;
+  pointer-events: none;
+}
+
+.photo-veil i {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 6px 18px rgb(64 74 70 / 15%);
+  animation: veil-cover 500ms ease-in-out both;
+}
+
+.photo-veil i:nth-child(1) { top: 18%; left: 16%; }
+.photo-veil i:nth-child(2) { top: 7%; left: 40%; animation-delay: 30ms; }
+.photo-veil i:nth-child(3) { top: 30%; left: 55%; animation-delay: 55ms; }
+.photo-veil i:nth-child(4) { top: 48%; left: 27%; animation-delay: 20ms; }
+.photo-veil i:nth-child(5) { top: 58%; left: 52%; animation-delay: 65ms; }
+
+.veil-stars i {
+  border-radius: 20% 80% 20% 80%;
+  background: rgb(255 239 165 / 95%);
+  transform: rotate(45deg);
+}
+
+.veil-clouds i {
+  width: 86px;
+  height: 54px;
+  border-radius: 999px;
+  background: rgb(244 248 255 / 96%);
+}
+
+.veil-bubbles i {
+  border: 3px solid rgb(151 211 211 / 72%);
+  background: rgb(223 249 246 / 90%);
+}
+
+.photo-outgoing {
+  animation: photo-settle 500ms ease-in-out both;
+}
+
+.photo-incoming {
+  animation: photo-arrive 280ms ease-out both;
+}
+
 .action-bounce .pet-image-frame {
   animation: pet-bounce 760ms cubic-bezier(.2, .75, .25, 1) both;
 }
@@ -891,6 +969,29 @@ input:focus-visible {
 @keyframes bubble-in {
   from { transform: translate(-50%, 5px) scale(.94); opacity: 0; }
   to { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+
+@keyframes heart-rise {
+  from { transform: translateY(8px) scale(.7); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: translateY(-22px) scale(1.12); opacity: 0; }
+}
+
+@keyframes veil-cover {
+  0% { transform: translateY(16px) scale(.3); opacity: 0; }
+  42%, 58% { transform: translateY(0) scale(1.35); opacity: 1; }
+  100% { transform: translateY(-18px) scale(.7); opacity: 0; }
+}
+
+@keyframes photo-settle {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  44% { transform: translateY(6px) scale(.96); opacity: .9; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes photo-arrive {
+  from { transform: translateY(9px) scale(.96); opacity: .65; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .pet-placeholder {
