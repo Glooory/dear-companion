@@ -377,7 +377,20 @@ export interface PetSystemApi extends FoundationApi {
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void
 }
 
-export interface RestSystemApi extends PetSystemApi {
+export interface CompanionSystemApi extends PetSystemApi {
+  getCompanionSystemSnapshot(): Promise<CompanionSystemSnapshot>
+  createWorkSchedule(input: CreateWorkScheduleInput): Promise<CompanionSystemSnapshot>
+  updateWorkSchedule(input: UpdateWorkScheduleInput): Promise<CompanionSystemSnapshot>
+  deleteWorkSchedule(id: string): Promise<CompanionSystemSnapshot>
+  setWorkScheduleEnabled(id: string, enabled: boolean): Promise<CompanionSystemSnapshot>
+  wakeCompanion(): Promise<CompanionSystemSnapshot>
+  beginPettingGesture(region: ScreenEllipse): void
+  cancelPettingGesture(): void
+  onCompanionSystemChanged(listener: (snapshot: CompanionSystemSnapshot) => void): () => void
+  onPettingGestureDetected(listener: () => void): () => void
+}
+
+export interface RestSystemApi extends CompanionSystemApi {
   getRestSystemSnapshot(): Promise<RestSystemSnapshot>
   createReminder(input: CreateReminderInput): Promise<RestSystemSnapshot>
   updateReminder(input: UpdateReminderInput): Promise<RestSystemSnapshot>

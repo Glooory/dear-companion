@@ -1,6 +1,7 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from 'electron'
 import type {
   AudioPlaybackRequest,
+  CompanionSystemSnapshot,
   PetRendererStatus,
   PetSystemSnapshot,
   RestSystemSnapshot,
@@ -234,6 +235,16 @@ export class WindowManager {
 
   broadcastRestSystemChanged(snapshot: RestSystemSnapshot): void {
     this.broadcast(IPC_CHANNELS.restSystemChanged, snapshot)
+  }
+
+  broadcastCompanionSystemChanged(snapshot: CompanionSystemSnapshot): void {
+    this.broadcast(IPC_CHANNELS.companionSystemChanged, snapshot)
+  }
+
+  broadcastPettingGestureDetected(): void {
+    const window = this.petWindow
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return
+    window.webContents.send(IPC_CHANNELS.pettingGestureDetected)
   }
 
   broadcastAudioPlaybackRequested(request: AudioPlaybackRequest): void {

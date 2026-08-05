@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   createPetSystemSnapshot,
+  createCompanionSystemSnapshot,
   createRestSystemSnapshot,
   type AppSettings,
   type RestRuntimeSnapshot
@@ -17,6 +18,7 @@ import { parseLaunchIntent } from './app/launch-intent'
 import { AutostartService } from './autostart/autostart-service'
 import { registerFoundationIpc } from './ipc/register-foundation-ipc'
 import { registerPetSystemIpc } from './ipc/register-pet-system-ipc'
+import { registerCompanionSystemIpc } from './ipc/register-companion-system-ipc'
 import { registerRestSystemIpc } from './ipc/register-rest-system-ipc'
 import { registerReleaseHardeningIpc } from './ipc/register-release-hardening-ipc'
 import { SharpImageDecoder } from './images/image-decoder'
@@ -29,6 +31,8 @@ import { registerNetworkPolicy } from './security/network-policy'
 import { SettingsStore } from './settings/settings-store'
 import { TrayController } from './tray/tray-controller'
 import { WindowManager } from './windows/window-manager'
+import { CompanionStateController } from './companion/companion-state-controller'
+import { PettingTracker } from './interactions/petting-tracker'
 
 registerAppScheme()
 
@@ -38,12 +42,15 @@ let settingsStore: SettingsStore | null = null
 let trayController: TrayController | null = null
 let disposeFoundationIpc: (() => void) | null = null
 let disposePetSystemIpc: (() => void) | null = null
+let disposeCompanionSystemIpc: (() => void) | null = null
 let disposeRestSystemIpc: (() => void) | null = null
 let disposeReleaseHardeningIpc: (() => void) | null = null
 let disposeNetworkPolicy: (() => void) | null = null
 let disposePowerResume: (() => void) | null = null
 let reminderScheduler: ReminderScheduler | null = null
 let restSessionController: RestSessionController | null = null
+let companionStateController: CompanionStateController | null = null
+let pettingTracker: PettingTracker | null = null
 let disposePendingStartup: (() => void) | null = null
 let isQuitting = false
 let startupReady = false
@@ -81,6 +88,7 @@ async function persistAndShowPet(): Promise<AppSettings | null> {
 function notifySettingsChanged(settings: AppSettings): void {
   trayController?.refresh(settings)
   windowManager?.broadcastPetSystemChanged(createPetSystemSnapshot(settings))
+  void companionStateController?.refresh().catch(() => undefined)
 }
 
 function activateSecondInstance(): void {
@@ -105,28 +113,36 @@ function disposeApplication(): void {
   const ownedWindowManager = windowManager
   const ownedScheduler = reminderScheduler
   const ownedRestController = restSessionController
+  const ownedCompanionController = companionStateController
+  const ownedPettingTracker = pettingTracker
   const disposers = [
     disposePendingStartup,
     disposeFoundationIpc,
     disposePetSystemIpc,
+    disposeCompanionSystemIpc,
     disposeRestSystemIpc,
     disposeReleaseHardeningIpc,
     disposeNetworkPolicy,
     disposePowerResume,
     ownedScheduler ? () => ownedScheduler.dispose() : null,
     ownedRestController ? () => ownedRestController.dispose() : null,
+    ownedCompanionController ? () => ownedCompanionController.dispose() : null,
+    ownedPettingTracker ? () => ownedPettingTracker.dispose() : null,
     ownedTray ? () => ownedTray.dispose() : null,
     ownedWindowManager ? () => ownedWindowManager.dispose() : null
   ]
   disposePendingStartup = null
   disposeFoundationIpc = null
   disposePetSystemIpc = null
+  disposeCompanionSystemIpc = null
   disposeRestSystemIpc = null
   disposeReleaseHardeningIpc = null
   disposeNetworkPolicy = null
   disposePowerResume = null
   reminderScheduler = null
   restSessionController = null
+  companionStateController = null
+  pettingTracker = null
   trayController = null
   windowManager = null
   settingsStore = null
@@ -219,6 +235,8 @@ if (!hasSingleInstanceLock) {
     let runtimeTray: TrayController | null = null
     let runtimeScheduler: ReminderScheduler | null = null
     let runtimeRestController: RestSessionController | null = null
+    let runtimeCompanionController: CompanionStateController | null = null
+    let runtimePettingTracker: PettingTracker | null = null
     let reminderServiceStatus: RestRuntimeSnapshot['serviceStatus'] = 'healthy'
     let reminderServiceError: RestRuntimeSnapshot['serviceError']
 
@@ -233,6 +251,9 @@ if (!hasSingleInstanceLock) {
       const manager = runtimeManager
       if (!manager || isQuitting) return
       const runtime = getRuntimeSnapshot()
+      const suspended = Boolean(runtime.prompt || runtime.session)
+      runtimeCompanionController?.setSystemSuspended(suspended)
+      runtimePettingTracker?.setSystemSuspended(suspended)
       const settings = await store.load()
       manager.broadcastRestSystemChanged(createRestSystemSnapshot(settings, runtime))
       runtimeTray?.setRestSessionActive(runtime.session !== null)
@@ -263,6 +284,7 @@ if (!hasSingleInstanceLock) {
     const notifyRuntimeSettingsChanged = (nextSettings: AppSettings): void => {
       runtimeTray?.refresh(nextSettings)
       manager.broadcastPetSystemChanged(createPetSystemSnapshot(nextSettings))
+      void runtimeCompanionController?.refresh().catch(() => undefined)
     }
     const tray = new TrayController({
       settingsStore: store,
@@ -329,6 +351,26 @@ if (!hasSingleInstanceLock) {
     reminderScheduler = scheduler
     restSessionController = restController
 
+    const companionController = new CompanionStateController({
+      loadSettings: () => store.load(),
+      onChanged: (runtime) => {
+        void store.load().then((current) => {
+          if (!isQuitting && runtimeManager === manager) {
+            manager.broadcastCompanionSystemChanged(createCompanionSystemSnapshot(current, runtime))
+          }
+        }).catch(() => undefined)
+      }
+    })
+    const tracker = new PettingTracker({
+      getCursorScreenPoint: () => screen.getCursorScreenPoint(),
+      onDetected: () => manager.broadcastPettingGestureDetected()
+    })
+    runtimeCompanionController = companionController
+    runtimePettingTracker = tracker
+    companionStateController = companionController
+    pettingTracker = tracker
+    await companionController.start()
+
     const onSettingsChanged = (nextSettings: AppSettings): void => {
       notifySettingsChanged(nextSettings)
     }
@@ -344,7 +386,14 @@ if (!hasSingleInstanceLock) {
       onSettingsChanged,
       requestQuit,
       isRestSessionActive: () => restController.getSnapshot().session !== null,
-      endRestSession
+      endRestSession,
+      companionController
+    })
+    disposeCompanionSystemIpc = registerCompanionSystemIpc({
+      settingsStore: store,
+      controller: companionController,
+      tracker,
+      windowManager: manager
     })
     disposeRestSystemIpc = registerRestSystemIpc({
       settingsStore: store,
@@ -361,6 +410,8 @@ if (!hasSingleInstanceLock) {
     const handleResume = (): void => {
       scheduler.handleResume()
       restController.handleResume()
+      companionController.handleResume()
+      tracker.cancel()
       void broadcastRestRuntime().catch(() => undefined)
     }
     powerMonitor.on('resume', handleResume)

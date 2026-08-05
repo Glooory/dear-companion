@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AudioPlaybackRequest,
+  CompanionSystemSnapshot,
   PetRendererStatus,
   PetSystemSnapshot,
   ReleaseHardeningApi,
@@ -27,6 +28,24 @@ const api: ReleaseHardeningApi = {
     }
     ipcRenderer.on(IPC_CHANNELS.petSystemChanged, wrapped)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.petSystemChanged, wrapped)
+  },
+  getCompanionSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getCompanionSystemSnapshot),
+  createWorkSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.createWorkSchedule, input),
+  updateWorkSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.updateWorkSchedule, input),
+  deleteWorkSchedule: (id) => ipcRenderer.invoke(IPC_CHANNELS.deleteWorkSchedule, id),
+  setWorkScheduleEnabled: (id, enabled) => ipcRenderer.invoke(IPC_CHANNELS.setWorkScheduleEnabled, id, enabled),
+  wakeCompanion: () => ipcRenderer.invoke(IPC_CHANNELS.wakeCompanion),
+  beginPettingGesture: (region) => ipcRenderer.send(IPC_CHANNELS.beginPettingGesture, region),
+  cancelPettingGesture: () => ipcRenderer.send(IPC_CHANNELS.cancelPettingGesture),
+  onCompanionSystemChanged: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: CompanionSystemSnapshot): void => listener(snapshot)
+    ipcRenderer.on(IPC_CHANNELS.companionSystemChanged, wrapped)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.companionSystemChanged, wrapped)
+  },
+  onPettingGestureDetected: (listener) => {
+    const wrapped = (): void => listener()
+    ipcRenderer.on(IPC_CHANNELS.pettingGestureDetected, wrapped)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.pettingGestureDetected, wrapped)
   },
   getRestSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getRestSystemSnapshot),
   createReminder: (input) => ipcRenderer.invoke(IPC_CHANNELS.createReminder, input),

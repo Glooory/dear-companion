@@ -6,6 +6,11 @@ import {
   DEFAULT_PET_LIFE_STATES,
   EMPTY_ACTION_SLOTS,
   migrateAppSettings,
+  createCompanionSystemSnapshot,
+  parseCreateWorkScheduleInput,
+  parseManualLifeSelection,
+  parseScreenEllipse,
+  parseUpdateWorkScheduleInput,
   parseAutostartEnabledInput,
   parseAutostartStatus,
   parsePetRendererStatus,
@@ -284,5 +289,36 @@ describe('settings contracts', () => {
       state: 'safe-mode',
       errorCode: 'render-process-gone: crashed'
     })).toThrow('Invalid pet renderer status')
+  })
+
+  it('validates work schedules and narrow companion inputs', () => {
+    const input = {
+      enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 30,
+      weekdays: [1, 2, 3, 4, 5]
+    }
+    expect(parseCreateWorkScheduleInput(input)).toEqual(input)
+    expect(parseUpdateWorkScheduleInput({ id: 'work-1', ...input })).toEqual({ id: 'work-1', ...input })
+    expect(() => parseCreateWorkScheduleInput({ ...input, endHour: 9, endMinute: 0 })).toThrow('must differ')
+    expect(() => parseCreateWorkScheduleInput({ ...input, weekdays: [1, 1] })).toThrow('Duplicate')
+    expect(parseManualLifeSelection('sleeping')).toBe('sleeping')
+    expect(() => parseManualLifeSelection('working')).toThrow('Invalid manual')
+    expect(parseScreenEllipse({ centerX: -20, centerY: 10, radiusX: 6, radiusY: 200 })).toEqual({
+      centerX: -20, centerY: 10, radiusX: 6, radiusY: 200
+    })
+    expect(() => parseScreenEllipse({ centerX: 0, centerY: 0, radiusX: 5, radiusY: 10 })).toThrow('Invalid screen')
+  })
+
+  it('clones companion snapshots without exposing mutable settings values', () => {
+    const work = { id: 'work-1', enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, weekdays: [1] as const }
+    const runtime = {
+      lifeState: 'daily-calm' as const, manualSelection: 'auto' as const,
+      manualWorkActive: false, scheduledWorkActive: false, systemSuspended: false,
+      nextTransitionAt: null, available: { drowsy: false, sleeping: false }
+    }
+    const snapshot = createCompanionSystemSnapshot({ ...DEFAULT_APP_SETTINGS, workSchedules: [work] }, runtime)
+    expect(snapshot).toEqual({ workSchedules: [work], runtime })
+    expect(snapshot.workSchedules).not.toBe(DEFAULT_APP_SETTINGS.workSchedules)
+    expect(snapshot.runtime).not.toBe(runtime)
+    expect(snapshot.runtime.available).not.toBe(runtime.available)
   })
 })

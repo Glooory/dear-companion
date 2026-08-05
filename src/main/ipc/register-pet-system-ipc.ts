@@ -6,6 +6,7 @@ import {
 } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { PetPackService } from '../pets/pet-pack-service'
+import type { CompanionStateController } from '../companion/companion-state-controller'
 import type { SettingsStore } from '../settings/settings-store'
 import type { WindowManager } from '../windows/window-manager'
 
@@ -24,6 +25,7 @@ interface PetSystemIpcDependencies {
   requestQuit: () => void
   isRestSessionActive?: () => boolean
   endRestSession?: () => void
+  companionController?: Pick<CompanionStateController, 'getSnapshot' | 'selectManualState' | 'setManualWork'>
 }
 
 export function registerPetSystemIpc({
@@ -33,7 +35,8 @@ export function registerPetSystemIpc({
   onSettingsChanged = () => undefined,
   requestQuit,
   isRestSessionActive = () => false,
-  endRestSession = () => undefined
+  endRestSession = () => undefined,
+  companionController
 }: PetSystemIpcDependencies): () => void {
   let active = true
   const handledChannels: string[] = []
@@ -71,7 +74,37 @@ export function registerPetSystemIpc({
       if (windowManager.getWindowKind(event.sender.id) !== 'pet') return
       const owner = windowManager.getOwnedWindow(event.sender.id)
       const visible = windowManager.isPetVisible()
+      const companion = companionController?.getSnapshot()
+      const ordinaryEnabled = !companion?.systemSuspended
       const menu = Menu.buildFromTemplate([
+        ...(companionController && companion ? [
+          {
+            label: '自动陪伴', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('auto')
+          },
+          {
+            label: '安静待一会儿', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('daily-calm')
+          },
+          {
+            label: '活泼一会儿', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('daily-playful')
+          },
+          ...(companion.available.drowsy ? [{
+            label: '有点困了', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('drowsy')
+          }] : []),
+          ...(companion.available.sleeping ? [{
+            label: '睡一会儿', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('sleeping')
+          }] : []),
+          {
+            label: companion.manualWorkActive ? '结束工作' : '陪我工作',
+            enabled: ordinaryEnabled,
+            click: () => companionController.setManualWork(!companion.manualWorkActive)
+          },
+          { type: 'separator' as const }
+        ] : []),
         {
           label: visible ? '隐藏宠物' : '显示宠物',
           click: () => { void setVisibility(!visible).catch(() => undefined) }
