@@ -4,6 +4,8 @@ import type {
   AutostartStatus,
   AudioImportResult,
   AudioSourceInput,
+  CompanionSystemSnapshot,
+  CreateWorkScheduleInput,
   CreateReminderInput,
   ImageImportResult,
   PetConfig,
@@ -12,12 +14,16 @@ import type {
   ReleaseHardeningApi,
   RestSystemSnapshot,
   PetSystemSnapshot,
-  PetUpdateInput
+  PetUpdateInput,
+  WorkSchedule
 } from '@shared/contracts'
 import { ActionSlotEditor } from '../components/ActionSlotEditor'
 import { PetAssetEditor } from '../components/PetAssetEditor'
 import { AudioSettings } from '../components/AudioSettings'
 import { ReminderEditor, type ReminderDraft } from '../components/ReminderEditor'
+import { LifeStateEditor } from '../components/LifeStateEditor'
+import { CompanionPreferences } from '../components/CompanionPreferences'
+import { WorkScheduleEditor } from '../components/WorkScheduleEditor'
 
 interface SettingsShellProps {
   api: ReleaseHardeningApi
@@ -27,6 +33,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null)
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null)
+  const [companionSnapshot, setCompanionSnapshot] = useState<CompanionSystemSnapshot | null>(null)
   const [autostartStatus, setAutostartStatus] = useState<AutostartStatus | null>(null)
   const [petRendererStatus, setPetRendererStatus] = useState<PetRendererStatus | null>(null)
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null)
@@ -46,15 +53,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       api.getSettings(),
       api.getPetSystemSnapshot(),
       api.getRestSystemSnapshot(),
+      api.getCompanionSystemSnapshot(),
       api.getAutostartStatus(),
       api.getPetRendererStatus()
     ]).then(
-      ([loadedSettings, loadedSnapshot, loadedRestSnapshot, loadedAutostart, loadedRenderer]) => {
+      ([loadedSettings, loadedSnapshot, loadedRestSnapshot, loadedCompanionSnapshot, loadedAutostart, loadedRenderer]) => {
         if (cancelled) return
         const initialPet = loadedSnapshot.pets.find((pet) => pet.id === loadedSnapshot.activePetId) ?? loadedSnapshot.pets[0] ?? null
         setSettings(loadedSettings)
         setSnapshot(loadedSnapshot)
         setRestSnapshot(loadedRestSnapshot)
+        setCompanionSnapshot(loadedCompanionSnapshot)
         setAutostartStatus(loadedAutostart)
         setPetRendererStatus(loadedRenderer)
         setSelectedPetId((current) => current ?? initialPet?.id ?? null)
@@ -79,6 +88,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   useEffect(() => api.onRestSystemChanged((next) => {
     setRestSnapshot(next)
     setSettings((current) => current ? { ...current, reminders: next.reminders, audio: next.audio } : current)
+  }), [api])
+
+  useEffect(() => api.onCompanionSystemChanged((next) => {
+    setCompanionSnapshot(next)
+    setSettings((current) => current ? { ...current, workSchedules: next.workSchedules } : current)
   }), [api])
 
   useEffect(
@@ -229,6 +243,27 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     setSettings((current) => current ? { ...current, reminders: next.reminders, audio: next.audio } : current)
   }
 
+  const applyCompanionSnapshot = (next: CompanionSystemSnapshot): void => {
+    setCompanionSnapshot(next)
+    setSettings((current) => current ? { ...current, workSchedules: next.workSchedules } : current)
+  }
+
+  const createWorkSchedule = (input: CreateWorkScheduleInput): void => {
+    void runMutation(async () => applyCompanionSnapshot(await api.createWorkSchedule(input)))
+  }
+
+  const updateWorkSchedule = (input: WorkSchedule): void => {
+    void runMutation(async () => applyCompanionSnapshot(await api.updateWorkSchedule(input)))
+  }
+
+  const deleteWorkSchedule = (id: string): void => {
+    void runMutation(async () => applyCompanionSnapshot(await api.deleteWorkSchedule(id)))
+  }
+
+  const setWorkScheduleEnabled = (id: string, enabled: boolean): void => {
+    void runMutation(async () => applyCompanionSnapshot(await api.setWorkScheduleEnabled(id, enabled)))
+  }
+
   const newReminder = (): void => setReminderDraft({
     hour: null,
     minute: null,
@@ -293,7 +328,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   }
 
   return (
-    <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot || !restSnapshot}>
+    <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot}>
       <header className="settings-header">
         <p className="eyebrow">本地离线桌面伙伴</p>
         <h1>Dear Companion</h1>
@@ -415,9 +450,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                           asset={asset}
                           targetHeight={draft.targetHeight}
                           normalization={adjustment.normalization}
+                          headHotspot={adjustment.headHotspot}
                           onChange={(normalization) => setDraft({
                             ...draft,
                             assets: draft.assets.map((entry) => entry.id === asset.id ? { ...entry, normalization } : entry)
+                          })}
+                          onHeadHotspotChange={(headHotspot) => setDraft({
+                            ...draft,
+                            assets: draft.assets.map((entry) => entry.id === asset.id ? { ...entry, headHotspot } : entry)
                           })}
                         />
                       )
@@ -427,12 +467,32 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>动作槽</h2>
-                  <p className="supporting-copy">除空闲外均可不分配；缺失动作会使用内置安全回退。</p>
+                  <h2>生活照片用途</h2>
+                  <p className="supporting-copy">“平时陪伴”在下方动作照片中至少选择一张；有点困了、睡觉和陪伴工作可以使用各自照片。</p>
+                  <LifeStateEditor
+                    assets={selectedPet.assets}
+                    value={draft.lifeStates}
+                    onChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
+                  />
+                </section>
+
+                <section className="editor-section">
+                  <h2>动作照片</h2>
+                  <p className="supporting-copy">平时陪伴至少一张；卖萌、摸头、生气、哭闹、休息和闭眼 / 眨眼都可不分配，缺失时会动画当前生活照片。</p>
                   <ActionSlotEditor
                     assets={selectedPet.assets}
                     slots={draft.actionSlots}
                     onChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
+                  />
+                </section>
+
+                <section className="editor-section">
+                  <h2>陪伴偏好</h2>
+                  <CompanionPreferences
+                    pace={draft.companionPace}
+                    bubblesEnabled={draft.interactionBubblesEnabled}
+                    onPaceChange={(companionPace) => setDraft({ ...draft, companionPace })}
+                    onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
                   />
                 </section>
 
@@ -443,7 +503,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     type="button"
                     className="primary-button"
                     disabled={isBusy || draft.actionSlots.idle.length === 0}
-                    title={draft.actionSlots.idle.length === 0 ? '请先为宠物分配至少一张空闲素材' : undefined}
+                    title={draft.actionSlots.idle.length === 0 ? '请先为宠物分配至少一张平时陪伴照片' : undefined}
                     onClick={activateDraft}
                   >
                     {snapshot.activePetId === draft.id ? '保存并保持当前宠物' : '保存并设为当前宠物'}
@@ -513,6 +573,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <div className="reminder-list">{restSnapshot.reminders.length === 0 ? <p className="empty-editor-state">尚未设置提醒。点击“添加提醒”后，只会创建本地草稿；保存后才会写入。</p> : restSnapshot.reminders.map((reminder) => <div className="reminder-row" key={reminder.id}><button type="button" className="reminder-summary" onClick={() => editReminder(reminder)}><strong>{String(reminder.hour).padStart(2, '0')}:{String(reminder.minute).padStart(2, '0')}</strong><span>{reminder.message}</span></button><label><input type="checkbox" checked={reminder.enabled} disabled={isBusy} onChange={() => setReminderEnabled(reminder)} />启用</label></div>)}</div>}
           </article>
           <AudioSettings audio={restSnapshot.audio} report={audioImportReport} disabled={isBusy} onImport={importAudio} onChange={updateAudioSources} />
+          {companionSnapshot && (
+            <WorkScheduleEditor
+              schedules={companionSnapshot.workSchedules}
+              disabled={isBusy}
+              onCreate={createWorkSchedule}
+              onUpdate={updateWorkSchedule}
+              onDelete={deleteWorkSchedule}
+              onToggle={setWorkScheduleEnabled}
+            />
+          )}
         </section>
       )}
 
@@ -538,7 +608,8 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
     targetHeight: pet.targetHeight,
     assets: pet.assets.map((asset) => ({
       id: asset.id,
-      normalization: { ...asset.normalization }
+      normalization: { ...asset.normalization },
+      headHotspot: asset.headHotspot ? { ...asset.headHotspot } : null
     })),
     actionSlots: {
       idle: [...pet.actionSlots.idle],
@@ -549,7 +620,14 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
       resting: [...pet.actionSlots.resting],
       blink: [...pet.actionSlots.blink]
     },
-    actionTemplates: { ...pet.actionTemplates }
+    actionTemplates: { ...pet.actionTemplates },
+    lifeStates: {
+      drowsy: { enabled: pet.lifeStates.drowsy.enabled, assetIds: [...pet.lifeStates.drowsy.assetIds] },
+      sleeping: { enabled: pet.lifeStates.sleeping.enabled, assetIds: [...pet.lifeStates.sleeping.assetIds] },
+      workingAssetIds: [...pet.lifeStates.workingAssetIds]
+    },
+    companionPace: pet.companionPace,
+    interactionBubblesEnabled: pet.interactionBubblesEnabled
   }
 }
 

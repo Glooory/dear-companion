@@ -1,12 +1,15 @@
-import type { AssetNormalization, PetAsset } from '@shared/contracts'
+import type { AssetNormalization, HeadHotspot, PetAsset } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
+import { HeadHotspotEditor } from './HeadHotspotEditor'
 
 interface PetAssetEditorProps {
   petId: string
   asset: PetAsset
   targetHeight: number
   normalization: AssetNormalization
+  headHotspot: HeadHotspot | null
   onChange(normalization: AssetNormalization): void
+  onHeadHotspotChange(headHotspot: HeadHotspot | null): void
 }
 
 export function PetAssetEditor({
@@ -14,7 +17,9 @@ export function PetAssetEditor({
   asset,
   targetHeight,
   normalization,
-  onChange
+  headHotspot,
+  onChange,
+  onHeadHotspotChange
 }: PetAssetEditorProps): React.JSX.Element {
   const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, {
     width: 220,
@@ -44,6 +49,13 @@ export function PetAssetEditor({
             width: geometry.renderedWidth,
             height: geometry.renderedHeight
           }}
+        />
+        <HeadHotspotEditor
+          asset={asset}
+          targetHeight={targetHeight}
+          normalization={normalization}
+          value={headHotspot}
+          onChange={onHeadHotspotChange}
         />
       </div>
       <div className="asset-editor-details">

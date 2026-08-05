@@ -1,9 +1,9 @@
 import { ACTION_SLOTS, type ActionSlot, type PetActionSlots, type PetAsset } from '@shared/contracts'
 
 const SLOT_LABELS: Record<ActionSlot, string> = {
-  idle: '空闲（至少一张）',
+  idle: '平时陪伴（至少一张）',
   cute: '卖萌',
-  petting: '摸摸',
+  petting: '摸头',
   angry: '生气',
   crying: '哭闹',
   resting: '休息',

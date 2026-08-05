@@ -1,4 +1,5 @@
-import type { CreateReminderInput, CursorTolerance, Weekday } from '@shared/contracts'
+import type { CreateReminderInput, CursorTolerance } from '@shared/contracts'
+import { WeekdayPicker } from './WeekdayPicker'
 
 export interface ReminderDraft extends Omit<CreateReminderInput, 'hour' | 'minute'> {
   id?: string
@@ -14,12 +15,6 @@ interface Props {
   onCancel(): void
   onDelete?: () => void
 }
-
-const WEEKDAYS: Array<{ value: Weekday; label: string }> = [
-  { value: 1, label: '一' }, { value: 2, label: '二' }, { value: 3, label: '三' },
-  { value: 4, label: '四' }, { value: 5, label: '五' }, { value: 6, label: '六' },
-  { value: 0, label: '日' }
-]
 
 export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, onDelete }: Props): React.JSX.Element {
   const timeValue = value.hour === null || value.minute === null
@@ -42,14 +37,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
           <option value="sensitive">灵敏</option><option value="standard">标准</option><option value="relaxed">宽松</option>
         </select></label>
       </div>
-      <fieldset className="weekday-picker"><legend>重复星期</legend>{WEEKDAYS.map((day) => (
-        <label key={day.value}><input type="checkbox" checked={value.weekdays.includes(day.value)} onChange={(event) => onChange({
-          ...value,
-          weekdays: event.currentTarget.checked
-            ? [...value.weekdays, day.value].sort()
-            : value.weekdays.filter((candidate) => candidate !== day.value)
-        })} />{day.label}</label>
-      ))}</fieldset>
+      <WeekdayPicker value={value.weekdays} disabled={disabled} onChange={(weekdays) => onChange({ ...value, weekdays })} />
       <label className="message-field"><span>提示文案（1–200 字）</span><textarea maxLength={200} value={value.message} onChange={(event) => onChange({ ...value, message: event.currentTarget.value })} /></label>
       <div className="reminder-toggles">
         <label><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用提醒（新建后默认启用）</label>

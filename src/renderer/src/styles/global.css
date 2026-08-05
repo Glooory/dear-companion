@@ -384,6 +384,47 @@ input:focus-visible {
   pointer-events: none;
 }
 
+.hotspot-enable,
+.hotspot-disable {
+  position: absolute;
+  z-index: 4;
+  right: 8px;
+  bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid #87a89d;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 92%);
+  color: #315448;
+  cursor: pointer;
+  font-size: .75rem;
+}
+
+.head-hotspot {
+  position: absolute;
+  z-index: 3;
+  min-width: 10px;
+  min-height: 10px;
+  border: 2px solid #4f7b6e;
+  border-radius: 50%;
+  background: rgb(79 123 110 / 12%);
+  cursor: move;
+  touch-action: none;
+}
+
+.hotspot-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #4f7b6e;
+}
+
+.hotspot-handle.left { top: 50%; left: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.hotspot-handle.right { top: 50%; right: -6px; transform: translateY(-50%); cursor: ew-resize; }
+.hotspot-handle.top { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.hotspot-handle.bottom { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+
 .asset-metadata {
   color: #6c6c65;
   font-size: .82rem;
@@ -428,6 +469,83 @@ input:focus-visible {
 
 .action-slot-grid input {
   accent-color: #4f7b6e;
+}
+
+.life-state-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+  margin: 16px 0 24px;
+}
+
+.life-state-group,
+.companion-preferences fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dfded8;
+  border-radius: 10px;
+}
+
+.life-state-group legend,
+.companion-preferences legend {
+  padding: 0 5px;
+  font-weight: 700;
+}
+
+.compact-toggle { margin-bottom: 8px; }
+
+.asset-choice-list,
+.companion-preferences,
+.companion-preferences fieldset,
+.work-schedule-editor,
+.work-schedule-list {
+  display: grid;
+  gap: 10px;
+}
+
+.asset-choice-list label,
+.companion-preferences fieldset label,
+.work-schedule-editor > label,
+.work-schedule-row label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.work-schedule-card {
+  grid-column: 1 / -1;
+}
+
+.work-time-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.work-time-fields label {
+  display: grid;
+  gap: 6px;
+  color: #5a5a54;
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.work-time-fields input {
+  padding: 8px 9px;
+  border: 1px solid #d7d7d0;
+  border-radius: 8px;
+  background: white;
+}
+
+.work-schedule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e3e2dc;
+  border-radius: 10px;
 }
 
 .editor-actions {
@@ -582,6 +700,7 @@ input:focus-visible {
   .asset-editor,
   .pet-basic-fields,
   .action-slot-grid,
+  .life-state-grid,
   .phase-two-foundation {
     grid-template-columns: 1fr;
   }
