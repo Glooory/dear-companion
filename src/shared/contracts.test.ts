@@ -3,6 +3,7 @@ import {
   DEFAULT_ACTION_TEMPLATES,
   DEFAULT_APP_SETTINGS,
   DEFAULT_ASSET_NORMALIZATION,
+  DEFAULT_PET_LIFE_STATES,
   EMPTY_ACTION_SLOTS,
   migrateAppSettings,
   parseAutostartEnabledInput,
@@ -38,18 +39,26 @@ function createPet(): PetConfig {
         width: 100,
         height: 200,
         alphaBounds: { x: 10, y: 20, width: 80, height: 170 },
-        normalization: { ...DEFAULT_ASSET_NORMALIZATION }
+        normalization: { ...DEFAULT_ASSET_NORMALIZATION },
+        headHotspot: null
       }
     ],
     actionSlots: { ...EMPTY_ACTION_SLOTS, idle: ['asset-1'] },
-    actionTemplates: { ...DEFAULT_ACTION_TEMPLATES }
+    actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
+    lifeStates: {
+      drowsy: { enabled: false, assetIds: [] },
+      sleeping: { enabled: false, assetIds: [] },
+      workingAssetIds: []
+    },
+    companionPace: 'natural',
+    interactionBubblesEnabled: true
   }
 }
 
 describe('settings contracts', () => {
-  it('uses privacy-preserving schema v3 first-run defaults', () => {
+  it('uses privacy-preserving schema v4 first-run defaults', () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 3,
+      schemaVersion: 4,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
@@ -59,6 +68,7 @@ describe('settings contracts', () => {
         assets: []
       },
       reminders: [],
+      workSchedules: [],
       pets: []
     })
   })
@@ -68,7 +78,7 @@ describe('settings contracts', () => {
       migrated: true,
       settings: {
         ...legacySettings,
-        schemaVersion: 3,
+        schemaVersion: 4,
         activePetId: null,
         audio: {
           reminderSource: { kind: 'builtin', id: 'gentle-chime' },
@@ -76,12 +86,13 @@ describe('settings contracts', () => {
           assets: []
         },
         reminders: [],
+        workSchedules: [],
         pets: []
       }
     })
   })
 
-  it('round-trips v3 into newly allocated nested values', () => {
+  it('round-trips v4 into newly allocated nested values', () => {
     const pet = createPet()
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] }
     const parsed = parseAppSettings(input)
@@ -145,10 +156,14 @@ describe('settings contracts', () => {
       targetHeight: pet.targetHeight,
       assets: pet.assets.map((asset) => ({
         id: asset.id,
-        normalization: asset.normalization
+        normalization: asset.normalization,
+        headHotspot: asset.headHotspot
       })),
       actionSlots: pet.actionSlots,
-      actionTemplates: pet.actionTemplates
+      actionTemplates: pet.actionTemplates,
+      lifeStates: pet.lifeStates,
+      companionPace: pet.companionPace,
+      interactionBubblesEnabled: pet.interactionBubblesEnabled
     }
 
     expect(() => parsePetUpdateInput({ ...input, unexpected: true }, ['asset-1']))
@@ -176,6 +191,12 @@ describe('settings contracts', () => {
 
   it('migrates v2 with every pet field and zero reminders', () => {
     const pet = createPet()
+    const { lifeStates: _lifeStates, companionPace: _pace,
+      interactionBubblesEnabled: _bubbles, ...legacyPetWithHotspots } = pet
+    const legacyPet = {
+      ...legacyPetWithHotspots,
+      assets: legacyPetWithHotspots.assets.map(({ headHotspot: _hotspot, ...asset }) => asset)
+    }
     const legacy: AppSettingsV2 = {
       schemaVersion: 2,
       activePetId: pet.id,
@@ -183,11 +204,16 @@ describe('settings contracts', () => {
       autostartEnabled: false,
       audio: { reminderEnabled: true, cryingEnabled: true },
       reminders: [],
-      pets: [pet]
+      pets: [legacyPet]
     }
     const result = migrateAppSettings(legacy)
     expect(result.migrated).toBe(true)
-    expect(result.settings.pets).toEqual([pet])
+    expect(result.settings.pets[0]).toMatchObject({
+      ...legacyPet,
+      lifeStates: DEFAULT_PET_LIFE_STATES,
+      companionPace: 'natural',
+      interactionBubblesEnabled: true
+    })
     expect(result.settings.reminders).toEqual([])
     expect(result.settings.audio.assets).toEqual([])
   })

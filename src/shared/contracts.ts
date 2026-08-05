@@ -4,6 +4,19 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 export type CursorTolerance = 'sensitive' | 'standard' | 'relaxed'
 export type AudioAssetFormat = 'mp3' | 'wav' | 'ogg'
 export type BuiltInSoundId = 'gentle-chime' | 'soft-whimper'
+export type CompanionPace = 'quiet' | 'natural' | 'lively'
+export type CompanionLifeState =
+  | 'daily-calm'
+  | 'daily-playful'
+  | 'drowsy'
+  | 'sleeping'
+  | 'working'
+export type ManualLifeSelection =
+  | 'auto'
+  | 'daily-calm'
+  | 'daily-playful'
+  | 'drowsy'
+  | 'sleeping'
 
 export interface ReminderSounds {
   reminder: boolean
@@ -69,6 +82,15 @@ export interface AlphaBounds {
   height: number
 }
 
+export interface HeadHotspot {
+  centerX: number
+  centerY: number
+  radiusX: number
+  radiusY: number
+}
+
+export interface ScreenEllipse extends HeadHotspot {}
+
 export interface AssetNormalization {
   scale: number
   offsetX: number
@@ -85,6 +107,7 @@ export interface PetAsset {
   height: number
   alphaBounds: AlphaBounds
   normalization: AssetNormalization
+  headHotspot: HeadHotspot | null
 }
 
 export type PetActionSlots = Record<ActionSlot, readonly string[]>
@@ -105,6 +128,45 @@ export interface PetConfig {
   assets: readonly PetAsset[]
   actionSlots: PetActionSlots
   actionTemplates: PetActionTemplates
+  lifeStates: PetLifeStates
+  companionPace: CompanionPace
+  interactionBubblesEnabled: boolean
+}
+
+export interface OptionalLifeAssets {
+  enabled: boolean
+  assetIds: readonly string[]
+}
+
+export interface PetLifeStates {
+  drowsy: OptionalLifeAssets
+  sleeping: OptionalLifeAssets
+  workingAssetIds: readonly string[]
+}
+
+export interface WorkSchedule {
+  id: string
+  enabled: boolean
+  startHour: number
+  startMinute: number
+  endHour: number
+  endMinute: number
+  weekdays: readonly Weekday[]
+}
+
+export interface CompanionRuntimeSnapshot {
+  lifeState: CompanionLifeState
+  manualSelection: ManualLifeSelection
+  manualWorkActive: boolean
+  scheduledWorkActive: boolean
+  systemSuspended: boolean
+  nextTransitionAt: number | null
+  available: { drowsy: boolean; sleeping: boolean }
+}
+
+export interface CompanionSystemSnapshot {
+  workSchedules: readonly WorkSchedule[]
+  runtime: CompanionRuntimeSnapshot
 }
 
 export interface AppSettingsV1 {
@@ -123,7 +185,7 @@ export interface AppSettingsV2 {
   autostartEnabled: boolean
   audio: { reminderEnabled: boolean; cryingEnabled: boolean }
   reminders: readonly []
-  pets: readonly PetConfig[]
+  pets: readonly LegacyPetConfig[]
 }
 
 export interface AppSettingsV3 {
@@ -133,10 +195,26 @@ export interface AppSettingsV3 {
   autostartEnabled: boolean
   audio: AudioSettingsV3
   reminders: readonly ReminderSchedule[]
+  pets: readonly LegacyPetConfig[]
+}
+
+export interface AppSettingsV4 {
+  schemaVersion: 4
+  activePetId: string | null
+  petWindow: PetWindowSettings
+  autostartEnabled: boolean
+  audio: AudioSettingsV3
+  reminders: readonly ReminderSchedule[]
+  workSchedules: readonly WorkSchedule[]
   pets: readonly PetConfig[]
 }
 
-export type AppSettings = AppSettingsV3
+export type AppSettings = AppSettingsV4
+
+export interface LegacyPetAsset extends Omit<PetAsset, 'headHotspot'> {}
+export interface LegacyPetConfig extends Omit<PetConfig, 'assets' | 'lifeStates' | 'companionPace' | 'interactionBubblesEnabled'> {
+  assets: readonly LegacyPetAsset[]
+}
 
 export interface ReminderOccurrence {
   occurrenceId: string
@@ -240,6 +318,7 @@ export interface PetRendererStatus {
 export interface PetAssetAdjustment {
   id: string
   normalization: AssetNormalization
+  headHotspot: HeadHotspot | null
 }
 
 export interface PetUpdateInput {
@@ -249,7 +328,13 @@ export interface PetUpdateInput {
   assets: readonly PetAssetAdjustment[]
   actionSlots: PetActionSlots
   actionTemplates: PetActionTemplates
+  lifeStates: PetLifeStates
+  companionPace: CompanionPace
+  interactionBubblesEnabled: boolean
 }
+
+export type CreateWorkScheduleInput = Omit<WorkSchedule, 'id'>
+export type UpdateWorkScheduleInput = WorkSchedule
 
 export type ImageImportErrorCode =
   | 'unsupported-type'
@@ -348,8 +433,14 @@ export const EMPTY_ACTION_SLOTS: Readonly<PetActionSlots> = Object.freeze({
   blink: Object.freeze([])
 })
 
+export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
+  drowsy: Object.freeze({ enabled: false, assetIds: Object.freeze([]) }),
+  sleeping: Object.freeze({ enabled: false, assetIds: Object.freeze([]) }),
+  workingAssetIds: Object.freeze([])
+})
+
 export const DEFAULT_APP_SETTINGS = Object.freeze({
-  schemaVersion: 3,
+  schemaVersion: 4,
   activePetId: null,
   petWindow: Object.freeze({
     x: null,
@@ -365,6 +456,7 @@ export const DEFAULT_APP_SETTINGS = Object.freeze({
     assets: Object.freeze([]) as readonly AudioAsset[]
   }),
   reminders: Object.freeze([]) as readonly ReminderSchedule[],
+  workSchedules: Object.freeze([]) as readonly WorkSchedule[],
   pets: Object.freeze([]) as readonly PetConfig[]
 }) satisfies AppSettings
 
@@ -437,12 +529,13 @@ export function migrateAppSettings(value: unknown): SettingsMigrationResult {
     return {
       migrated: true,
       settings: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         activePetId: null,
         petWindow: legacy.petWindow,
         autostartEnabled: legacy.autostartEnabled,
         audio: createDefaultAudioSettings(),
         reminders: [],
+        workSchedules: [],
         pets: []
       }
     }
@@ -453,19 +546,37 @@ export function migrateAppSettings(value: unknown): SettingsMigrationResult {
     return {
       migrated: true,
       settings: {
-        schemaVersion: 3,
+        schemaVersion: 4,
         activePetId: legacy.activePetId,
         petWindow: legacy.petWindow,
         autostartEnabled: legacy.autostartEnabled,
         audio: createDefaultAudioSettings(),
         reminders: [],
-        pets: legacy.pets
+        workSchedules: [],
+        pets: legacy.pets.map(migrateLegacyPet)
       }
     }
   }
 
   if (value.schemaVersion === 3) {
-    return { migrated: false, settings: parseAppSettingsV3(value) }
+    const legacy = parseAppSettingsV3(value)
+    return {
+      migrated: true,
+      settings: {
+        schemaVersion: 4,
+        activePetId: legacy.activePetId,
+        petWindow: legacy.petWindow,
+        autostartEnabled: legacy.autostartEnabled,
+        audio: legacy.audio,
+        reminders: legacy.reminders,
+        workSchedules: [],
+        pets: legacy.pets.map(migrateLegacyPet)
+      }
+    }
+  }
+
+  if (value.schemaVersion === 4) {
+    return { migrated: false, settings: parseAppSettingsV4(value) }
   }
 
   throw new Error('Unsupported settings schema version')
@@ -487,6 +598,47 @@ export function parseUpdateReminderInput(value: unknown): UpdateReminderInput {
     'cursorTolerance', 'message', 'sounds'
   ], 'Invalid reminder input')
   return { id: parsePetIdentifier(value.id), ...parseReminderFields(value) }
+}
+
+export function parseCreateWorkScheduleInput(value: unknown): CreateWorkScheduleInput {
+  if (!isRecord(value)) throw new Error('Invalid work schedule input')
+  assertExactKeys(value, [
+    'enabled', 'startHour', 'startMinute', 'endHour', 'endMinute', 'weekdays'
+  ], 'Invalid work schedule input')
+  return parseWorkScheduleFields(value)
+}
+
+export function parseUpdateWorkScheduleInput(value: unknown): UpdateWorkScheduleInput {
+  if (!isRecord(value)) throw new Error('Invalid work schedule input')
+  assertExactKeys(value, [
+    'id', 'enabled', 'startHour', 'startMinute', 'endHour', 'endMinute', 'weekdays'
+  ], 'Invalid work schedule input')
+  return { id: parsePetIdentifier(value.id), ...parseWorkScheduleFields(value) }
+}
+
+export function parseManualLifeSelection(value: unknown): ManualLifeSelection {
+  if (value !== 'auto' && value !== 'daily-calm' && value !== 'daily-playful' &&
+      value !== 'drowsy' && value !== 'sleeping') {
+    throw new Error('Invalid manual life selection')
+  }
+  return value
+}
+
+export function parseScreenEllipse(value: unknown): ScreenEllipse {
+  if (!isRecord(value)) throw new Error('Invalid screen ellipse')
+  assertExactKeys(value, ['centerX', 'centerY', 'radiusX', 'radiusY'], 'Invalid screen ellipse')
+  if (!isFiniteNumberInRange(value.radiusX, 6, 200) ||
+      !isFiniteNumberInRange(value.radiusY, 6, 200) ||
+      typeof value.centerX !== 'number' || !Number.isFinite(value.centerX) ||
+      typeof value.centerY !== 'number' || !Number.isFinite(value.centerY)) {
+    throw new Error('Invalid screen ellipse')
+  }
+  return {
+    centerX: value.centerX,
+    centerY: value.centerY,
+    radiusX: value.radiusX,
+    radiusY: value.radiusY
+  }
 }
 
 export function parseAudioSourceInput(
@@ -513,6 +665,16 @@ export function createRestSystemSnapshot(
   }
 }
 
+export function createCompanionSystemSnapshot(
+  settings: AppSettings,
+  runtime: CompanionRuntimeSnapshot
+): CompanionSystemSnapshot {
+  return {
+    workSchedules: settings.workSchedules.map(cloneWorkSchedule),
+    runtime: cloneCompanionRuntime(runtime)
+  }
+}
+
 export function isSafeIdentifier(value: unknown): value is string {
   return typeof value === 'string' && IDENTIFIER_PATTERN.test(value)
 }
@@ -536,7 +698,10 @@ export function parsePetUpdateInput(
   if (!isRecord(value)) throw new Error('Invalid pet update')
   assertExactKeys(
     value,
-    ['id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates'],
+    [
+      'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates',
+      'lifeStates', 'companionPace', 'interactionBubblesEnabled'
+    ],
     'Invalid pet update'
   )
   const id = parsePetIdentifier(value.id)
@@ -547,10 +712,11 @@ export function parsePetUpdateInput(
   if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset adjustments')
   const assets = value.assets.map((entry) => {
     if (!isRecord(entry)) throw new Error('Invalid pet asset adjustment')
-    assertExactKeys(entry, ['id', 'normalization'], 'Invalid pet asset adjustment')
+    assertExactKeys(entry, ['id', 'normalization', 'headHotspot'], 'Invalid pet asset adjustment')
     return {
       id: parsePetIdentifier(entry.id),
-      normalization: parseNormalization(entry.normalization)
+      normalization: parseNormalization(entry.normalization),
+      headHotspot: parseNullableHeadHotspot(entry.headHotspot)
     }
   })
   assertUnique(assets.map((asset) => asset.id), 'Duplicate pet asset adjustment')
@@ -559,13 +725,20 @@ export function parsePetUpdateInput(
     throw new Error('Pet update must contain every current asset exactly once')
   }
 
+  const actionSlots = parseActionSlots(value.actionSlots, expected)
+  const lifeStates = parsePetLifeStates(value.lifeStates, expected)
+  if (actionSlots.idle.length === 0) throw new Error('At least one daily asset is required')
+
   return {
     id,
     name,
     targetHeight: value.targetHeight,
     assets,
-    actionSlots: parseActionSlots(value.actionSlots, expected),
-    actionTemplates: parseActionTemplates(value.actionTemplates)
+    actionSlots,
+    actionTemplates: parseActionTemplates(value.actionTemplates),
+    lifeStates,
+    companionPace: parseCompanionPace(value.companionPace),
+    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled)
   }
 }
 
@@ -592,7 +765,7 @@ function parseAppSettingsV2(value: Record<string, unknown>): AppSettingsV2 {
   const base = parseFoundationFields(value)
   if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
 
-  const pets = value.pets.map(parsePetConfig)
+  const pets = value.pets.map(parseLegacyPetConfig)
   assertUnique(pets.map((pet) => pet.id), 'Duplicate pet identifier')
   const activePetId = parseNullableIdentifier(value.activePetId, 'active pet identifier')
 
@@ -612,7 +785,7 @@ function parseAppSettingsV3(value: Record<string, unknown>): AppSettingsV3 {
   ], 'Invalid schema v3 settings')
   const foundation = parseCommonFoundationFields(value)
   if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
-  const pets = value.pets.map(parsePetConfig)
+  const pets = value.pets.map(parseLegacyPetConfig)
   assertUnique(pets.map((pet) => pet.id), 'Duplicate pet identifier')
   const activePetId = parseNullableIdentifier(value.activePetId, 'active pet identifier')
   validateActivePet(activePetId, pets)
@@ -621,6 +794,35 @@ function parseAppSettingsV3(value: Record<string, unknown>): AppSettingsV3 {
   assertUnique(reminders.map((reminder) => reminder.id), 'Duplicate reminder identifier')
   const audio = parseAudioSettings(value.audio)
   return { schemaVersion: 3, activePetId, ...foundation, audio, reminders, pets }
+}
+
+function parseAppSettingsV4(value: Record<string, unknown>): AppSettingsV4 {
+  assertExactKeys(value, [
+    'schemaVersion', 'activePetId', 'petWindow', 'autostartEnabled', 'audio',
+    'reminders', 'workSchedules', 'pets'
+  ], 'Invalid schema v4 settings')
+  const foundation = parseCommonFoundationFields(value)
+  if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
+  const pets = value.pets.map(parsePetConfig)
+  assertUnique(pets.map((pet) => pet.id), 'Duplicate pet identifier')
+  const activePetId = parseNullableIdentifier(value.activePetId, 'active pet identifier')
+  validateActivePet(activePetId, pets)
+  if (!Array.isArray(value.reminders)) throw new Error('Invalid reminder collection')
+  const reminders = value.reminders.map(parseReminderSchedule)
+  assertUnique(reminders.map((reminder) => reminder.id), 'Duplicate reminder identifier')
+  if (!Array.isArray(value.workSchedules)) throw new Error('Invalid work schedule collection')
+  const workSchedules = value.workSchedules.map(parseWorkSchedule)
+  assertUnique(workSchedules.map((schedule) => schedule.id), 'Duplicate work schedule identifier')
+  const audio = parseAudioSettings(value.audio)
+  return {
+    schemaVersion: 4,
+    activePetId,
+    ...foundation,
+    audio,
+    reminders,
+    workSchedules,
+    pets
+  }
 }
 
 function parseFoundationFields(value: Record<string, unknown>): Omit<
@@ -676,7 +878,7 @@ function parseFoundationFields(value: Record<string, unknown>): Omit<
 }
 
 function parseCommonFoundationFields(value: Record<string, unknown>): Pick<
-  AppSettingsV3,
+  AppSettings,
   'petWindow' | 'autostartEnabled'
 > {
   const petWindow = value.petWindow
@@ -751,6 +953,43 @@ function parseReminderFields(value: Record<string, unknown>): CreateReminderInpu
   }
 }
 
+function parseWorkSchedule(value: unknown): WorkSchedule {
+  if (!isRecord(value)) throw new Error('Invalid work schedule')
+  assertExactKeys(value, [
+    'id', 'enabled', 'startHour', 'startMinute', 'endHour', 'endMinute', 'weekdays'
+  ], 'Invalid work schedule')
+  return { id: parsePetIdentifier(value.id), ...parseWorkScheduleFields(value) }
+}
+
+function parseWorkScheduleFields(value: Record<string, unknown>): CreateWorkScheduleInput {
+  if (typeof value.enabled !== 'boolean') throw new Error('Invalid work schedule enabled state')
+  if (!isIntegerInRange(value.startHour, 0, 23) ||
+      !isIntegerInRange(value.startMinute, 0, 59) ||
+      !isIntegerInRange(value.endHour, 0, 23) ||
+      !isIntegerInRange(value.endMinute, 0, 59)) {
+    throw new Error('Invalid work schedule time')
+  }
+  if (value.startHour === value.endHour && value.startMinute === value.endMinute) {
+    throw new Error('Work schedule start and end must differ')
+  }
+  if (!Array.isArray(value.weekdays) || value.weekdays.length === 0 ||
+      !value.weekdays.every((day) => isIntegerInRange(day, 0, 6))) {
+    throw new Error('Invalid work schedule weekdays')
+  }
+  const weekdays = value.weekdays as Weekday[]
+  if (new Set(weekdays).size !== weekdays.length) {
+    throw new Error('Duplicate work schedule weekday')
+  }
+  return {
+    enabled: value.enabled,
+    startHour: value.startHour,
+    startMinute: value.startMinute,
+    endHour: value.endHour,
+    endMinute: value.endMinute,
+    weekdays: [...weekdays]
+  }
+}
+
 function parseAudioSettings(value: unknown): AudioSettingsV3 {
   if (!isRecord(value)) throw new Error('Invalid audio settings')
   assertExactKeys(value, ['reminderSource', 'cryingSource', 'assets'], 'Invalid audio settings')
@@ -811,6 +1050,14 @@ function cloneReminder(reminder: ReminderSchedule): ReminderSchedule {
   return { ...reminder, weekdays: [...reminder.weekdays], sounds: { ...reminder.sounds } }
 }
 
+function cloneWorkSchedule(schedule: WorkSchedule): WorkSchedule {
+  return { ...schedule, weekdays: [...schedule.weekdays] }
+}
+
+function cloneCompanionRuntime(runtime: CompanionRuntimeSnapshot): CompanionRuntimeSnapshot {
+  return { ...runtime, available: { ...runtime.available } }
+}
+
 function cloneAudioSettings(audio: AudioSettingsV3): AudioSettingsV3 {
   return {
     reminderSource: { ...audio.reminderSource },
@@ -844,7 +1091,10 @@ function isAutostartErrorCode(value: unknown): value is AutostartErrorCode {
 
 function parsePetConfig(value: unknown, index: number): PetConfig {
   if (!isRecord(value)) throw new Error(`Invalid pet at index ${index}`)
-  assertExactKeys(value, ['id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates'], 'Invalid pet configuration')
+  assertExactKeys(value, [
+    'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates',
+    'lifeStates', 'companionPace', 'interactionBubblesEnabled'
+  ], 'Invalid pet configuration')
   if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
   const name = parsePetName(value.name)
   if (name !== value.name) throw new Error('Invalid pet name')
@@ -861,6 +1111,39 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
     throw new Error('Pet pack exceeds 250 MB')
   }
 
+  const actionSlots = parseActionSlots(value.actionSlots, assetIds)
+  return {
+    id: value.id,
+    name,
+    targetHeight: value.targetHeight,
+    assets,
+    actionSlots,
+    actionTemplates: parseActionTemplates(value.actionTemplates),
+    lifeStates: parsePetLifeStates(value.lifeStates, assetIds),
+    companionPace: parseCompanionPace(value.companionPace),
+    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled)
+  }
+}
+
+function parseLegacyPetConfig(value: unknown, index: number): LegacyPetConfig {
+  if (!isRecord(value)) throw new Error(`Invalid pet at index ${index}`)
+  assertExactKeys(value, [
+    'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates'
+  ], 'Invalid pet configuration')
+  if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
+  const name = parsePetName(value.name)
+  if (name !== value.name) throw new Error('Invalid pet name')
+  if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
+    throw new Error('Invalid pet target height')
+  }
+  if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset collection')
+  const assets = value.assets.map(parseLegacyPetAsset)
+  assertUnique(assets.map((asset) => asset.id), 'Duplicate pet asset identifier')
+  assertUnique(assets.map((asset) => asset.fileName), 'Duplicate pet asset filename')
+  const assetIds = new Set(assets.map((asset) => asset.id))
+  if (assets.reduce((total, asset) => total + asset.byteSize, 0) > MAX_PET_PACK_BYTES) {
+    throw new Error('Pet pack exceeds 250 MB')
+  }
   return {
     id: value.id,
     name,
@@ -871,11 +1154,26 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
   }
 }
 
+function migrateLegacyPet(pet: LegacyPetConfig): PetConfig {
+  return {
+    ...pet,
+    assets: pet.assets.map((asset) => ({ ...asset, headHotspot: null })),
+    actionSlots: cloneActionSlots(pet.actionSlots),
+    actionTemplates: { ...pet.actionTemplates },
+    lifeStates: cloneDefaultPetLifeStates(),
+    companionPace: 'natural',
+    interactionBubblesEnabled: true
+  }
+}
+
 function parsePetAsset(value: unknown): PetAsset {
   if (!isRecord(value) || !isSafeIdentifier(value.id)) {
     throw new Error('Invalid pet asset identifier')
   }
-  assertExactKeys(value, ['id', 'fileName', 'format', 'byteSize', 'width', 'height', 'alphaBounds', 'normalization'], 'Invalid pet asset')
+  assertExactKeys(value, [
+    'id', 'fileName', 'format', 'byteSize', 'width', 'height', 'alphaBounds',
+    'normalization', 'headHotspot'
+  ], 'Invalid pet asset')
   if (value.format !== 'png' && value.format !== 'webp') {
     throw new Error('Invalid pet asset format')
   }
@@ -895,6 +1193,7 @@ function parsePetAsset(value: unknown): PetAsset {
 
   const alphaBounds = parseAlphaBounds(value.alphaBounds, value.width, value.height)
   const normalization = parseNormalization(value.normalization)
+  const headHotspot = parseNullableHeadHotspot(value.headHotspot)
   return {
     id: value.id,
     fileName: value.fileName,
@@ -903,8 +1202,17 @@ function parsePetAsset(value: unknown): PetAsset {
     width: value.width,
     height: value.height,
     alphaBounds,
-    normalization
+    normalization,
+    headHotspot
   }
+}
+
+function parseLegacyPetAsset(value: unknown): LegacyPetAsset {
+  if (!isRecord(value)) throw new Error('Invalid pet asset')
+  assertExactKeys(value, [
+    'id', 'fileName', 'format', 'byteSize', 'width', 'height', 'alphaBounds', 'normalization'
+  ], 'Invalid pet asset')
+  return parsePetAsset({ ...value, headHotspot: null })
 }
 
 function parseAlphaBounds(value: unknown, imageWidth: number, imageHeight: number): AlphaBounds {
@@ -940,6 +1248,78 @@ function parseNormalization(value: unknown): AssetNormalization {
     offsetY: value.offsetY,
     baselineOffset: value.baselineOffset
   }
+}
+
+export function parseHeadHotspot(value: unknown): HeadHotspot {
+  if (!isRecord(value)) throw new Error('Invalid head hotspot')
+  assertExactKeys(value, ['centerX', 'centerY', 'radiusX', 'radiusY'], 'Invalid head hotspot')
+  if (!isFiniteNumberInRange(value.centerX, 0, 1) ||
+      !isFiniteNumberInRange(value.centerY, 0, 1) ||
+      !isFiniteNumberInRange(value.radiusX, 0.03, 0.5) ||
+      !isFiniteNumberInRange(value.radiusY, 0.03, 0.5)) {
+    throw new Error('Invalid head hotspot')
+  }
+  return {
+    centerX: value.centerX,
+    centerY: value.centerY,
+    radiusX: value.radiusX,
+    radiusY: value.radiusY
+  }
+}
+
+function parseNullableHeadHotspot(value: unknown): HeadHotspot | null {
+  return value === null ? null : parseHeadHotspot(value)
+}
+
+function parsePetLifeStates(value: unknown, assetIds: ReadonlySet<string>): PetLifeStates {
+  if (!isRecord(value)) throw new Error('Invalid pet life states')
+  assertExactKeys(value, ['drowsy', 'sleeping', 'workingAssetIds'], 'Invalid pet life states')
+  const drowsy = parseOptionalLifeAssets(value.drowsy, assetIds, 'drowsy')
+  const sleeping = parseOptionalLifeAssets(value.sleeping, assetIds, 'sleeping')
+  const workingAssetIds = parseAssetIdList(value.workingAssetIds, assetIds, 'working')
+  return { drowsy, sleeping, workingAssetIds }
+}
+
+function parseOptionalLifeAssets(
+  value: unknown,
+  assetIds: ReadonlySet<string>,
+  label: string
+): OptionalLifeAssets {
+  if (!isRecord(value)) throw new Error(`Invalid ${label} life assets`)
+  assertExactKeys(value, ['enabled', 'assetIds'], `Invalid ${label} life assets`)
+  if (typeof value.enabled !== 'boolean') throw new Error(`Invalid ${label} enabled state`)
+  const assigned = parseAssetIdList(value.assetIds, assetIds, label)
+  if (value.enabled && assigned.length === 0) {
+    throw new Error(`Enabled ${label} state requires at least one asset`)
+  }
+  return { enabled: value.enabled, assetIds: assigned }
+}
+
+function parseAssetIdList(
+  value: unknown,
+  assetIds: ReadonlySet<string>,
+  label: string
+): readonly string[] {
+  if (!Array.isArray(value) || !value.every(isSafeIdentifier)) {
+    throw new Error(`Invalid ${label} asset list`)
+  }
+  assertUnique(value, `Duplicate ${label} asset`)
+  if (value.some((assetId) => !assetIds.has(assetId))) {
+    throw new Error(`Unknown asset in ${label} life state`)
+  }
+  return [...value]
+}
+
+function parseCompanionPace(value: unknown): CompanionPace {
+  if (value !== 'quiet' && value !== 'natural' && value !== 'lively') {
+    throw new Error('Invalid companion pace')
+  }
+  return value
+}
+
+function parseInteractionBubblesEnabled(value: unknown): boolean {
+  if (typeof value !== 'boolean') throw new Error('Invalid interaction bubble setting')
+  return value
 }
 
 function parseActionSlots(value: unknown, assetIds: ReadonlySet<string>): PetActionSlots {
@@ -993,6 +1373,20 @@ function parseNullableIdentifier(value: unknown, label: string): string | null {
 
 function assertUnique(values: readonly string[], message: string): void {
   if (new Set(values).size !== values.length) throw new Error(message)
+}
+
+function cloneActionSlots(slots: PetActionSlots): PetActionSlots {
+  return Object.fromEntries(
+    ACTION_SLOTS.map((slot) => [slot, [...slots[slot]]])
+  ) as unknown as PetActionSlots
+}
+
+function cloneDefaultPetLifeStates(): PetLifeStates {
+  return {
+    drowsy: { enabled: false, assetIds: [] },
+    sleeping: { enabled: false, assetIds: [] },
+    workingAssetIds: []
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

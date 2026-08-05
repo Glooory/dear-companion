@@ -50,4 +50,12 @@ describe('action fallback resolution', () => {
   it('requires at least one idle asset', () => {
     expect(() => resolveAction({ actionSlots: { ...EMPTY_ACTION_SLOTS } }, 'cute')).toThrow('idle asset')
   })
+
+  it('animates the caller current life photo for missing actions', () => {
+    expect(resolveAction({ actionSlots: slots() }, 'petting', 0, 'sleeping-a')).toMatchObject({
+      assetIds: ['sleeping-a'],
+      template: 'scale-nod',
+      usedFallback: true
+    })
+  })
 })

@@ -4,6 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import {
   DEFAULT_ACTION_TEMPLATES,
   DEFAULT_ASSET_NORMALIZATION,
+  DEFAULT_PET_LIFE_STATES,
   EMPTY_ACTION_SLOTS,
   createPetSystemSnapshot,
   isSafeIdentifier,
@@ -53,7 +54,10 @@ export class PetPackService {
           targetHeight: 180,
           assets: [],
           actionSlots: cloneEmptySlots(),
-          actionTemplates: { ...DEFAULT_ACTION_TEMPLATES }
+          actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
+          lifeStates: cloneLifeStates(DEFAULT_PET_LIFE_STATES),
+          companionPace: 'natural',
+          interactionBubblesEnabled: true
         }
         return { ...current, pets: [...current.pets, pet] }
       })
@@ -120,17 +124,23 @@ export class PetPackService {
         const pet = requirePet(latest, input.id)
         const latestAssetIds = pet.assets.map((asset) => asset.id)
         const validated = parsePetUpdateInput(input, latestAssetIds)
-        const adjustments = new Map(validated.assets.map((asset) => [asset.id, asset.normalization]))
+        const adjustments = new Map(validated.assets.map((asset) => [asset.id, asset]))
         const updatedPet: PetConfig = {
           ...pet,
           name: validated.name,
           targetHeight: validated.targetHeight,
           assets: pet.assets.map((asset) => ({
             ...asset,
-            normalization: { ...adjustments.get(asset.id)! }
+            normalization: { ...adjustments.get(asset.id)!.normalization },
+            headHotspot: adjustments.get(asset.id)!.headHotspot
+              ? { ...adjustments.get(asset.id)!.headHotspot! }
+              : null
           })),
           actionSlots: cloneSlots(validated.actionSlots),
-          actionTemplates: { ...validated.actionTemplates }
+          actionTemplates: { ...validated.actionTemplates },
+          lifeStates: cloneLifeStates(validated.lifeStates),
+          companionPace: validated.companionPace,
+          interactionBubblesEnabled: validated.interactionBubblesEnabled
         }
         return { ...latest, pets: latest.pets.map((candidate) => candidate.id === pet.id ? updatedPet : candidate) }
       })
@@ -218,7 +228,8 @@ export class PetPackService {
           width: decoded.width,
           height: decoded.height,
           alphaBounds: decoded.alphaBounds,
-          normalization: { ...DEFAULT_ASSET_NORMALIZATION }
+          normalization: { ...DEFAULT_ASSET_NORMALIZATION },
+          headHotspot: null
         })
         currentBytes += bytes.byteLength
       } catch (error) {
@@ -302,6 +313,14 @@ function cloneSlots(slots: PetConfig['actionSlots']): PetConfig['actionSlots'] {
     crying: [...slots.crying],
     resting: [...slots.resting],
     blink: [...slots.blink]
+  }
+}
+
+function cloneLifeStates(lifeStates: PetConfig['lifeStates']): PetConfig['lifeStates'] {
+  return {
+    drowsy: { enabled: lifeStates.drowsy.enabled, assetIds: [...lifeStates.drowsy.assetIds] },
+    sleeping: { enabled: lifeStates.sleeping.enabled, assetIds: [...lifeStates.sleeping.assetIds] },
+    workingAssetIds: [...lifeStates.workingAssetIds]
   }
 }
 

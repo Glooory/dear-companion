@@ -5,10 +5,6 @@ export type PetState =
   | 'dragging'
   | 'angry'
   | 'hidden'
-  | 'reminding'
-  | 'resting'
-  | 'crying'
-  | 'celebrating'
 
 export type PetStateEvent =
   | { type: 'hide' }
@@ -20,15 +16,6 @@ export type PetStateEvent =
   | { type: 'drag-start' }
   | { type: 'drag-release'; angry: boolean }
   | { type: 'anger-complete' }
-  | { type: 'system-state'; state: 'reminding' | 'resting' | 'crying' | 'celebrating' }
-  | { type: 'system-complete'; visible: boolean }
-
-export const RESERVED_PET_STATE_PRIORITY = Object.freeze({
-  reminding: 70,
-  resting: 80,
-  crying: 90,
-  celebrating: 65
-})
 
 export const PET_STATE_PRIORITY: Readonly<Record<PetState, number>> = Object.freeze({
   idle: 10,
@@ -36,17 +23,10 @@ export const PET_STATE_PRIORITY: Readonly<Record<PetState, number>> = Object.fre
   performingAction: 30,
   dragging: 40,
   angry: 50,
-  hidden: 60,
-  celebrating: RESERVED_PET_STATE_PRIORITY.celebrating,
-  reminding: RESERVED_PET_STATE_PRIORITY.reminding,
-  resting: RESERVED_PET_STATE_PRIORITY.resting,
-  crying: RESERVED_PET_STATE_PRIORITY.crying
+  hidden: 60
 })
 
 export function transitionPetState(state: PetState, event: PetStateEvent): PetState {
-  if (event.type === 'system-state') return event.state
-  if (event.type === 'system-complete') return event.visible ? 'idle' : 'hidden'
-  if (isSystemState(state)) return state
   if (event.type === 'hide') return 'hidden'
   if (state === 'hidden') return event.type === 'show' ? 'idle' : 'hidden'
   if (event.type === 'show') return state
@@ -67,10 +47,6 @@ export function transitionPetState(state: PetState, event: PetStateEvent): PetSt
     case 'hover-end':
       return state === 'hovering' ? 'idle' : state
   }
-}
-
-export function isSystemState(state: PetState): boolean {
-  return state === 'reminding' || state === 'resting' || state === 'crying' || state === 'celebrating'
 }
 
 function requestState(current: PetState, next: PetState): PetState {

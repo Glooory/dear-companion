@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   DEFAULT_ACTION_TEMPLATES,
+  DEFAULT_PET_LIFE_STATES,
   EMPTY_ACTION_SLOTS,
   type PetUpdateInput
 } from '../../shared/contracts'
@@ -39,7 +40,10 @@ describe('PetPackService', () => {
       targetHeight: 180,
       assets: [],
       actionSlots: EMPTY_ACTION_SLOTS,
-      actionTemplates: DEFAULT_ACTION_TEMPLATES
+      actionTemplates: DEFAULT_ACTION_TEMPLATES,
+      lifeStates: DEFAULT_PET_LIFE_STATES,
+      companionPace: 'natural',
+      interactionBubblesEnabled: true
     }])
     expect(snapshot.activePetId).toBeNull()
   })
@@ -62,7 +66,8 @@ describe('PetPackService', () => {
       byteSize: pngBytes.length,
       width: 2,
       height: 2,
-      alphaBounds: { x: 0, y: 0, width: 2, height: 2 }
+      alphaBounds: { x: 0, y: 0, width: 2, height: 2 },
+      headHotspot: null
     })
     expect(result.failures).toEqual([{
       index: 1,
@@ -100,9 +105,12 @@ describe('PetPackService', () => {
       id: 'pet-1',
       name: 'Mochi II',
       targetHeight: 200,
-      assets: [{ id: asset.id, normalization: { scale: 1.2, offsetX: 4, offsetY: -3, baselineOffset: 2 } }],
+      assets: [{ id: asset.id, normalization: { scale: 1.2, offsetX: 4, offsetY: -3, baselineOffset: 2 }, headHotspot: { centerX: 0.5, centerY: 0.2, radiusX: 0.18, radiusY: 0.18 } }],
       actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
-      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES, angryDurationMs: 2_000 }
+      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES, angryDurationMs: 2_000 },
+      lifeStates: { drowsy: { enabled: false, assetIds: [] }, sleeping: { enabled: false, assetIds: [] }, workingAssetIds: [] },
+      companionPace: 'lively',
+      interactionBubblesEnabled: false
     }
 
     const updated = await service.updatePet(update)
@@ -137,9 +145,12 @@ describe('PetPackService', () => {
       id: firstPetId,
       name: 'Mochi',
       targetHeight: 180,
-      assets: [{ id: asset.id, normalization: { ...asset.normalization } }],
+      assets: [{ id: asset.id, normalization: { ...asset.normalization }, headHotspot: null }],
       actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
-      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES }
+      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
+      lifeStates: { drowsy: { enabled: false, assetIds: [] }, sleeping: { enabled: false, assetIds: [] }, workingAssetIds: [] },
+      companionPace: 'natural',
+      interactionBubblesEnabled: true
     })
     await service.setActivePet(firstPetId)
 

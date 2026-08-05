@@ -24,9 +24,10 @@ export interface ResolvedAction {
 export function resolveAction(
   pet: Pick<PetConfig, 'actionSlots'>,
   slot: ActionSlot,
-  randomIndex = 0
+  randomIndex = 0,
+  baseAssetId?: string
 ): ResolvedAction {
-  const idleAssetId = select(pet.actionSlots.idle, randomIndex)
+  const idleAssetId = baseAssetId ?? select(pet.actionSlots.idle, randomIndex)
   if (!idleAssetId) throw new Error('An idle asset is required to resolve pet actions')
 
   if (slot === 'idle') {

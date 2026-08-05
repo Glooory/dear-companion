@@ -306,7 +306,7 @@ describe('SettingsStore', () => {
 
     expect(migrated).toEqual({
       ...legacy,
-      schemaVersion: 3,
+      schemaVersion: 4,
       activePetId: null,
       audio: {
         reminderSource: { kind: 'builtin', id: 'gentle-chime' },
@@ -314,13 +314,14 @@ describe('SettingsStore', () => {
         assets: []
       },
       reminders: [],
+      workSchedules: [],
       pets: []
     })
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.json'), 'utf8'))).toEqual(migrated)
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
   })
 
-  it('recovers a corrupt primary from a valid v1 backup as schema v2', async () => {
+  it('recovers a corrupt primary from a valid v1 backup as schema v4', async () => {
     const userDataPath = await createUserDataPath()
     const legacy: AppSettingsV1 = {
       schemaVersion: 1,
@@ -335,12 +336,13 @@ describe('SettingsStore', () => {
 
     await expect(new SettingsStore(userDataPath).load()).resolves.toEqual({
       ...legacy,
-      schemaVersion: 3,
+      schemaVersion: 4,
       audio: {
         reminderSource: { kind: 'builtin', id: 'gentle-chime' },
         cryingSource: { kind: 'builtin', id: 'soft-whimper' },
         assets: []
       },
+      workSchedules: [],
       pets: []
     })
   })
@@ -395,11 +397,11 @@ describe('SettingsStore', () => {
     }
     await writeFile(join(userDataPath, 'settings.json'), JSON.stringify(legacy))
     const migrated = await new SettingsStore(userDataPath).load()
-    expect(migrated).toMatchObject({ schemaVersion: 3, reminders: [], pets: [], petWindow: legacy.petWindow })
+    expect(migrated).toMatchObject({ schemaVersion: 4, reminders: [], workSchedules: [], pets: [], petWindow: legacy.petWindow })
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.backup.json'), 'utf8'))).toEqual(legacy)
   })
 
-  it('recovers a corrupt primary from a v2 backup and writes strict v3', async () => {
+  it('recovers a corrupt primary from a v2 backup and writes strict v4', async () => {
     const userDataPath = await createUserDataPath()
     const legacy: AppSettingsV2 = {
       schemaVersion: 2,
@@ -413,7 +415,7 @@ describe('SettingsStore', () => {
     await writeFile(join(userDataPath, 'settings.json'), '{broken')
     await writeFile(join(userDataPath, 'settings.backup.json'), JSON.stringify(legacy))
     const migrated = await new SettingsStore(userDataPath).load()
-    expect(migrated.schemaVersion).toBe(3)
+    expect(migrated.schemaVersion).toBe(4)
     expect(JSON.parse(await readFile(join(userDataPath, 'settings.json'), 'utf8'))).toEqual(migrated)
   })
 })
