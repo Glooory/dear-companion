@@ -62,7 +62,11 @@ export class PettingGestureDetector {
       this.path += distance
       this.totalX += Math.abs(dx)
       this.totalY += Math.abs(dy)
-      this.dominantAxis = this.totalX >= this.totalY ? 'x' : 'y'
+      const dominantAxis = this.totalX >= this.totalY ? 'x' : 'y'
+      if (this.dominantAxis !== null && dominantAxis !== this.dominantAxis) {
+        this.lastDirection = 0
+      }
+      this.dominantAxis = dominantAxis
       const delta = this.dominantAxis === 'x' ? dx : dy
       const direction = Math.sign(delta)
       if (direction !== 0 && this.lastDirection !== 0 && direction !== this.lastDirection) {

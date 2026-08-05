@@ -89,7 +89,7 @@ export interface HeadHotspot {
   radiusY: number
 }
 
-export interface ScreenEllipse extends HeadHotspot {}
+export type ScreenEllipse = HeadHotspot
 
 export interface AssetNormalization {
   scale: number
@@ -211,7 +211,7 @@ export interface AppSettingsV4 {
 
 export type AppSettings = AppSettingsV4
 
-export interface LegacyPetAsset extends Omit<PetAsset, 'headHotspot'> {}
+export type LegacyPetAsset = Omit<PetAsset, 'headHotspot'>
 export interface LegacyPetConfig extends Omit<PetConfig, 'assets' | 'lifeStates' | 'companionPace' | 'interactionBubblesEnabled'> {
   assets: readonly LegacyPetAsset[]
 }
@@ -913,7 +913,10 @@ function parseCommonFoundationFields(value: Record<string, unknown>): Pick<
   }
 }
 
-function validateActivePet(activePetId: string | null, pets: readonly PetConfig[]): void {
+function validateActivePet(
+  activePetId: string | null,
+  pets: readonly Pick<PetConfig, 'id' | 'actionSlots'>[]
+): void {
   if (activePetId === null) return
   const activePet = pets.find((pet) => pet.id === activePetId)
   if (!activePet || activePet.actionSlots.idle.length === 0) {

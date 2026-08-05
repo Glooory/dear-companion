@@ -11,7 +11,7 @@ export function PhotoTransition({ petId, asset, targetHeight, veil }: {
   veil: PhotoVeil
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset)
-  const [covering, setCovering] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'covering' | 'revealing'>('idle')
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
   const desiredUrl = useMemo(() => petAssetUrl(petId, asset.id), [asset.id, petId])
 
@@ -21,10 +21,15 @@ export function PhotoTransition({ petId, asset, targetHeight, veil }: {
     const image = new Image()
     image.onload = () => {
       if (cancelled) return
-      setCovering(true)
+      setPhase('covering')
       timers.current.push(
-        setTimeout(() => { if (!cancelled) setCurrent(asset) }, 220),
-        setTimeout(() => { if (!cancelled) setCovering(false) }, 500)
+        setTimeout(() => {
+          if (!cancelled) {
+            setCurrent(asset)
+            setPhase('revealing')
+          }
+        }, 220),
+        setTimeout(() => { if (!cancelled) setPhase('idle') }, 500)
       )
     }
     image.onerror = () => {
@@ -49,12 +54,12 @@ export function PhotoTransition({ petId, asset, targetHeight, veil }: {
   return (
     <>
       <span
-        className={`pet-image-frame ${covering ? 'photo-outgoing' : 'photo-incoming'}`}
+        className={`pet-image-frame ${phase === 'covering' ? 'photo-outgoing' : 'photo-incoming'}`}
         style={{ left: geometry.left, top: geometry.top, width: geometry.renderedWidth, height: geometry.renderedHeight }}
       >
         <img className="pet-image" draggable={false} src={petAssetUrl(petId, current.id)} alt="" />
       </span>
-      {covering && <span className={`photo-veil veil-${veil}`} aria-hidden="true"><i /><i /><i /><i /><i /></span>}
+      {phase !== 'idle' && <span className={`photo-veil veil-${veil}`} aria-hidden="true"><i /><i /><i /><i /><i /></span>}
     </>
   )
 }

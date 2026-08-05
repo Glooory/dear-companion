@@ -72,6 +72,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   ): void => {
     if (!activePet) return
     clearActionTimers()
+    api.cancelPettingGesture()
     setActionState({ petId: activePet.id, action })
     setFrameIndex(0)
     if (action.template === 'blink-sequence') {
@@ -83,7 +84,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       return
     }
     actionTimers.current.push(setTimeout(() => finishAction(complete), duration))
-  }, [activePet, clearActionTimers, finishAction])
+  }, [activePet, api, clearActionTimers, finishAction])
 
   const performCurrentPhotoAction = useCallback((template: ActionTemplate, duration = 900): void => {
     if (!baseAsset) return
@@ -186,6 +187,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     onDragStarted: () => {
       wakeSequence.current.reset()
       api.cancelPettingGesture()
+      finishAction()
     },
     onLocalPointerMove: pettingPointerMove,
     runtimeState
@@ -249,9 +251,15 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   useEffect(() => {
     wakeSequence.current.reset()
     if (!pageVisible || !snapshot?.petWindow.visible || runtimeActive) {
-      clearActionTimers(); setActionState(null); setHeartVisible(false)
-      if (!pageVisible || !snapshot?.petWindow.visible) clearDialogue()
+      clearActionTimers()
+      const timer = window.setTimeout(() => {
+        setActionState(null)
+        setHeartVisible(false)
+        if (!pageVisible || !snapshot?.petWindow.visible) clearDialogue()
+      }, 0)
+      return () => window.clearTimeout(timer)
     }
+    return undefined
   }, [activePet?.id, clearActionTimers, clearDialogue, lifeState, pageVisible, runtimeActive, snapshot?.petWindow.visible])
 
   useEffect(() => () => clearActionTimers(), [clearActionTimers])
@@ -266,11 +274,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const runtimeSlot: ActionSlot | null = runtimeState === 'resting' || runtimeState === 'celebrating'
     ? 'resting' : runtimeState === 'crying' ? 'crying' : null
   const resolvedAction = activePet && baseAsset
-    ? (runtimeSlot
-        ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id)
-        : actionState?.petId === activePet.id
-          ? actionState.action
-          : null)
+    ? (runtimeActive
+        ? (runtimeSlot ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id) : null)
+        : actionState?.petId === activePet.id ? actionState.action : null)
     : null
   const desiredAssetId = resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0] ?? baseAsset?.id
   const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset
@@ -289,7 +295,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     <main className={`pet-shell action-${template}`} data-state={interactionState} {...interactionHandlers}>
       {activePet && desiredAsset ? (
         <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
-          <PhotoTransition key={activePet.id} petId={activePet.id} asset={desiredAsset} targetHeight={activePet.targetHeight} veil={veil} />
+          <PhotoTransition
+            key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}`}
+            petId={activePet.id}
+            asset={desiredAsset}
+            targetHeight={activePet.targetHeight}
+            veil={veil}
+          />
           {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}
           {heartVisible && <span className="pet-heart" aria-hidden="true">♥</span>}
           {dialogue && !prompt && <span className="pet-dialogue" role="status">{dialogue}</span>}

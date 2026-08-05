@@ -18,6 +18,8 @@ import {
   parsePetUpdateInput,
   type AppSettingsV1,
   type AppSettingsV2,
+  type AppSettingsV3,
+  type LegacyPetConfig,
   type PetConfig
 } from './contracts'
 
@@ -196,12 +198,7 @@ describe('settings contracts', () => {
 
   it('migrates v2 with every pet field and zero reminders', () => {
     const pet = createPet()
-    const { lifeStates: _lifeStates, companionPace: _pace,
-      interactionBubblesEnabled: _bubbles, ...legacyPetWithHotspots } = pet
-    const legacyPet = {
-      ...legacyPetWithHotspots,
-      assets: legacyPetWithHotspots.assets.map(({ headHotspot: _hotspot, ...asset }) => asset)
-    }
+    const legacyPet = toLegacyPet(pet)
     const legacy: AppSettingsV2 = {
       schemaVersion: 2,
       activePetId: pet.id,
@@ -221,6 +218,34 @@ describe('settings contracts', () => {
     })
     expect(result.settings.reminders).toEqual([])
     expect(result.settings.audio.assets).toEqual([])
+  })
+
+  it('migrates schema v3 pets and global settings to strict v4 defaults', () => {
+    const pet = createPet()
+    const legacy: AppSettingsV3 = {
+      schemaVersion: 3,
+      activePetId: pet.id,
+      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow },
+      autostartEnabled: false,
+      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [] },
+      reminders: [],
+      pets: [toLegacyPet(pet)]
+    }
+    const result = migrateAppSettings(legacy)
+    expect(result).toMatchObject({
+      migrated: true,
+      settings: {
+        schemaVersion: 4,
+        activePetId: pet.id,
+        workSchedules: [],
+        pets: [{
+          lifeStates: DEFAULT_PET_LIFE_STATES,
+          companionPace: 'natural',
+          interactionBubblesEnabled: true
+        }]
+      }
+    })
+    expect(result.settings.pets[0]!.assets[0]!.headHotspot).toBeNull()
   })
 
   it('validates reminder and audio ownership strictly', () => {
@@ -322,3 +347,23 @@ describe('settings contracts', () => {
     expect(snapshot.runtime.available).not.toBe(runtime.available)
   })
 })
+
+function toLegacyPet(pet: PetConfig): LegacyPetConfig {
+  return {
+    id: pet.id,
+    name: pet.name,
+    targetHeight: pet.targetHeight,
+    assets: pet.assets.map((asset) => ({
+      id: asset.id,
+      fileName: asset.fileName,
+      format: asset.format,
+      byteSize: asset.byteSize,
+      width: asset.width,
+      height: asset.height,
+      alphaBounds: { ...asset.alphaBounds },
+      normalization: { ...asset.normalization }
+    })),
+    actionSlots: pet.actionSlots,
+    actionTemplates: pet.actionTemplates
+  }
+}

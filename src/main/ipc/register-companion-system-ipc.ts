@@ -21,7 +21,7 @@ interface Dependencies {
   tracker: Pick<PettingTracker, 'begin' | 'cancel'>
   windowManager: Pick<
     WindowManager,
-    'getWindowKind' | 'getOwnedWindow' | 'broadcastCompanionSystemChanged'
+    'getWindowKind' | 'getOwnedWindow'
   >
   idFactory?: () => string
 }
@@ -37,14 +37,9 @@ export function registerCompanionSystemIpc(dependencies: Dependencies): () => vo
   }
   const snapshot = async (): Promise<CompanionSystemSnapshot> =>
     createCompanionSystemSnapshot(await dependencies.settingsStore.load(), dependencies.controller.getSnapshot())
-  const broadcast = async (): Promise<CompanionSystemSnapshot> => {
-    const result = await snapshot()
-    if (active) dependencies.windowManager.broadcastCompanionSystemChanged(result)
-    return result
-  }
-  const refreshAndBroadcast = async (): Promise<CompanionSystemSnapshot> => {
+  const refreshAndSnapshot = async (): Promise<CompanionSystemSnapshot> => {
     await dependencies.controller.refresh()
-    return broadcast()
+    return snapshot()
   }
   const handle = (channel: string, listener: Parameters<typeof ipcMain.handle>[1]): void => {
     ipcMain.handle(channel, listener)
@@ -83,7 +78,7 @@ export function registerCompanionSystemIpc(dependencies: Dependencies): () => vo
         const id = createUniqueId(idFactory, new Set(current.workSchedules.map((item) => item.id)))
         return { ...current, workSchedules: [...current.workSchedules, { id, ...input }] }
       })
-      return refreshAndBroadcast()
+      return refreshAndSnapshot()
     })
     handle(IPC_CHANNELS.updateWorkSchedule, async (event, value: unknown) => {
       requireWindow(event.sender.id, 'settings')
@@ -92,7 +87,7 @@ export function registerCompanionSystemIpc(dependencies: Dependencies): () => vo
         if (!current.workSchedules.some((item) => item.id === input.id)) throw new Error('Work schedule does not exist')
         return { ...current, workSchedules: current.workSchedules.map((item) => item.id === input.id ? input : item) }
       })
-      return refreshAndBroadcast()
+      return refreshAndSnapshot()
     })
     handle(IPC_CHANNELS.deleteWorkSchedule, async (event, value: unknown) => {
       requireWindow(event.sender.id, 'settings')
@@ -101,7 +96,7 @@ export function registerCompanionSystemIpc(dependencies: Dependencies): () => vo
         if (!current.workSchedules.some((item) => item.id === id)) throw new Error('Work schedule does not exist')
         return { ...current, workSchedules: current.workSchedules.filter((item) => item.id !== id) }
       })
-      return refreshAndBroadcast()
+      return refreshAndSnapshot()
     })
     handle(IPC_CHANNELS.setWorkScheduleEnabled, async (event, value: unknown, enabled: unknown) => {
       requireWindow(event.sender.id, 'settings')
@@ -111,12 +106,12 @@ export function registerCompanionSystemIpc(dependencies: Dependencies): () => vo
         if (!current.workSchedules.some((item) => item.id === id)) throw new Error('Work schedule does not exist')
         return { ...current, workSchedules: current.workSchedules.map((item) => item.id === id ? { ...item, enabled } : item) }
       })
-      return refreshAndBroadcast()
+      return refreshAndSnapshot()
     })
     handle(IPC_CHANNELS.wakeCompanion, async (event) => {
       requireWindow(event.sender.id, 'pet')
       dependencies.controller.wakeFromSleep()
-      return broadcast()
+      return snapshot()
     })
     ipcMain.on(IPC_CHANNELS.beginPettingGesture, beginPetting)
     ipcMain.on(IPC_CHANNELS.cancelPettingGesture, cancelPetting)

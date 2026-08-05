@@ -100,6 +100,10 @@ export class CompanionStateController {
   setSystemSuspended(suspended: boolean): void {
     if (this.disposed || this.systemSuspended === suspended) return
     this.systemSuspended = suspended
+    if (!suspended) {
+      this.manualSelection = 'auto'
+      this.automaticState = 'daily-calm'
+    }
     this.recompute(true)
   }
 
@@ -123,9 +127,15 @@ export class CompanionStateController {
     this.cancelTimer()
     if (!this.settings || this.disposed) return
     const now = this.now()
+    const wasWorking = this.lifeState === 'working'
     this.scheduledWorkActive = this.settings.workSchedules.some((schedule) =>
       isWorkScheduleActive(schedule, now)
     )
+    const workActive = this.manualWorkActive || this.scheduledWorkActive
+    if (!this.systemSuspended && wasWorking !== workActive) {
+      this.manualSelection = 'auto'
+      this.automaticState = 'daily-calm'
+    }
     const available = this.availableStates()
     this.lifeState = resolveCompanionState({
       current: this.lifeState,

@@ -40,7 +40,7 @@ export function usePetInteractions({
 
   if (previousRuntimeState !== runtimeState) {
     setPreviousRuntimeState(runtimeState)
-    setState(runtimeState ?? (visible ? 'idle' : 'hidden'))
+    setState(visible ? 'idle' : 'hidden')
   } else if (!runtimeState && previousVisible !== visible) {
     setPreviousVisible(visible)
     setState(visible ? 'idle' : 'hidden')

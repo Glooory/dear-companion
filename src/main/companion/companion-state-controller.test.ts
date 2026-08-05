@@ -81,6 +81,9 @@ describe('CompanionStateController', () => {
     h.controller.setManualWork(true)
     h.controller.setManualWork(false)
     expect(h.controller.getSnapshot().lifeState).toBe('working')
+    h.setSettings(settings({ workSchedules: [] }))
+    await h.controller.refresh()
+    expect(h.controller.getSnapshot()).toMatchObject({ lifeState: 'daily-calm', scheduledWorkActive: false })
   })
 
   it('suspends timers, preserves manual work, and resets flags on resume', async () => {
@@ -93,6 +96,15 @@ describe('CompanionStateController', () => {
     expect(h.controller.getSnapshot().lifeState).toBe('working')
     h.controller.handleResume()
     expect(h.controller.getSnapshot()).toMatchObject({ lifeState: 'daily-calm', manualWorkActive: false, manualSelection: 'auto' })
+  })
+
+  it('returns from a completed system flow to work or daily calm instead of stale sleep', async () => {
+    const h = harness()
+    await h.controller.start()
+    h.controller.selectManualState('sleeping')
+    h.controller.setSystemSuspended(true)
+    h.controller.setSystemSuspended(false)
+    expect(h.controller.getSnapshot()).toMatchObject({ lifeState: 'daily-calm', manualSelection: 'auto' })
   })
 
   it('wakes only from effective sleep and applies the awake cooldown', async () => {
