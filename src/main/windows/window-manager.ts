@@ -52,11 +52,12 @@ export class WindowManager {
     if (this.crashRecoveryBudget.getState() === 'safe-mode') return
     this.petVisibilityRequested = true
     if (this.petWindow && !this.petWindow.isDestroyed()) {
-      if (this.petWindowReady && this.petWindowPlaced) this.petWindow.show()
+      if (this.petWindowReady && this.petWindowPlaced) this.showPetWindow(this.petWindow)
       return
     }
 
     const petWindow = new BrowserWindow(createPetWindowOptions(this.preloadPath))
+    petWindow.setHasShadow(false)
     this.petWindow = petWindow
     this.petWindowReady = false
     this.petWindowPlaced = false
@@ -66,7 +67,7 @@ export class WindowManager {
       if (this.petWindow !== petWindow || petWindow.isDestroyed()) return
       this.petWindowReady = true
       this.markPetRendererReady()
-      if (this.petWindowPlaced && this.petVisibilityRequested) petWindow.show()
+      if (this.petWindowPlaced && this.petVisibilityRequested) this.showPetWindow(petWindow)
     }
     petWindow.once('ready-to-show', showWhenReady)
     this.addListenerDisposer(petWindow, () => {
@@ -109,7 +110,7 @@ export class WindowManager {
       const placementCompleted = await this.initializePetPlacement(petWindow)
       if (!placementCompleted) return
       this.petWindowPlaced = true
-      if (this.petWindowReady && this.petVisibilityRequested) petWindow.show()
+      if (this.petWindowReady && this.petVisibilityRequested) this.showPetWindow(petWindow)
 
       await petWindow.loadURL(this.rendererUrl('pet'))
     } catch (error) {
@@ -122,6 +123,11 @@ export class WindowManager {
     if (this.disposed) return
     this.petVisibilityRequested = false
     this.petWindow?.hide()
+  }
+
+  private showPetWindow(petWindow: BrowserWindow): void {
+    petWindow.setHasShadow(false)
+    petWindow.show()
   }
 
   async openSettings(): Promise<void> {

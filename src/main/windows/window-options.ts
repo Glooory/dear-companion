@@ -15,6 +15,7 @@ export function createPetWindowOptions(preloadPath: string): BrowserWindowConstr
     height: 320,
     transparent: true,
     frame: false,
+    hasShadow: false,
     resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,

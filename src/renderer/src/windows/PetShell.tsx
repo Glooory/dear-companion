@@ -59,7 +59,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       return
     }
 
-    const duration = actionDuration(activePet, slot)
+    const duration = action.template === 'asset-swap'
+      ? Math.max(actionDuration(activePet, slot), 1_800)
+      : actionDuration(activePet, slot)
     actionTimers.current.push(setTimeout(finish, duration))
   }, [activePet, clearActionTimers])
 
@@ -196,18 +198,23 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     >
       {activePet && asset && geometry ? (
         <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
-          <img
-            className="pet-image"
-            draggable={false}
-            src={petAssetUrl(activePet.id, asset.id)}
-            alt=""
+          <span
+            className="pet-image-frame"
+            key={`${activePet.id}:${asset.id}`}
             style={{
               left: geometry.left,
               top: geometry.top,
               width: geometry.renderedWidth,
               height: geometry.renderedHeight
             }}
-          />
+          >
+            <img
+              className="pet-image"
+              draggable={false}
+              src={petAssetUrl(activePet.id, asset.id)}
+              alt=""
+            />
+          </span>
           {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}
           {(interactionState === 'angry' || resolvedAction?.overlays.includes('protest-bubble')) && (
             <span className="pet-protest" role="status">慢一点呀！</span>
@@ -237,7 +244,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           {session.state !== 'celebrating' && <button type="button" onClick={endRest}>结束本次休息</button>}
         </section>
       )}
-      <button className="pet-settings-button" type="button" onClick={openSettings}>设置</button>
     </main>
   )
 }

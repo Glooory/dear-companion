@@ -38,6 +38,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
+  const [targetHeightText, setTargetHeightText] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -58,6 +59,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         setPetRendererStatus(loadedRenderer)
         setSelectedPetId((current) => current ?? initialPet?.id ?? null)
         setDraft((current) => current ?? (initialPet ? petToUpdateInput(initialPet) : null))
+        setTargetHeightText((current) => current || (initialPet ? String(initialPet.targetHeight) : ''))
       },
       () => { if (!cancelled) setError('无法读取本地设置，请重试') }
     )
@@ -114,6 +116,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setSnapshot(next)
       setSelectedPetId(created?.id ?? null)
       setDraft(created ? petToUpdateInput(created) : null)
+      setTargetHeightText(created ? String(created.targetHeight) : '')
       setNewPetName('')
     })
   }
@@ -126,7 +129,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       const next = await api.getPetSystemSnapshot()
       setSnapshot(next)
       const nextPet = next.pets.find((pet) => pet.id === selectedPetId)
-      if (nextPet) setDraft(petToUpdateInput(nextPet))
+      if (nextPet) {
+        setDraft(petToUpdateInput(nextPet))
+        setTargetHeightText(String(nextPet.targetHeight))
+      }
     })
   }
 
@@ -143,6 +149,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setSnapshot(next)
       setSelectedPetId(replacement?.id ?? null)
       setDraft(replacement ? petToUpdateInput(replacement) : null)
+      setTargetHeightText(replacement ? String(replacement.targetHeight) : '')
       setImportReport(null)
       setSettings((current) => current ? {
         ...current,
@@ -154,22 +161,44 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const saveDraft = (): void => {
     if (!draft) return
+    const targetHeight = normalizeTargetHeight(targetHeightText)
+    if (targetHeight === null) {
+      setError('人物高度需为 80–260 之间的数字')
+      return
+    }
+    const input = { ...draft, targetHeight }
+    setDraft(input)
+    setTargetHeightText(String(targetHeight))
     void runMutation(async () => {
-      const next = await api.updatePet(draft)
+      const next = await api.updatePet(input)
       setSnapshot(next)
-      const nextPet = next.pets.find((pet) => pet.id === draft.id)
-      if (nextPet) setDraft(petToUpdateInput(nextPet))
+      const nextPet = next.pets.find((pet) => pet.id === input.id)
+      if (nextPet) {
+        setDraft(petToUpdateInput(nextPet))
+        setTargetHeightText(String(nextPet.targetHeight))
+      }
     })
   }
 
   const activateDraft = (): void => {
     if (!draft || draft.actionSlots.idle.length === 0) return
+    const targetHeight = normalizeTargetHeight(targetHeightText)
+    if (targetHeight === null) {
+      setError('人物高度需为 80–260 之间的数字')
+      return
+    }
+    const input = { ...draft, targetHeight }
+    setDraft(input)
+    setTargetHeightText(String(targetHeight))
     void runMutation(async () => {
-      await api.updatePet(draft)
-      const next = await api.setActivePet(draft.id)
+      await api.updatePet(input)
+      const next = await api.setActivePet(input.id)
       setSnapshot(next)
-      const nextPet = next.pets.find((pet) => pet.id === draft.id)
-      if (nextPet) setDraft(petToUpdateInput(nextPet))
+      const nextPet = next.pets.find((pet) => pet.id === input.id)
+      if (nextPet) {
+        setDraft(petToUpdateInput(nextPet))
+        setTargetHeightText(String(nextPet.targetHeight))
+      }
       setSettings((current) => current ? { ...current, activePetId: next.activePetId, pets: next.pets } : current)
     })
   }
@@ -294,6 +323,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   onClick={() => {
                     setSelectedPetId(pet.id)
                     setDraft(petToUpdateInput(pet))
+                    setTargetHeightText(String(pet.targetHeight))
                     setImportReport(null)
                   }}
                 >
@@ -352,13 +382,20 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       type="number"
                       min={80}
                       max={260}
-                      value={draft.targetHeight}
+                      step={1}
+                      inputMode="numeric"
+                      value={targetHeightText}
                       onChange={(event) => {
-                        if (event.currentTarget.value.trim() === '') return
-                        const value = Number(event.currentTarget.value)
-                        if (Number.isFinite(value)) {
-                          setDraft({ ...draft, targetHeight: Math.min(Math.max(value, 80), 260) })
-                        }
+                        const text = event.currentTarget.value
+                        setTargetHeightText(text)
+                        const value = parseTargetHeight(text)
+                        if (value !== null) setDraft({ ...draft, targetHeight: value })
+                      }}
+                      onBlur={() => {
+                        const value = normalizeTargetHeight(targetHeightText)
+                        if (value === null) return
+                        setTargetHeightText(String(value))
+                        setDraft({ ...draft, targetHeight: value })
                       }}
                     />
                   </label>
@@ -514,4 +551,17 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
     },
     actionTemplates: { ...pet.actionTemplates }
   }
+}
+
+function parseTargetHeight(value: string): number | null {
+  if (value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed >= 80 && parsed <= 260 ? Math.round(parsed) : null
+}
+
+function normalizeTargetHeight(value: string): number | null {
+  if (value.trim() === '') return null
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return null
+  return Math.round(Math.min(Math.max(parsed, 80), 260))
 }
