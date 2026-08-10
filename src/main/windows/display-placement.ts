@@ -47,6 +47,20 @@ export function clampRectToWorkArea(rect: Rect, workArea: Rect, margin = 8): Rec
   }
 }
 
+export function moveRectWithinWorkArea(
+  rect: Rect,
+  workArea: Rect,
+  deltaX: number,
+  deltaY: number,
+  margin = 8
+): Rect {
+  return clampRectToWorkArea({
+    ...rect,
+    x: rect.x + deltaX,
+    y: rect.y + deltaY
+  }, workArea, margin)
+}
+
 export function resolvePetWindowBounds(
   displays: readonly DisplaySnapshot[],
   savedDisplayId: string | null,

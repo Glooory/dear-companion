@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   updatePet: 'pet-system:update-pet',
   setActivePet: 'pet-system:set-active-pet',
   movePetBy: 'pet-system:move-pet-by',
+  nudgePetBy: 'pet-system:nudge-pet-by',
   showPetContextMenu: 'pet-system:show-context-menu',
   petSystemChanged: 'pet-system:changed',
   getCompanionSystemSnapshot: 'companion-system:get-snapshot',

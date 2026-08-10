@@ -18,7 +18,7 @@ interface PetSystemIpcDependencies {
   settingsStore: Pick<SettingsStore, 'update'>
   windowManager: Pick<
     WindowManager,
-    'getWindowKind' | 'getOwnedWindow' | 'movePetBy' | 'broadcastPetSystemChanged' |
+    'getWindowKind' | 'getOwnedWindow' | 'movePetBy' | 'nudgePetBy' | 'broadcastPetSystemChanged' |
     'isPetVisible' | 'showPet' | 'hidePet' | 'openSettings'
   >
   onSettingsChanged?: (settings: AppSettings) => void
@@ -65,6 +65,23 @@ export function registerPetSystemIpc({
         Math.abs(deltaY) > 256
       ) return
       windowManager.movePetBy(deltaX, deltaY)
+    } catch {
+      // Unknown or stale renderer senders receive no privileged action.
+    }
+  }
+
+  const nudgePetListener = (event: IpcMainEvent, deltaX: unknown, deltaY: unknown): void => {
+    try {
+      if (windowManager.getWindowKind(event.sender.id) !== 'pet') return
+      if (
+        typeof deltaX !== 'number' ||
+        typeof deltaY !== 'number' ||
+        !Number.isFinite(deltaX) ||
+        !Number.isFinite(deltaY) ||
+        Math.abs(deltaX) > 64 ||
+        Math.abs(deltaY) > 64
+      ) return
+      windowManager.nudgePetBy(deltaX, deltaY)
     } catch {
       // Unknown or stale renderer senders receive no privileged action.
     }
@@ -189,10 +206,12 @@ export function registerPetSystemIpc({
     })
 
     ipcMain.on(IPC_CHANNELS.movePetBy, movePetListener)
+    ipcMain.on(IPC_CHANNELS.nudgePetBy, nudgePetListener)
     ipcMain.on(IPC_CHANNELS.showPetContextMenu, showContextMenuListener)
   } catch (error) {
     for (const channel of handledChannels) ipcMain.removeHandler(channel)
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener)
+    ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener)
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener)
     throw error
   }
@@ -202,6 +221,7 @@ export function registerPetSystemIpc({
     active = false
     for (const channel of handledChannels) ipcMain.removeHandler(channel)
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener)
+    ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener)
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener)
   }
 }

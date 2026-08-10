@@ -1013,6 +1013,10 @@ input:focus-visible {
   animation: pet-sway 820ms ease-in-out both;
 }
 
+.action-waddle .pet-image-frame.photo-idle {
+  animation: pet-waddle 1.2s ease-in-out both;
+}
+
 .action-scale-nod .pet-image-frame.photo-idle {
   animation: pet-petting 900ms ease-in-out both;
 }
@@ -1049,6 +1053,17 @@ input:focus-visible {
   0%, 100% { transform: rotate(0); }
   30% { transform: rotate(-4deg); }
   70% { transform: rotate(4deg); }
+}
+
+@keyframes pet-waddle {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  12% { transform: translateY(-3px) rotate(-5deg); }
+  25% { transform: translateY(1px) rotate(0); }
+  38% { transform: translateY(-3px) rotate(5deg); }
+  50% { transform: translateY(1px) rotate(0); }
+  62% { transform: translateY(-3px) rotate(-5deg); }
+  75% { transform: translateY(1px) rotate(0); }
+  88% { transform: translateY(-3px) rotate(5deg); }
 }
 
 @keyframes pet-petting {

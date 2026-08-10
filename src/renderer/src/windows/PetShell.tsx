@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { resolveAction, type ActionTemplate, type ResolvedAction } from '@shared/action-fallback'
-import { nextAutoCuteDelay } from '@shared/companion-rhythm'
+import { createWaddleSteps, nextAutoCuteDelay, nextAutoWaddleDelay } from '@shared/companion-rhythm'
 import type {
   ActionSlot,
   CompanionLifeState,
@@ -113,6 +113,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       slot: 'cute', assetIds: [baseAsset.id], template, overlays: [], usedFallback: true
     }, duration)
   }, [baseAsset, performResolvedAction])
+
+  const performWaddle = useCallback((): void => {
+    if (!baseAsset) return
+    const steps = createWaddleSteps(Math.random)
+    performResolvedAction({
+      slot: 'cute', assetIds: [baseAsset.id], template: 'waddle', overlays: [], usedFallback: true
+    }, 1_200)
+    steps.forEach((deltaX, index) => {
+      actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 180 + index * 180))
+    })
+  }, [api, baseAsset, performResolvedAction])
 
   const performAction = useCallback((slot: ActionSlot, complete: () => void): void => {
     if (!activePet || !baseAsset) return
@@ -261,13 +272,23 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   useEffect(() => {
     if (!activePet || runtimeActive || interactionState !== 'idle' || !pageVisible ||
-        !snapshot?.petWindow.visible || (lifeState !== 'daily-calm' && lifeState !== 'daily-playful')) return
+        actionState || !snapshot?.petWindow.visible ||
+        (lifeState !== 'daily-calm' && lifeState !== 'daily-playful')) return
     const timer = setTimeout(() => {
       showDialogue('auto:cute', DIALOGUES.dailyCute)
       triggerAction('cute')
     }, nextAutoCuteDelay(activePet.companionPace, Math.random))
     return () => clearTimeout(timer)
-  }, [activePet, interactionState, lifeState, pageVisible, runtimeActive, showDialogue, snapshot?.petWindow.visible, triggerAction])
+  }, [actionState, activePet, interactionState, lifeState, pageVisible, runtimeActive, showDialogue, snapshot?.petWindow.visible, triggerAction])
+
+  useEffect(() => {
+    if (!activePet || runtimeActive || interactionState !== 'idle' || !pageVisible ||
+        actionState || !snapshot?.petWindow.visible ||
+        (lifeState !== 'daily-calm' && lifeState !== 'daily-playful') ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setTimeout(performWaddle, nextAutoWaddleDelay(Math.random))
+    return () => clearTimeout(timer)
+  }, [actionState, activePet, interactionState, lifeState, pageVisible, performWaddle, runtimeActive, snapshot?.petWindow.visible])
 
   useEffect(() => {
     wakeSequence.current.reset()

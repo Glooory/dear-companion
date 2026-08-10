@@ -373,6 +373,7 @@ export interface PetSystemApi extends FoundationApi {
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>
   setActivePet(petId: string): Promise<PetSystemSnapshot>
   movePetBy(deltaX: number, deltaY: number): void
+  nudgePetBy(deltaX: number, deltaY: number): void
   showPetContextMenu(): void
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void
 }

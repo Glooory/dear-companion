@@ -1,10 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { COMPANION_PACE_PROFILES, MINIMUM_AWAKE_MS, nextAutoCuteDelay, nextRhythmStep } from './companion-rhythm'
+import {
+  COMPANION_PACE_PROFILES,
+  MINIMUM_AWAKE_MS,
+  createWaddleSteps,
+  nextAutoCuteDelay,
+  nextAutoWaddleDelay,
+  nextRhythmStep
+} from './companion-rhythm'
 
 describe('companion rhythm', () => {
   it('uses deterministic pace ranges', () => {
     expect(nextAutoCuteDelay('quiet', () => 0)).toBe(COMPANION_PACE_PROFILES.quiet.autoCuteRangeMs[0])
     expect(nextAutoCuteDelay('lively', () => 1)).toBe(COMPANION_PACE_PROFILES.lively.autoCuteRangeMs[1])
+  })
+
+  it('schedules occasional waddles one to three minutes apart', () => {
+    expect(nextAutoWaddleDelay(() => 0)).toBe(60_000)
+    expect(nextAutoWaddleDelay(() => 1)).toBe(180_000)
+  })
+
+  it('splits a small left or right walk into even movement steps', () => {
+    expect(createWaddleSteps(() => 0)).toEqual([-5, -5, -5, -5])
+    expect(createWaddleSteps(() => 1)).toEqual([8, 8, 8, 8, 9, 9])
   })
 
   it('enters available sleep states only after the awake floor', () => {

@@ -6,6 +6,7 @@ export type ActionTemplate =
   | 'blink-sequence'
   | 'bounce'
   | 'sway'
+  | 'waddle'
   | 'scale-nod'
   | 'fast-shake'
   | 'gentle-breathe'

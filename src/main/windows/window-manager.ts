@@ -11,6 +11,7 @@ import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import { CrashRecoveryBudget } from '../app/crash-recovery'
 import type { SettingsStore } from '../settings/settings-store'
 import {
+  moveRectWithinWorkArea,
   resolvePetWindowBounds,
   type DisplaySnapshot,
   type Point,
@@ -224,6 +225,24 @@ export class WindowManager {
     const [x, y] = petWindow.getPosition()
     if (x === undefined || y === undefined) return
     petWindow.setPosition(Math.round(x + deltaX), Math.round(y + deltaY))
+  }
+
+  nudgePetBy(deltaX: number, deltaY: number): void {
+    if (
+      this.disposed ||
+      !Number.isFinite(deltaX) ||
+      !Number.isFinite(deltaY) ||
+      Math.abs(deltaX) > 64 ||
+      Math.abs(deltaY) > 64
+    ) {
+      return
+    }
+    const petWindow = this.petWindow
+    if (!petWindow || petWindow.isDestroyed()) return
+    const bounds = petWindow.getBounds()
+    const display = screen.getDisplayMatching(bounds)
+    const next = moveRectWithinWorkArea(bounds, display.workArea, deltaX, deltaY)
+    petWindow.setPosition(Math.round(next.x), Math.round(next.y))
   }
 
   broadcastPetSystemChanged(snapshot: PetSystemSnapshot): void {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   chooseDisplay,
   clampRectToWorkArea,
+  moveRectWithinWorkArea,
   resolvePetWindowBounds,
   type DisplaySnapshot
 } from './display-placement'
@@ -41,6 +42,17 @@ describe('display placement', () => {
         displays[0]!.workArea
       )
     ).toEqual({ x: -1912, y: 712, width: 320, height: 320 })
+  })
+
+  it('shortens pet movement at the edge of the visible work area', () => {
+    expect(
+      moveRectWithinWorkArea(
+        { x: 1588, y: 712, width: 320, height: 320 },
+        displays[1]!.workArea,
+        12,
+        0
+      )
+    ).toEqual({ x: 1592, y: 712, width: 320, height: 320 })
   })
 
   it('places a missing position at the primary work-area bottom-right', () => {

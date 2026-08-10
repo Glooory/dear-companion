@@ -21,6 +21,7 @@ const api: ReleaseHardeningApi = {
   updatePet: (input) => ipcRenderer.invoke(IPC_CHANNELS.updatePet, input),
   setActivePet: (petId) => ipcRenderer.invoke(IPC_CHANNELS.setActivePet, petId),
   movePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.movePetBy, deltaX, deltaY),
+  nudgePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.nudgePetBy, deltaX, deltaY),
   showPetContextMenu: () => ipcRenderer.send(IPC_CHANNELS.showPetContextMenu),
   onPetSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: PetSystemSnapshot): void => {
