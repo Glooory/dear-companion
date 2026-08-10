@@ -58,4 +58,14 @@ describe('action fallback resolution', () => {
       usedFallback: true
     })
   })
+
+  it('ignores legacy petting assets and animates the current life photo', () => {
+    expect(resolveAction({ actionSlots: slots({ petting: ['petting-a'] }) }, 'petting', 0, 'working-a')).toEqual({
+      slot: 'petting',
+      assetIds: ['working-a'],
+      template: 'scale-nod',
+      overlays: [],
+      usedFallback: true
+    })
+  })
 })

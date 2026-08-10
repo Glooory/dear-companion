@@ -1,10 +1,15 @@
-import { ACTION_SLOTS, type ActionSlot, type PetActionSlots, type PetAsset } from '@shared/contracts'
+import type { ActionSlot, PetActionSlots, PetAsset } from '@shared/contracts'
 import { AssetChoice } from './AssetChoice'
 
-const SLOT_LABELS: Record<ActionSlot, string> = {
+type ConfigurableActionSlot = Exclude<ActionSlot, 'petting'>
+
+const CONFIGURABLE_ACTION_SLOTS = [
+  'idle', 'cute', 'angry', 'crying', 'resting', 'blink'
+] as const satisfies readonly ConfigurableActionSlot[]
+
+const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
   idle: '平时陪伴（至少一张）',
   cute: '卖萌',
-  petting: '摸头',
   angry: '生气',
   crying: '哭闹',
   resting: '休息',
@@ -19,7 +24,7 @@ interface ActionSlotEditorProps {
 }
 
 export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotEditorProps): React.JSX.Element {
-  const toggle = (slot: ActionSlot, assetId: string): void => {
+  const toggle = (slot: ConfigurableActionSlot, assetId: string): void => {
     const current = slots[slot]
     const next = current.includes(assetId)
       ? current.filter((id) => id !== assetId)
@@ -29,7 +34,7 @@ export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotE
 
   return (
     <div className="action-slot-grid">
-      {ACTION_SLOTS.map((slot) => (
+      {CONFIGURABLE_ACTION_SLOTS.map((slot) => (
         <fieldset key={slot}>
           <legend>{SLOT_LABELS[slot]}</legend>
           {assets.length === 0 ? (

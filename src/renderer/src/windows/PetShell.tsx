@@ -11,13 +11,14 @@ import type {
   RestSystemApi,
   RestSystemSnapshot
 } from '@shared/contracts'
+import { computeAssetGeometry } from '@shared/image-normalization'
 import { WakeSequence } from '@shared/wake-sequence'
 import { usePetInteractions } from '../interactions/use-pet-interactions'
 import { usePettingGesture } from '../interactions/use-petting-gesture'
 import { useAudioPlayback } from '../audio/use-audio-playback'
 import { DIALOGUES } from '../dialogues/dialogue-library'
 import { useDialogue } from '../dialogues/use-dialogue'
-import { PhotoTransition, type PhotoVeil } from '../components/PhotoTransition'
+import { PhotoTransition } from '../components/PhotoTransition'
 
 interface PetShellProps { api: RestSystemApi }
 
@@ -305,11 +306,18 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset
   const template = resolvedAction?.template ?? (runtimeActive ? 'gentle-breathe' : 'still')
   const actorStyle = { '--pet-tilt-x': `${tilt.x}deg`, '--pet-tilt-y': `${tilt.y}deg` } as CSSProperties
+  const petGeometry = activePet && desiredAsset
+    ? computeAssetGeometry(desiredAsset, activePet.targetHeight, { width: 320, height: 320 })
+    : null
+  const visibleImageTop = petGeometry && desiredAsset
+    ? petGeometry.top + desiredAsset.alphaBounds.y * petGeometry.scale
+    : null
+  const shellStyle = visibleImageTop === null
+    ? undefined
+    : { '--pet-visible-top': `${Math.max(0, Math.min(320, visibleImageTop))}px` } as CSSProperties
   const prompt = restSnapshot?.runtime.prompt ?? null
   const session = restSnapshot?.runtime.session ?? null
   const remainingSeconds = session ? Math.max(0, Math.ceil((session.endsAt - displayNow) / 1_000)) : 0
-  const veil: PhotoVeil = lifeState === 'sleeping' || lifeState === 'drowsy' ? 'clouds' : (lifeState === 'daily-playful' ? 'stars' : 'bubbles')
-
   const handlePhotoTransitionComplete = (): void => {
     if (!returningToBase) return
     finishAction()
@@ -320,7 +328,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const endRest = (): void => { void api.endRestSession().then(setRestSnapshot).catch(() => undefined) }
 
   return (
-    <main className={`pet-shell action-${template}`} data-state={interactionState} {...interactionHandlers}>
+    <main
+      className={`pet-shell action-${template}`}
+      data-state={interactionState}
+      data-has-pet={visibleImageTop === null ? undefined : 'true'}
+      style={shellStyle}
+      {...interactionHandlers}
+    >
       {activePet && desiredAsset && dailyFallbackAsset ? (
         <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
           <PhotoTransition
@@ -329,7 +343,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             asset={desiredAsset}
             fallbackAsset={dailyFallbackAsset}
             targetHeight={activePet.targetHeight}
-            veil={veil}
             onTransitionComplete={handlePhotoTransitionComplete}
           />
           {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}

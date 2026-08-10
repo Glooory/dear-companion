@@ -35,7 +35,7 @@ export function usePettingGesture({ api, petId, asset, targetHeight, active, dep
   useEffect(() => () => cancel(), [cancel])
 
   return useCallback((event: PointerEvent<HTMLElement>): void => {
-    if (!active || armed.current || !asset?.headHotspot) return
+    if (!active || armed.current || !asset) return
     const ellipse = computeHeadHotspotGeometry(asset, targetHeight, { width: 320, height: 320 })
     if (!ellipse) return
     const normalized = Math.hypot(

@@ -34,6 +34,10 @@ export function resolveAction(
     return { slot, assetIds: [idleAssetId], template: 'still', overlays: [], usedFallback: false }
   }
 
+  if (slot === 'petting') {
+    return { slot, assetIds: [idleAssetId], template: 'scale-nod', overlays: [], usedFallback: true }
+  }
+
   const assignedAssetId = select(pet.actionSlots[slot], randomIndex)
   if (assignedAssetId) {
     if (slot === 'blink') {

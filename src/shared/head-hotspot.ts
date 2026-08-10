@@ -22,9 +22,8 @@ export function computeHeadHotspotGeometry(
   targetHeight: number,
   viewport: AssetViewport
 ): ScreenEllipse | null {
-  if (!asset.headHotspot) return null
   const geometry = computeAssetGeometry(asset, targetHeight, viewport)
-  const hotspot = clampHeadHotspot(asset.headHotspot)
+  const hotspot = clampHeadHotspot(asset.headHotspot ?? defaultHeadHotspot(asset.alphaBounds))
   return {
     centerX: geometry.left + (asset.alphaBounds.x + hotspot.centerX * asset.alphaBounds.width) * geometry.scale,
     centerY: geometry.top + (asset.alphaBounds.y + hotspot.centerY * asset.alphaBounds.height) * geometry.scale,

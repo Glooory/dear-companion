@@ -18,15 +18,12 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
   const visibleHeight = asset.alphaBounds.height * geometry.scale
   const visibleLeft = geometry.left + asset.alphaBounds.x * geometry.scale
   const visibleTop = geometry.top + asset.alphaBounds.y * geometry.scale
-
-  if (!value) {
-    return <button type="button" className="hotspot-enable" onClick={() => onChange(defaultHeadHotspot(asset.alphaBounds))}>设置头部区域</button>
-  }
+  const hotspot = value ?? defaultHeadHotspot(asset.alphaBounds)
 
   const begin = (event: React.PointerEvent<HTMLElement>, kind: DragKind): void => {
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
-    drag.current = { kind, x: event.clientX, y: event.clientY, start: { ...value } }
+    drag.current = { kind, x: event.clientX, y: event.clientY, start: { ...hotspot } }
   }
   const move = (event: React.PointerEvent<HTMLElement>): void => {
     const current = drag.current
@@ -45,10 +42,10 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
       <div
         className="head-hotspot"
         style={{
-          left: visibleLeft + (value.centerX - value.radiusX) * visibleWidth,
-          top: visibleTop + (value.centerY - value.radiusY) * visibleHeight,
-          width: value.radiusX * 2 * visibleWidth,
-          height: value.radiusY * 2 * visibleHeight
+          left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
+          top: visibleTop + (hotspot.centerY - hotspot.radiusY) * visibleHeight,
+          width: hotspot.radiusX * 2 * visibleWidth,
+          height: hotspot.radiusY * 2 * visibleHeight
         }}
         onPointerDown={(event) => begin(event, 'center')}
         onPointerMove={move}
@@ -61,7 +58,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
           }} />
         ))}
       </div>
-      <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>关闭摸头区域</button>
+      {value && <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>恢复默认头部区域</button>}
     </>
   )
 }

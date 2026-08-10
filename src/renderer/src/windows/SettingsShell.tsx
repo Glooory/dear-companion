@@ -479,7 +479,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <section className="editor-section">
                   <h2>动作照片</h2>
-                  <p className="supporting-copy">平时陪伴至少一张；卖萌、摸头、生气、哭闹、休息和闭眼 / 眨眼都可不分配，缺失时会动画当前生活照片。</p>
+                  <p className="supporting-copy">平时陪伴至少一张；卖萌、生气、哭闹、休息和闭眼 / 眨眼都可不分配，缺失时会动画当前生活照片。摸头始终动画当前照片。</p>
                   <ActionSlotEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}

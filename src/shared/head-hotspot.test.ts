@@ -17,10 +17,16 @@ describe('head hotspot geometry', () => {
     expect(geometry).toEqual({ centerX: 100, centerY: 80, radiusX: 16, radiusY: 16 })
   })
 
-  it('disables geometry when no hotspot is configured', () => {
-    expect(computeHeadHotspotGeometry({
+  it('uses the default head region when no custom hotspot is configured', () => {
+    const asset = {
       width: 1, height: 1, alphaBounds: { x: 0, y: 0, width: 1, height: 1 },
       normalization: { scale: 1, offsetX: 0, offsetY: 0, baselineOffset: 0 }, headHotspot: null
-    }, 80, { width: 100, height: 100 })).toBeNull()
+    }
+    expect(computeHeadHotspotGeometry(asset, 80, { width: 100, height: 100 })).toEqual(
+      computeHeadHotspotGeometry({
+        ...asset,
+        headHotspot: defaultHeadHotspot(asset.alphaBounds)
+      }, 80, { width: 100, height: 100 })
+    )
   })
 })

@@ -2,14 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PetAsset } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
 
-export type PhotoVeil = 'bubbles' | 'stars' | 'clouds'
-
-export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, veil, onTransitionComplete }: {
+export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onTransitionComplete }: {
   petId: string
   asset: PetAsset
   fallbackAsset: PetAsset
   targetHeight: number
-  veil: PhotoVeil
   onTransitionComplete?: (assetId: string) => void
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset)
@@ -97,7 +94,11 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, vei
           onError={handleCurrentLoadFailure}
         />
       </span>
-      {phase !== 'idle' && <span className={`photo-veil veil-${veil}`} aria-hidden="true"><i /><i /><i /><i /><i /></span>}
+      {phase !== 'idle' && (
+        <span className="photo-veil veil-clouds" aria-hidden="true">
+          {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
+        </span>
+      )}
     </>
   )
 }
