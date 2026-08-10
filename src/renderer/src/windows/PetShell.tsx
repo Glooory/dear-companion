@@ -27,12 +27,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null)
   const [displayNow, setDisplayNow] = useState(0)
   const [error, setError] = useState(false)
-  const [actionState, setActionState] = useState<{ petId: string; action: ResolvedAction } | null>(null)
+  const [actionState, setActionState] = useState<{
+    petId: string
+    action: ResolvedAction
+    phase: 'active' | 'returning'
+  } | null>(null)
   const [frameIndex, setFrameIndex] = useState(0)
   const [heartVisible, setHeartVisible] = useState(false)
   const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
   const [dailyIndex, setDailyIndex] = useState(0)
   const actionTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
+  const actionCompletion = useRef<(() => void) | null>(null)
   const wakeSequence = useRef(new WakeSequence())
   const previousLifeState = useRef<CompanionLifeState | null>(null)
 
@@ -63,10 +68,12 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const finishAction = useCallback((complete?: () => void): void => {
     clearActionTimers()
+    const pendingCompletion = complete ?? actionCompletion.current
+    actionCompletion.current = null
     setActionState(null)
     setFrameIndex(0)
     setHeartVisible(false)
-    complete?.()
+    pendingCompletion?.()
   }, [clearActionTimers])
 
   const performResolvedAction = useCallback((
@@ -77,7 +84,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (!activePet) return
     clearActionTimers()
     api.cancelPettingGesture()
-    setActionState({ petId: activePet.id, action })
+    actionCompletion.current = complete ?? null
+    setActionState({ petId: activePet.id, action, phase: 'active' })
     setFrameIndex(0)
     if (action.template === 'blink-sequence') {
       actionTimers.current.push(
@@ -87,8 +95,16 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       )
       return
     }
-    actionTimers.current.push(setTimeout(() => finishAction(complete), duration))
-  }, [activePet, api, clearActionTimers, finishAction])
+    actionTimers.current.push(setTimeout(() => {
+      if (action.template === 'asset-swap' && action.assetIds[0] !== baseAsset?.id) {
+        setActionState((current) => current?.petId === activePet.id && current.action === action
+          ? { ...current, phase: 'returning' }
+          : current)
+        return
+      }
+      finishAction(complete)
+    }, duration))
+  }, [activePet, api, baseAsset?.id, clearActionTimers, finishAction])
 
   const performCurrentPhotoAction = useCallback((template: ActionTemplate, duration = 900): void => {
     if (!baseAsset) return
@@ -282,7 +298,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         ? (runtimeSlot ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id) : null)
         : actionState?.petId === activePet.id ? actionState.action : null)
     : null
-  const desiredAssetId = resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0] ?? baseAsset?.id
+  const returningToBase = actionState?.petId === activePet?.id && actionState?.phase === 'returning'
+  const desiredAssetId = returningToBase
+    ? baseAsset?.id
+    : resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0] ?? baseAsset?.id
   const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset
   const template = resolvedAction?.template ?? (runtimeActive ? 'gentle-breathe' : 'still')
   const actorStyle = { '--pet-tilt-x': `${tilt.x}deg`, '--pet-tilt-y': `${tilt.y}deg` } as CSSProperties
@@ -290,6 +309,11 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const session = restSnapshot?.runtime.session ?? null
   const remainingSeconds = session ? Math.max(0, Math.ceil((session.endsAt - displayNow) / 1_000)) : 0
   const veil: PhotoVeil = lifeState === 'sleeping' || lifeState === 'drowsy' ? 'clouds' : (lifeState === 'daily-playful' ? 'stars' : 'bubbles')
+
+  const handlePhotoTransitionComplete = (): void => {
+    if (!returningToBase) return
+    finishAction()
+  }
 
   const startRest = (): void => { if (prompt) void api.startPromptedRest(prompt.occurrenceId).then(setRestSnapshot).catch(() => undefined) }
   const snooze = (minutes: 5 | 10 | 15): void => { if (prompt) void api.snoozePrompt(prompt.occurrenceId, minutes).then(setRestSnapshot).catch(() => undefined) }
@@ -306,6 +330,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             fallbackAsset={dailyFallbackAsset}
             targetHeight={activePet.targetHeight}
             veil={veil}
+            onTransitionComplete={handlePhotoTransitionComplete}
           />
           {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}
           {heartVisible && <span className="pet-heart" aria-hidden="true">♥</span>}

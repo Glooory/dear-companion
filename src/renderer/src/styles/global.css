@@ -751,6 +751,7 @@ input:focus-visible {
   z-index: 1;
   animation: frame-fade 240ms ease-out both;
   transform-origin: 50% 82%;
+  transition: left 220ms ease-out, top 220ms ease-out, width 220ms ease-out, height 220ms ease-out;
   will-change: transform, opacity;
 }
 
@@ -843,7 +844,7 @@ input:focus-visible {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgb(255 255 255 / 94%);
+  background: rgb(255 255 255 / 78%);
   box-shadow: 0 6px 18px rgb(64 74 70 / 15%);
   animation: veil-cover 500ms ease-in-out both;
 }
@@ -864,12 +865,16 @@ input:focus-visible {
   width: 86px;
   height: 54px;
   border-radius: 999px;
-  background: rgb(244 248 255 / 96%);
+  background: rgb(244 248 255 / 82%);
 }
 
 .veil-bubbles i {
   border: 3px solid rgb(151 211 211 / 72%);
-  background: rgb(223 249 246 / 90%);
+  background: rgb(223 249 246 / 74%);
+}
+
+.photo-idle {
+  animation: none;
 }
 
 .photo-outgoing {
@@ -880,32 +885,32 @@ input:focus-visible {
   animation: photo-arrive 280ms ease-out both;
 }
 
-.action-bounce .pet-image-frame {
+.action-bounce .pet-image-frame.photo-idle {
   animation: pet-bounce 760ms cubic-bezier(.2, .75, .25, 1) both;
 }
 
-.action-sway .pet-image-frame {
+.action-sway .pet-image-frame.photo-idle {
   animation: pet-sway 820ms ease-in-out both;
 }
 
-.action-scale-nod .pet-image-frame {
+.action-scale-nod .pet-image-frame.photo-idle {
   animation: pet-petting 900ms ease-in-out both;
 }
 
-.action-fast-shake .pet-image-frame,
-.pet-shell[data-state='angry'] .pet-image-frame {
+.action-fast-shake .pet-image-frame.photo-idle,
+.pet-shell[data-state='angry'] .pet-image-frame.photo-idle {
   animation: pet-angry 520ms linear 2;
 }
 
-.action-gentle-breathe .pet-image-frame {
+.action-gentle-breathe .pet-image-frame.photo-idle {
   animation: pet-breathe 1.6s ease-in-out both;
 }
 
-.action-nod .pet-image-frame {
+.action-nod .pet-image-frame.photo-idle {
   animation: pet-nod 720ms ease-in-out both;
 }
 
-.action-blink-sequence .pet-image-frame {
+.action-blink-sequence .pet-image-frame.photo-idle {
   animation: blink-frame-fade 70ms ease-out both;
 }
 

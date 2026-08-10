@@ -4,17 +4,19 @@ import { computeAssetGeometry } from '@shared/image-normalization'
 
 export type PhotoVeil = 'bubbles' | 'stars' | 'clouds'
 
-export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, veil }: {
+export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, veil, onTransitionComplete }: {
   petId: string
   asset: PetAsset
   fallbackAsset: PetAsset
   targetHeight: number
   veil: PhotoVeil
+  onTransitionComplete?: (assetId: string) => void
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset)
   const currentRef = useRef(asset)
   const [phase, setPhase] = useState<'idle' | 'covering' | 'revealing'>('idle')
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
+  const completionRef = useRef(onTransitionComplete)
   const desiredUrl = useMemo(() => petAssetUrl(petId, asset.id), [asset.id, petId])
 
   const clearTimers = useCallback((): void => {
@@ -27,11 +29,16 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, vei
   }, [current])
 
   useEffect(() => {
+    completionRef.current = onTransitionComplete
+  }, [onTransitionComplete])
+
+  useEffect(() => {
     clearTimers()
     if (asset.id === currentRef.current.id) {
       currentRef.current = asset
       setCurrent(asset)
       setPhase('idle')
+      completionRef.current?.(asset.id)
       return
     }
 
@@ -46,12 +53,15 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, vei
         setCurrent(asset)
         setPhase('revealing')
         timers.current.push(setTimeout(() => {
-          if (!cancelled) setPhase('idle')
+          if (cancelled) return
+          setPhase('idle')
+          completionRef.current?.(asset.id)
         }, 280))
       }, 220))
     }
     image.onerror = () => {
       // Preserve the last successfully loaded photo.
+      if (!cancelled) completionRef.current?.(currentRef.current.id)
     }
     image.src = desiredUrl
     return () => {
@@ -76,7 +86,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, vei
   return (
     <>
       <span
-        className={`pet-image-frame ${phase === 'covering' ? 'photo-outgoing' : 'photo-incoming'}`}
+        className={`pet-image-frame photo-${phase === 'covering' ? 'outgoing' : phase === 'revealing' ? 'incoming' : 'idle'}`}
         style={{ left: geometry.left, top: geometry.top, width: geometry.renderedWidth, height: geometry.renderedHeight }}
       >
         <img
