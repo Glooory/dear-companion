@@ -81,7 +81,15 @@ export function nextAutoWaddleDelay(random: () => number): number {
 
 export function createWaddleSteps(random: () => number): number[] {
   const direction = finiteRandom(random) < 0.5 ? -1 : 1
-  const distance = Math.round(20 + 30 * finiteRandom(random))
+  return createSteps(direction, 20, 50, random)
+}
+
+export function createDirectedWaddleSteps(direction: -1 | 1, random: () => number): number[] {
+  return createSteps(direction, 20, 40, random)
+}
+
+function createSteps(direction: -1 | 1, minimum: number, maximum: number, random: () => number): number[] {
+  const distance = Math.round(minimum + (maximum - minimum) * finiteRandom(random))
   const stepCount = 4 + Math.round(2 * finiteRandom(random))
   const baseStep = Math.floor(distance / stepCount)
   const remainder = distance - baseStep * stepCount

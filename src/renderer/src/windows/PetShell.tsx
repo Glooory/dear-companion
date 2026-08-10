@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { resolveAction, type ActionTemplate, type ResolvedAction } from '@shared/action-fallback'
-import { createWaddleSteps, nextAutoCuteDelay, nextAutoWaddleDelay } from '@shared/companion-rhythm'
+import {
+  createDirectedWaddleSteps,
+  createWaddleSteps,
+  nextAutoCuteDelay,
+  nextAutoWaddleDelay
+} from '@shared/companion-rhythm'
 import type {
   ActionSlot,
   CompanionLifeState,
@@ -14,6 +19,7 @@ import type {
 import { computeAssetGeometry } from '@shared/image-normalization'
 import { WakeSequence } from '@shared/wake-sequence'
 import { usePetInteractions } from '../interactions/use-pet-interactions'
+import { useBodyWaddleGesture } from '../interactions/use-body-waddle-gesture'
 import { usePettingGesture } from '../interactions/use-petting-gesture'
 import { useAudioPlayback } from '../audio/use-audio-playback'
 import { DIALOGUES } from '../dialogues/dialogue-library'
@@ -114,9 +120,11 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     }, duration)
   }, [baseAsset, performResolvedAction])
 
-  const performWaddle = useCallback((): void => {
+  const performWaddle = useCallback((direction?: -1 | 1): void => {
     if (!baseAsset) return
-    const steps = createWaddleSteps(Math.random)
+    const steps = direction === undefined
+      ? createWaddleSteps(Math.random)
+      : createDirectedWaddleSteps(direction, Math.random)
     performResolvedAction({
       slot: 'cute', assetIds: [baseAsset.id], template: 'waddle', overlays: [], usedFallback: true
     }, 1_200)
@@ -204,6 +212,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     dependencyKey: `${lifeState}:${baseAsset?.id ?? ''}`,
     onDetected: handlePettingDetected
   })
+  const bodyWaddlePointerMove = useBodyWaddleGesture({
+    asset: baseAsset,
+    targetHeight: activePet?.targetHeight ?? 180,
+    active: Boolean(
+      activePet && baseAsset && pageVisible && snapshot?.petWindow.visible && !runtimeActive &&
+      !actionState && (lifeState === 'daily-calm' || lifeState === 'daily-playful') &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ),
+    dependencyKey: `${activePet?.id ?? ''}:${lifeState}:${baseAsset?.id ?? ''}`,
+    onDirection: performWaddle
+  })
 
   const {
     state: interactionState,
@@ -221,7 +240,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       api.cancelPettingGesture()
       finishAction()
     },
-    onLocalPointerMove: pettingPointerMove,
+    onLocalPointerMove: (event) => {
+      pettingPointerMove(event)
+      bodyWaddlePointerMove(event)
+    },
     runtimeState
   })
 

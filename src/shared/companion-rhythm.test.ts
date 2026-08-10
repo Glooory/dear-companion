@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   COMPANION_PACE_PROFILES,
   MINIMUM_AWAKE_MS,
+  createDirectedWaddleSteps,
   createWaddleSteps,
   nextAutoCuteDelay,
   nextAutoWaddleDelay,
@@ -22,6 +23,11 @@ describe('companion rhythm', () => {
   it('splits a small left or right walk into even movement steps', () => {
     expect(createWaddleSteps(() => 0)).toEqual([-5, -5, -5, -5])
     expect(createWaddleSteps(() => 1)).toEqual([8, 8, 8, 8, 9, 9])
+  })
+
+  it('creates shorter waddle steps in the requested pointer direction', () => {
+    expect(createDirectedWaddleSteps(-1, () => 0)).toEqual([-5, -5, -5, -5])
+    expect(createDirectedWaddleSteps(1, () => 1)).toEqual([6, 6, 7, 7, 7, 7])
   })
 
   it('enters available sleep states only after the awake floor', () => {
