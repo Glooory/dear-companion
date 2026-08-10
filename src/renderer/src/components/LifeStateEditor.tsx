@@ -1,6 +1,8 @@
 import type { PetAsset, PetLifeStates } from '@shared/contracts'
+import { AssetChoice } from './AssetChoice'
 
-export function LifeStateEditor({ assets, value, onChange }: {
+export function LifeStateEditor({ petId, assets, value, onChange }: {
+  petId: string
   assets: readonly PetAsset[]
   value: PetLifeStates
   onChange(value: PetLifeStates): void
@@ -21,6 +23,7 @@ export function LifeStateEditor({ assets, value, onChange }: {
       <LifeGroup
         title="有点困了"
         description="可选。至少分配一张照片后才能启用。"
+        petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
         enabled={value.drowsy.enabled}
@@ -30,6 +33,7 @@ export function LifeStateEditor({ assets, value, onChange }: {
       <LifeGroup
         title="睡觉"
         description="可选。至少分配一张照片后才能启用。"
+        petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
         enabled={value.sleeping.enabled}
@@ -39,6 +43,7 @@ export function LifeStateEditor({ assets, value, onChange }: {
       <LifeGroup
         title="陪伴工作"
         description="照片可选；没有专属照片时会使用平时陪伴照片。"
+        petId={petId}
         assets={assets}
         selected={value.workingAssetIds}
         onToggle={(assetId) => toggleAsset('workingAssetIds', assetId)}
@@ -47,9 +52,10 @@ export function LifeStateEditor({ assets, value, onChange }: {
   )
 }
 
-function LifeGroup({ title, description, assets, selected, enabled, onToggle, onEnabled }: {
+function LifeGroup({ title, description, petId, assets, selected, enabled, onToggle, onEnabled }: {
   title: string
   description: string
+  petId: string
   assets: readonly PetAsset[]
   selected: readonly string[]
   enabled?: boolean
@@ -68,10 +74,13 @@ function LifeGroup({ title, description, assets, selected, enabled, onToggle, on
       )}
       <div className="asset-choice-list">
         {assets.map((asset) => (
-          <label key={asset.id}>
-            <input type="checkbox" checked={selected.includes(asset.id)} onChange={() => onToggle(asset.id)} />
-            <span>{asset.id.slice(0, 8)} · {asset.format.toUpperCase()}</span>
-          </label>
+          <AssetChoice
+            key={asset.id}
+            petId={petId}
+            asset={asset}
+            checked={selected.includes(asset.id)}
+            onChange={() => onToggle(asset.id)}
+          />
         ))}
         {assets.length === 0 && <span className="supporting-copy">先导入图片</span>}
       </div>

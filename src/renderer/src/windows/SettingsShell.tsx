@@ -470,6 +470,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <h2>生活照片用途</h2>
                   <p className="supporting-copy">“平时陪伴”在下方动作照片中至少选择一张；有点困了、睡觉和陪伴工作可以使用各自照片。</p>
                   <LifeStateEditor
+                    petId={selectedPet.id}
                     assets={selectedPet.assets}
                     value={draft.lifeStates}
                     onChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
@@ -480,6 +481,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <h2>动作照片</h2>
                   <p className="supporting-copy">平时陪伴至少一张；卖萌、摸头、生气、哭闹、休息和闭眼 / 眨眼都可不分配，缺失时会动画当前生活照片。</p>
                   <ActionSlotEditor
+                    petId={selectedPet.id}
                     assets={selectedPet.assets}
                     slots={draft.actionSlots}
                     onChange={(actionSlots) => setDraft({ ...draft, actionSlots })}

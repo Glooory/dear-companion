@@ -1,4 +1,5 @@
 import { ACTION_SLOTS, type ActionSlot, type PetActionSlots, type PetAsset } from '@shared/contracts'
+import { AssetChoice } from './AssetChoice'
 
 const SLOT_LABELS: Record<ActionSlot, string> = {
   idle: '平时陪伴（至少一张）',
@@ -11,12 +12,13 @@ const SLOT_LABELS: Record<ActionSlot, string> = {
 }
 
 interface ActionSlotEditorProps {
+  petId: string
   assets: readonly PetAsset[]
   slots: PetActionSlots
   onChange(slots: PetActionSlots): void
 }
 
-export function ActionSlotEditor({ assets, slots, onChange }: ActionSlotEditorProps): React.JSX.Element {
+export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotEditorProps): React.JSX.Element {
   const toggle = (slot: ActionSlot, assetId: string): void => {
     const current = slots[slot]
     const next = current.includes(assetId)
@@ -33,14 +35,13 @@ export function ActionSlotEditor({ assets, slots, onChange }: ActionSlotEditorPr
           {assets.length === 0 ? (
             <p className="supporting-copy">先导入图片</p>
           ) : assets.map((asset) => (
-            <label key={asset.id}>
-              <input
-                type="checkbox"
-                checked={slots[slot].includes(asset.id)}
-                onChange={() => toggle(slot, asset.id)}
-              />
-              <span>{asset.id.slice(0, 8)} · {asset.format.toUpperCase()}</span>
-            </label>
+            <AssetChoice
+              key={asset.id}
+              petId={petId}
+              asset={asset}
+              checked={slots[slot].includes(asset.id)}
+              onChange={() => toggle(slot, asset.id)}
+            />
           ))}
         </fieldset>
       ))}

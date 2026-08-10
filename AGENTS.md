@@ -50,6 +50,7 @@
 ## Execution and review policy (non-negotiable)
 
 - Token efficiency is a hard repository constraint. Do not negotiate, relax, or propose exceptions to this execution and review policy.
+- For simple, low-impact requests or changes, do not write or require a specification or plan document. Once the user has approved the change, proceed directly to implementation. This does not waive the existing requirement to stay within the product specification or to stop when a proposed behavior conflicts with it.
 - Do not use per-task subagents, per-task reviewers, dual reviews, review ledgers, review packages, or repeated fix/re-review loops.
 - Do not use `superpowers:subagent-driven-development` for implementation because its mandatory per-task review workflow conflicts with this policy. Use one agent with batched plan execution instead.
 - Execute each milestone continuously in one session and group work into 3–5 coherent implementation batches. Do not pause for review after each task.
