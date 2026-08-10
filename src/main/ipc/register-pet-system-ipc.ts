@@ -77,26 +77,27 @@ export function registerPetSystemIpc({
       const visible = windowManager.isPetVisible()
       const companion = companionController?.getSnapshot()
       const ordinaryEnabled = !companion?.systemSuspended
+      const lifeStateSwitchEnabled = ordinaryEnabled && companion?.lifeState !== 'working'
       const menu = Menu.buildFromTemplate([
         ...(companionController && companion ? [
           {
-            label: '自动陪伴', enabled: ordinaryEnabled,
+            label: '自动陪伴', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('auto')
           },
           {
-            label: '安静待一会儿', enabled: ordinaryEnabled,
+            label: '安静待一会儿', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('daily-calm')
           },
           {
-            label: '活泼一会儿', enabled: ordinaryEnabled,
+            label: '活泼一会儿', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('daily-playful')
           },
           ...(companion.available.drowsy ? [{
-            label: '有点困了', enabled: ordinaryEnabled,
+            label: '有点困了', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('drowsy')
           }] : []),
           ...(companion.available.sleeping ? [{
-            label: '睡一会儿', enabled: ordinaryEnabled,
+            label: '睡一会儿', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('sleeping')
           }] : []),
           {
