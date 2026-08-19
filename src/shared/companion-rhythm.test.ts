@@ -5,7 +5,6 @@ import {
   createDirectedWaddleSteps,
   createWaddleSteps,
   nextAutoCuteDelay,
-  nextAutoWaddleDelay,
   nextRhythmStep
 } from './companion-rhythm'
 
@@ -13,11 +12,6 @@ describe('companion rhythm', () => {
   it('uses deterministic pace ranges', () => {
     expect(nextAutoCuteDelay('quiet', () => 0)).toBe(COMPANION_PACE_PROFILES.quiet.autoCuteRangeMs[0])
     expect(nextAutoCuteDelay('lively', () => 1)).toBe(COMPANION_PACE_PROFILES.lively.autoCuteRangeMs[1])
-  })
-
-  it('schedules occasional waddles one to three minutes apart', () => {
-    expect(nextAutoWaddleDelay(() => 0)).toBe(60_000)
-    expect(nextAutoWaddleDelay(() => 1)).toBe(180_000)
   })
 
   it('splits a small left or right walk into even movement steps', () => {

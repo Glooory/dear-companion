@@ -4,7 +4,6 @@ const MINUTE = 60_000
 export const MINIMUM_AWAKE_MS = 20 * MINUTE
 export const DROWSY_RANGE_MS = [20_000, 45_000] as const
 export const SLEEP_RANGE_MS = [3 * MINUTE, 8 * MINUTE] as const
-const AUTO_WADDLE_RANGE_MS = [MINUTE, 3 * MINUTE] as const
 
 export const COMPANION_PACE_PROFILES = Object.freeze({
   quiet: {
@@ -73,10 +72,6 @@ export function nextRhythmStep(
 
 export function nextAutoCuteDelay(pace: CompanionPace, random: () => number): number {
   return randomDuration(COMPANION_PACE_PROFILES[pace].autoCuteRangeMs, random)
-}
-
-export function nextAutoWaddleDelay(random: () => number): number {
-  return randomDuration(AUTO_WADDLE_RANGE_MS, random)
 }
 
 export function createWaddleSteps(random: () => number): number[] {

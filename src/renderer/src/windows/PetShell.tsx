@@ -3,8 +3,6 @@ import { resolveAction, type ActionTemplate, type ResolvedAction } from '@shared
 import {
   createDirectedWaddleSteps,
   createWaddleSteps,
-  nextAutoCuteDelay,
-  nextAutoWaddleDelay
 } from '@shared/companion-rhythm'
 import type {
   ActionSlot,
@@ -20,6 +18,7 @@ import { computeAssetGeometry } from '@shared/image-normalization'
 import { WakeSequence } from '@shared/wake-sequence'
 import { usePetInteractions } from '../interactions/use-pet-interactions'
 import { useBodyWaddleGesture } from '../interactions/use-body-waddle-gesture'
+import { useCompanionPresence } from '../interactions/use-companion-presence'
 import { usePettingGesture } from '../interactions/use-petting-gesture'
 import { useAudioPlayback } from '../audio/use-audio-playback'
 import { DIALOGUES } from '../dialogues/dialogue-library'
@@ -42,6 +41,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const [frameIndex, setFrameIndex] = useState(0)
   const [heartVisible, setHeartVisible] = useState(false)
   const [pageVisible, setPageVisible] = useState(document.visibilityState === 'visible')
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [dailyIndex, setDailyIndex] = useState(0)
   const actionTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
   const actionCompletion = useRef<(() => void) | null>(null)
@@ -247,6 +247,39 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     runtimeState
   })
 
+  const performAmbient = useCallback((): void => {
+    if (!activePet || !baseAsset) return
+    if (activePet.actionSlots.blink.length > 0 && Math.random() < 0.45) {
+      performAction('blink', () => undefined)
+      return
+    }
+    if (lifeState === 'sleeping' || lifeState === 'working' || reducedMotion) {
+      performCurrentPhotoAction('gentle-breathe', 1_600)
+    } else if (lifeState === 'drowsy') {
+      performCurrentPhotoAction(Math.random() < 0.5 ? 'gentle-breathe' : 'nod', 1_200)
+    } else {
+      const templates: ActionTemplate[] = ['gentle-breathe', 'nod', 'sway']
+      performCurrentPhotoAction(templates[Math.floor(Math.random() * templates.length)]!, 1_200)
+    }
+  }, [activePet, baseAsset, lifeState, performAction, performCurrentPhotoAction, reducedMotion])
+
+  const performPersonality = useCallback((): void => {
+    if (Math.random() < 0.35) showDialogue('auto:cute', DIALOGUES.dailyCute)
+    triggerAction('cute')
+  }, [showDialogue, triggerAction])
+
+  useCompanionPresence({
+    enabled: Boolean(activePet && baseAsset && pageVisible && snapshot?.petWindow.visible && !runtimeActive),
+    busy: interactionState !== 'idle' || Boolean(actionState),
+    pace: activePet?.companionPace ?? 'natural',
+    lifeState,
+    reducedMotion,
+    resetKey: activePet?.id ?? 'none',
+    onAmbient: performAmbient,
+    onMotion: performWaddle,
+    onPersonality: performPersonality
+  })
+
   useEffect(() => {
     let cancelled = false
     void Promise.all([
@@ -279,6 +312,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handleChange = (): void => setReducedMotion(query.matches)
+    query.addEventListener('change', handleChange)
+    return () => query.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
     if (previousLifeState.current === lifeState) return
     previousLifeState.current = lifeState
     if (lifeState === 'drowsy') showDialogue('state:drowsy', DIALOGUES.drowsyEnter)
@@ -291,26 +331,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (runtimeState === 'crying') showDialogue('system:crying', DIALOGUES.crying, true)
     if (runtimeState === 'celebrating') showDialogue('system:completion', DIALOGUES.reminderCompletion, true)
   }, [runtimeState, showDialogue])
-
-  useEffect(() => {
-    if (!activePet || runtimeActive || interactionState !== 'idle' || !pageVisible ||
-        actionState || !snapshot?.petWindow.visible ||
-        (lifeState !== 'daily-calm' && lifeState !== 'daily-playful')) return
-    const timer = setTimeout(() => {
-      showDialogue('auto:cute', DIALOGUES.dailyCute)
-      triggerAction('cute')
-    }, nextAutoCuteDelay(activePet.companionPace, Math.random))
-    return () => clearTimeout(timer)
-  }, [actionState, activePet, interactionState, lifeState, pageVisible, runtimeActive, showDialogue, snapshot?.petWindow.visible, triggerAction])
-
-  useEffect(() => {
-    if (!activePet || runtimeActive || interactionState !== 'idle' || !pageVisible ||
-        actionState || !snapshot?.petWindow.visible ||
-        (lifeState !== 'daily-calm' && lifeState !== 'daily-playful') ||
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const timer = setTimeout(performWaddle, nextAutoWaddleDelay(Math.random))
-    return () => clearTimeout(timer)
-  }, [actionState, activePet, interactionState, lifeState, pageVisible, performWaddle, runtimeActive, snapshot?.petWindow.visible])
 
   useEffect(() => {
     wakeSequence.current.reset()
