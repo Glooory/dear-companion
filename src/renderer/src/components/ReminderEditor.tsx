@@ -42,7 +42,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
       <div className="reminder-toggles">
         <label><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用这条提醒</label>
         <label><input type="checkbox" checked={value.sounds.reminder} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, reminder: event.currentTarget.checked } })} />播放提醒音</label>
-        <label><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} />播放哭闹音</label>
+        <label><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} />离开休息时播放声音</label>
       </div>
       <div className="editor-actions">
         {onDelete && <button type="button" className="danger-button" disabled={disabled} onClick={onDelete}>删除</button>}

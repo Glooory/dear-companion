@@ -436,6 +436,15 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </label>
                 </div>
 
+                {draft.actionSlots.idle.length > 0 && (
+                  <div className="quick-start-row">
+                    <span>已经可以开始陪伴了，其他内容都能以后再调。</span>
+                    <button type="button" className="primary-button" disabled={isBusy} onClick={activateDraft}>
+                      {snapshot.activePetId === draft.id ? '保存并使用' : '保存并换成它'}
+                    </button>
+                  </div>
+                )}
+
                 <section className="editor-section companion-section">
                   <h2>陪伴方式</h2>
                   <CompanionPreferences

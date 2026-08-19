@@ -429,7 +429,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       {prompt && (
         <section className="rest-bubble" role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
-          <div className="rest-actions"><button type="button" onClick={startRest}>立即开始</button>{([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>延后 {minutes} 分钟</button>)}</div>
+          <div className="rest-actions"><button type="button" onClick={startRest}>开始休息</button>{([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>{minutes} 分钟后提醒</button>)}</div>
         </section>
       )}
       {session && (

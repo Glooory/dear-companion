@@ -119,8 +119,10 @@ export function registerPetSystemIpc({
             click: () => companionController.selectManualState('drowsy')
           }] : []),
           {
-            label: companion.manualWorkActive ? '结束专注陪伴' : '陪我专注',
-            enabled: ordinaryEnabled,
+            label: companion.manualWorkActive
+              ? (companion.scheduledWorkActive ? '结束手动专注' : '结束专注陪伴')
+              : (companion.scheduledWorkActive ? '专注时段进行中' : '陪我专注'),
+            enabled: ordinaryEnabled && (!companion.scheduledWorkActive || companion.manualWorkActive),
             click: () => companionController.setManualWork(!companion.manualWorkActive)
           },
           ...(companion.manualSelection !== 'auto' ? [{
