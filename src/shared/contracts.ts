@@ -156,6 +156,7 @@ export interface WorkSchedule {
 
 export interface CompanionRuntimeSnapshot {
   lifeState: CompanionLifeState
+  pace: CompanionPace
   manualSelection: ManualLifeSelection
   manualWorkActive: boolean
   scheduledWorkActive: boolean
@@ -163,6 +164,10 @@ export interface CompanionRuntimeSnapshot {
   nextTransitionAt: number | null
   available: { drowsy: boolean; sleeping: boolean }
 }
+
+export type PetInteractionRequest =
+  | { type: 'play-now' }
+  | { type: 'preview-pace'; pace: CompanionPace }
 
 export interface CompanionSystemSnapshot {
   workSchedules: readonly WorkSchedule[]
@@ -375,7 +380,9 @@ export interface PetSystemApi extends FoundationApi {
   movePetBy(deltaX: number, deltaY: number): void
   nudgePetBy(deltaX: number, deltaY: number): void
   showPetContextMenu(): void
+  previewCompanionPace(pace: CompanionPace): Promise<void>
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void
+  onPetInteractionRequested(listener: (request: PetInteractionRequest) => void): () => void
 }
 
 export interface CompanionSystemApi extends PetSystemApi {
@@ -1327,7 +1334,7 @@ function parseAssetIdList(
   return [...value]
 }
 
-function parseCompanionPace(value: unknown): CompanionPace {
+export function parseCompanionPace(value: unknown): CompanionPace {
   if (value !== 'quiet' && value !== 'natural' && value !== 'lively') {
     throw new Error('Invalid companion pace')
   }

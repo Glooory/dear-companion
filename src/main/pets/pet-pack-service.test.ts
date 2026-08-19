@@ -76,6 +76,22 @@ describe('PetPackService', () => {
     }])
     expect(JSON.stringify(result)).not.toContain(goodPath)
     expect(await readFile(join(userDataPath, 'pets/pet-1/assets/asset-1.png'))).toEqual(pngBytes)
+    expect((await service.getSnapshot()).pets[0]?.actionSlots.idle).toEqual(['asset-1'])
+  })
+
+  it('keeps the existing daily photo when more photos are imported', async () => {
+    const { userDataPath, service } = await createHarness()
+    const firstPath = join(userDataPath, 'first.png')
+    const secondPath = join(userDataPath, 'second.png')
+    await Promise.all([writeFile(firstPath, pngBytes), writeFile(secondPath, pngBytes)])
+    await service.createPet('Mochi')
+
+    await service.importAssets('pet-1', [firstPath])
+    await service.importAssets('pet-1', [secondPath])
+
+    const pet = (await service.getSnapshot()).pets[0]!
+    expect(pet.assets.map((asset) => asset.id)).toEqual(['asset-1', 'asset-2'])
+    expect(pet.actionSlots.idle).toEqual(['asset-1'])
   })
 
   it('does not mutate settings when image decoding fails', async () => {

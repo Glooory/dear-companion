@@ -12,6 +12,8 @@ export const IPC_CHANNELS = {
   movePetBy: 'pet-system:move-pet-by',
   nudgePetBy: 'pet-system:nudge-pet-by',
   showPetContextMenu: 'pet-system:show-context-menu',
+  previewCompanionPace: 'pet-system:preview-pace',
+  petInteractionRequested: 'pet-system:interaction-requested',
   petSystemChanged: 'pet-system:changed',
   getCompanionSystemSnapshot: 'companion-system:get-snapshot',
   createWorkSchedule: 'companion-system:create-work-schedule',

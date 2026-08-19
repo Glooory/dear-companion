@@ -336,7 +336,7 @@ describe('settings contracts', () => {
   it('clones companion snapshots without exposing mutable settings values', () => {
     const work = { id: 'work-1', enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, weekdays: [1] as const }
     const runtime = {
-      lifeState: 'daily-calm' as const, manualSelection: 'auto' as const,
+      lifeState: 'daily-calm' as const, pace: 'natural' as const, manualSelection: 'auto' as const,
       manualWorkActive: false, scheduledWorkActive: false, systemSuspended: false,
       nextTransitionAt: null, available: { drowsy: false, sleeping: false }
     }

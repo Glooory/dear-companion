@@ -3,6 +3,7 @@ import type {
   AudioPlaybackRequest,
   CompanionSystemSnapshot,
   PetRendererStatus,
+  PetInteractionRequest,
   PetSystemSnapshot,
   ReleaseHardeningApi,
   RestSystemSnapshot
@@ -23,12 +24,18 @@ const api: ReleaseHardeningApi = {
   movePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.movePetBy, deltaX, deltaY),
   nudgePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.nudgePetBy, deltaX, deltaY),
   showPetContextMenu: () => ipcRenderer.send(IPC_CHANNELS.showPetContextMenu),
+  previewCompanionPace: (pace) => ipcRenderer.invoke(IPC_CHANNELS.previewCompanionPace, pace),
   onPetSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: PetSystemSnapshot): void => {
       listener(snapshot)
     }
     ipcRenderer.on(IPC_CHANNELS.petSystemChanged, wrapped)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.petSystemChanged, wrapped)
+  },
+  onPetInteractionRequested: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, request: PetInteractionRequest): void => listener(request)
+    ipcRenderer.on(IPC_CHANNELS.petInteractionRequested, wrapped)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.petInteractionRequested, wrapped)
   },
   getCompanionSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getCompanionSystemSnapshot),
   createWorkSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.createWorkSchedule, input),

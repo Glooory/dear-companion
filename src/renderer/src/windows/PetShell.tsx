@@ -280,6 +280,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     onPersonality: performPersonality
   })
 
+  useEffect(() => api.onPetInteractionRequested((request) => {
+    if (!activePet || !baseAsset || runtimeActive) return
+    if (request.type === 'play-now') {
+      if (lifeState !== 'daily-calm' && lifeState !== 'daily-playful') return
+      showDialogue('daily:click', DIALOGUES.dailyClick)
+      performAction('cute', () => undefined)
+      return
+    }
+    if (request.pace === 'quiet') performCurrentPhotoAction('gentle-breathe', 1_600)
+    else if (request.pace === 'natural') performCurrentPhotoAction('sway', 900)
+    else performCurrentPhotoAction('bounce', 900)
+  }), [activePet, api, baseAsset, lifeState, performAction, performCurrentPhotoAction, runtimeActive, showDialogue])
+
   useEffect(() => {
     let cancelled = false
     void Promise.all([

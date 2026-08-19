@@ -642,6 +642,9 @@ function mergeImportedAssetsIntoDraft(
   const existingAdjustments = new Map(current.assets.map((asset) => [asset.id, asset]))
   return {
     ...current,
+    actionSlots: current.actionSlots.idle.length === 0 && persisted.actionSlots.idle.length > 0
+      ? { ...current.actionSlots, idle: [...persisted.actionSlots.idle] }
+      : current.actionSlots,
     assets: persisted.assets.map((asset) => {
       const existing = existingAdjustments.get(asset.id)
       return existing

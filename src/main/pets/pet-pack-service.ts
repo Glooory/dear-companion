@@ -243,7 +243,10 @@ export class PetPackService {
       await this.settingsStore.update((current) => {
         const latestPet = requirePet(current, petId)
         validatePetPackSize(sumAssetBytes(latestPet.assets), sumAssetBytes(imported))
-        const updatedPet = { ...latestPet, assets: [...latestPet.assets, ...imported] }
+        const actionSlots = latestPet.actionSlots.idle.length === 0
+          ? { ...cloneSlots(latestPet.actionSlots), idle: [imported[0]!.id] }
+          : cloneSlots(latestPet.actionSlots)
+        const updatedPet = { ...latestPet, assets: [...latestPet.assets, ...imported], actionSlots }
         return {
           ...current,
           pets: current.pets.map((candidate) => candidate.id === petId ? updatedPet : candidate)

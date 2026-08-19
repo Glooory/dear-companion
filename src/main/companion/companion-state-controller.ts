@@ -79,6 +79,7 @@ export class CompanionStateController {
   getSnapshot(): CompanionRuntimeSnapshot {
     return {
       lifeState: this.lifeState,
+      pace: this.activePet()?.companionPace ?? 'natural',
       manualSelection: this.manualSelection,
       manualWorkActive: this.manualWorkActive,
       scheduledWorkActive: this.scheduledWorkActive,

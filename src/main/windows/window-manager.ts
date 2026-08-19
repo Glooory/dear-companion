@@ -3,6 +3,7 @@ import type {
   AudioPlaybackRequest,
   CompanionSystemSnapshot,
   PetRendererStatus,
+  PetInteractionRequest,
   PetSystemSnapshot,
   RestSystemSnapshot,
   WindowKind
@@ -264,6 +265,12 @@ export class WindowManager {
     const window = this.petWindow
     if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return
     window.webContents.send(IPC_CHANNELS.pettingGestureDetected)
+  }
+
+  requestPetInteraction(request: PetInteractionRequest): void {
+    const window = this.petWindow
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return
+    window.webContents.send(IPC_CHANNELS.petInteractionRequested, request)
   }
 
   broadcastAudioPlaybackRequested(request: AudioPlaybackRequest): void {

@@ -1,5 +1,6 @@
 import { Menu, dialog, ipcMain, type IpcMainEvent } from 'electron'
 import {
+  parseCompanionPace,
   parsePetIdentifier,
   type AppSettings,
   type PetSystemSnapshot
@@ -19,7 +20,7 @@ interface PetSystemIpcDependencies {
   windowManager: Pick<
     WindowManager,
     'getWindowKind' | 'getOwnedWindow' | 'movePetBy' | 'nudgePetBy' | 'broadcastPetSystemChanged' |
-    'isPetVisible' | 'showPet' | 'hidePet' | 'openSettings'
+    'isPetVisible' | 'showPet' | 'hidePet' | 'openSettings' | 'requestPetInteraction'
   >
   onSettingsChanged?: (settings: AppSettings) => void
   requestQuit: () => void
@@ -95,33 +96,37 @@ export function registerPetSystemIpc({
       const companion = companionController?.getSnapshot()
       const ordinaryEnabled = !companion?.systemSuspended
       const lifeStateSwitchEnabled = ordinaryEnabled && companion?.lifeState !== 'working'
+      const playEnabled = lifeStateSwitchEnabled &&
+        (companion?.lifeState === 'daily-calm' || companion?.lifeState === 'daily-playful')
       const menu = Menu.buildFromTemplate([
         ...(companionController && companion ? [
           {
-            label: '自动陪伴', enabled: lifeStateSwitchEnabled,
-            click: () => companionController.selectManualState('auto')
+            label: currentCompanionLabel(companion), enabled: false
           },
           {
-            label: '安静待一会儿', enabled: lifeStateSwitchEnabled,
+            label: '逗逗它', enabled: playEnabled,
+            click: () => windowManager.requestPetInteraction({ type: 'play-now' })
+          },
+          {
+            label: '安静陪我一会儿', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('daily-calm')
           },
-          {
-            label: '活泼一会儿', enabled: lifeStateSwitchEnabled,
-            click: () => companionController.selectManualState('daily-playful')
-          },
-          ...(companion.available.drowsy ? [{
-            label: '有点困了', enabled: lifeStateSwitchEnabled,
+          ...(companion.available.sleeping ? [{
+            label: '让它打个盹', enabled: lifeStateSwitchEnabled,
+            click: () => companionController.selectManualState('sleeping')
+          }] : companion.available.drowsy ? [{
+            label: '让它歇一会儿', enabled: lifeStateSwitchEnabled,
             click: () => companionController.selectManualState('drowsy')
           }] : []),
-          ...(companion.available.sleeping ? [{
-            label: '睡一会儿', enabled: lifeStateSwitchEnabled,
-            click: () => companionController.selectManualState('sleeping')
-          }] : []),
           {
-            label: companion.manualWorkActive ? '结束工作' : '陪我工作',
+            label: companion.manualWorkActive ? '结束专注陪伴' : '陪我专注',
             enabled: ordinaryEnabled,
             click: () => companionController.setManualWork(!companion.manualWorkActive)
           },
+          ...(companion.manualSelection !== 'auto' ? [{
+            label: '恢复自动陪伴', enabled: ordinaryEnabled,
+            click: () => companionController.selectManualState('auto')
+          }] : []),
           { type: 'separator' as const }
         ] : []),
         {
@@ -162,6 +167,11 @@ export function registerPetSystemIpc({
     handle(IPC_CHANNELS.getPetSystemSnapshot, (event) => {
       windowManager.getWindowKind(event.sender.id)
       return petPackService.getSnapshot()
+    })
+    handle(IPC_CHANNELS.previewCompanionPace, (event, value: unknown) => {
+      requireSettingsSender(event.sender.id)
+      const pace = parseCompanionPace(value)
+      windowManager.requestPetInteraction({ type: 'preview-pace', pace })
     })
 
     handle(IPC_CHANNELS.createPet, async (event, name: unknown) => {
@@ -224,4 +234,14 @@ export function registerPetSystemIpc({
     ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener)
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener)
   }
+}
+
+function currentCompanionLabel(companion: ReturnType<NonNullable<PetSystemIpcDependencies['companionController']>['getSnapshot']>): string {
+  if (companion.systemSuspended) return '现在：休息中'
+  if (companion.lifeState === 'working') return '现在：专注陪伴'
+  if (companion.lifeState === 'sleeping') return '现在：打盹'
+  if (companion.lifeState === 'drowsy') return '现在：歇一会儿'
+  if (companion.manualSelection === 'daily-calm') return '现在：安静陪伴'
+  const paceLabel = companion.pace === 'quiet' ? '安静' : companion.pace === 'lively' ? '爱玩' : '自然'
+  return `现在：自动陪伴 · ${paceLabel}`
 }
