@@ -29,18 +29,18 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
           const [hour, minute] = event.currentTarget.value.split(':').map(Number)
           onChange({ ...value, hour: Number.isInteger(hour) ? hour! : null, minute: Number.isInteger(minute) ? minute! : null })
         }} /></label>
-        <label><span>休息分钟（1–120）</span><input type="number" min={1} max={120} value={value.restDurationMinutes} onChange={(event) => {
+        <label><span>休息多久（分钟）</span><input type="number" min={1} max={120} value={value.restDurationMinutes} onChange={(event) => {
           const next = Number(event.currentTarget.value)
           if (Number.isInteger(next)) onChange({ ...value, restDurationMinutes: Math.min(Math.max(next, 1), 120) })
         }} /></label>
-        <label><span>鼠标移动容差</span><select value={value.cursorTolerance} onChange={(event) => onChange({ ...value, cursorTolerance: event.currentTarget.value as CursorTolerance })}>
-          <option value="sensitive">灵敏</option><option value="standard">标准</option><option value="relaxed">宽松</option>
+        <label><span>移动鼠标时</span><select value={value.cursorTolerance} onChange={(event) => onChange({ ...value, cursorTolerance: event.currentTarget.value as CursorTolerance })}>
+          <option value="sensitive">轻轻移动就提醒</option><option value="standard">正常提醒</option><option value="relaxed">移动较多才提醒</option>
         </select></label>
       </div>
       <WeekdayPicker value={value.weekdays} disabled={disabled} onChange={(weekdays) => onChange({ ...value, weekdays })} />
-      <label className="message-field"><span>提示文案（1–200 字）</span><textarea maxLength={200} value={value.message} onChange={(event) => onChange({ ...value, message: event.currentTarget.value })} /></label>
+      <label className="message-field"><span>提醒内容</span><textarea maxLength={200} value={value.message} onChange={(event) => onChange({ ...value, message: event.currentTarget.value })} /></label>
       <div className="reminder-toggles">
-        <label><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用提醒（新建后默认启用）</label>
+        <label><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} />启用这条提醒</label>
         <label><input type="checkbox" checked={value.sounds.reminder} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, reminder: event.currentTarget.checked } })} />播放提醒音</label>
         <label><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} />播放哭闹音</label>
       </div>

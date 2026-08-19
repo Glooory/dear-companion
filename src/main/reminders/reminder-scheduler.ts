@@ -77,7 +77,7 @@ export class ReminderScheduler {
       this.snoozes.clear()
       if (!this.errorBroadcast) {
         this.errorBroadcast = true
-        this.options.onError?.({ code: 'reminder-service-unavailable', message: '提醒服务暂时不可用，请重试' })
+        this.options.onError?.({ code: 'reminder-service-unavailable', message: '休息提醒暂时不可用。请再试一次。' })
       }
     }
   }
@@ -159,7 +159,7 @@ export class ReminderScheduler {
     if (!next) return
     this.activePrompt = { ...next, sounds: { ...next.sounds }, triggeredAt: this.now() }
     void Promise.resolve(this.options.onPrompt(this.getActivePrompt()!)).catch(() => {
-      this.options.onError?.({ code: 'reminder-prompt-failed', message: '提醒暂时无法显示' })
+      this.options.onError?.({ code: 'reminder-prompt-failed', message: '这条休息提醒没有显示出来。请再试一次。' })
     })
   }
 

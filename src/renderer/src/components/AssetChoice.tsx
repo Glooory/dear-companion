@@ -17,7 +17,7 @@ export function AssetChoice({ petId, asset, checked, onChange }: {
         />
       </span>
       <span className="asset-choice-details">
-        <strong>素材 {asset.id.slice(0, 8)}</strong>
+        <strong>照片 {asset.id.slice(0, 8)}</strong>
         <small>{asset.format.toUpperCase()} · {asset.width}×{asset.height}</small>
       </span>
     </label>

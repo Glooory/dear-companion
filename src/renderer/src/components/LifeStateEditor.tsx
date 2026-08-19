@@ -21,8 +21,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
   return (
     <div className="life-state-grid">
       <LifeGroup
-        title="有点困了"
-        description="可选。至少分配一张照片后才能启用。"
+        title="困倦照片"
+        description="例如打哈欠或揉眼睛。选好照片后可以开启。"
         petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
@@ -31,8 +31,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, drowsy: { ...value.drowsy, enabled } })}
       />
       <LifeGroup
-        title="睡觉"
-        description="可选。至少分配一张照片后才能启用。"
+        title="睡觉照片"
+        description="选好照片后，它才能自己打盹。"
         petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
@@ -41,8 +41,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, sleeping: { ...value.sleeping, enabled } })}
       />
       <LifeGroup
-        title="陪伴工作"
-        description="照片可选；没有专属照片时会使用平时陪伴照片。"
+        title="专注照片"
+        description="不选也可以，专注时会继续使用平时的照片。"
         petId={petId}
         assets={assets}
         selected={value.workingAssetIds}
@@ -69,7 +69,7 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
       {onEnabled && (
         <label className="toggle-control compact-toggle">
           <input type="checkbox" checked={Boolean(enabled)} disabled={selected.length === 0} onChange={(event) => onEnabled(event.currentTarget.checked)} />
-          <span>启用{title}</span>
+          <span>使用这组照片</span>
         </label>
       )}
       <div className="asset-choice-list">
@@ -82,7 +82,7 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
             onChange={() => onToggle(asset.id)}
           />
         ))}
-        {assets.length === 0 && <span className="supporting-copy">先导入图片</span>}
+        {assets.length === 0 && <span className="supporting-copy">先导入照片</span>}
       </div>
     </fieldset>
   )

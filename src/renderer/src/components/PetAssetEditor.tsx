@@ -37,7 +37,7 @@ export function PetAssetEditor({
 
   return (
     <article className="asset-editor">
-      <div className="asset-preview" aria-label="透明边界和统一尺寸预览">
+      <div className="asset-preview" aria-label="照片调整预览">
         <span className="asset-baseline" aria-hidden="true" />
         <img
           src={petAssetUrl(petId, asset.id)}
@@ -59,15 +59,15 @@ export function PetAssetEditor({
         />
       </div>
       <div className="asset-editor-details">
-        <h3>素材 {asset.id.slice(0, 8)}</h3>
+        <h3>照片 {asset.id.slice(0, 8)}</h3>
         <p className="asset-metadata">
           {asset.format.toUpperCase()} · {asset.width}×{asset.height} · 可见边界 {asset.alphaBounds.width}×{asset.alphaBounds.height}
         </p>
         <div className="normalization-grid">
-          <NumberControl label="缩放" value={normalization.scale} min={0.25} max={4} step={0.05} onChange={(value) => update('scale', value)} />
+          <NumberControl label="大小" value={normalization.scale} min={0.25} max={4} step={0.05} onChange={(value) => update('scale', value)} />
           <NumberControl label="水平偏移" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(value) => update('offsetX', value)} />
-          <NumberControl label="垂直偏移" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(value) => update('offsetY', value)} />
-          <NumberControl label="脚底基线" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(value) => update('baselineOffset', value)} />
+          <NumberControl label="上下位置" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(value) => update('offsetY', value)} />
+          <NumberControl label="脚底位置" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(value) => update('baselineOffset', value)} />
         </div>
       </div>
     </article>

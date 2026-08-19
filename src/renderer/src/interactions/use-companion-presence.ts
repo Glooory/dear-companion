@@ -33,18 +33,22 @@ export function useCompanionPresence(options: UseCompanionPresenceOptions): void
     motion: options.onMotion,
     personality: options.onPersonality
   })
-  callbacks.current = {
-    ambient: options.onAmbient,
-    motion: options.onMotion,
-    personality: options.onPersonality
-  }
+  const contextKey = `${options.enabled}:${options.lifeState}:${options.pace}:${options.reducedMotion}:${options.resetKey}`
+  const previousContextKey = useRef<string | null>(null)
 
   useEffect(() => {
-    for (const deadline of Object.values(deadlines.current)) deadline.clear()
-    setRevision((value) => value + 1)
-  }, [options.enabled, options.lifeState, options.pace, options.reducedMotion, options.resetKey])
+    callbacks.current = {
+      ambient: options.onAmbient,
+      motion: options.onMotion,
+      personality: options.onPersonality
+    }
+  }, [options.onAmbient, options.onMotion, options.onPersonality])
 
   useEffect(() => {
+    if (previousContextKey.current !== contextKey) {
+      for (const deadline of Object.values(deadlines.current)) deadline.clear()
+      previousContextKey.current = contextKey
+    }
     if (!options.enabled) return
     const now = Date.now()
     const daily = options.lifeState === 'daily-calm' || options.lifeState === 'daily-playful'
@@ -85,5 +89,5 @@ export function useCompanionPresence(options: UseCompanionPresenceOptions): void
       setRevision((value) => value + 1)
     }, wait)
     return () => window.clearTimeout(timer)
-  }, [options.busy, options.enabled, options.lifeState, options.pace, options.reducedMotion, revision])
+  }, [contextKey, options.busy, options.enabled, options.lifeState, options.pace, options.reducedMotion, revision])
 }

@@ -137,7 +137,7 @@ export function registerPetSystemIpc({
           label: '设置…',
           click: () => { void windowManager.openSettings().catch(() => undefined) }
         },
-        ...(isRestSessionActive() ? [{ label: '结束本次休息', click: endRestSession }] : []),
+        ...(isRestSessionActive() ? [{ label: '结束休息', click: endRestSession }] : []),
         { type: 'separator' },
         { label: '退出 Dear Companion', click: requestQuit }
       ])
@@ -193,7 +193,7 @@ export function registerPetSystemIpc({
       }
       const owner = windowManager.getOwnedWindow(event.sender.id)
       const selection = await dialog.showOpenDialog(owner, {
-        title: '导入透明宠物图片',
+        title: '导入透明照片',
         properties: ['openFile', 'multiSelections'],
         filters: [{ name: '透明图片', extensions: ['png', 'webp'] }]
       })

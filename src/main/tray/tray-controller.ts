@@ -98,7 +98,7 @@ export class TrayController {
         }
       },
       ...(this.restSessionActive ? [{
-        label: '结束本次休息',
+        label: '结束休息',
         click: this.endRestSession
       } satisfies MenuItemConstructorOptions] : []),
       { type: 'separator' },

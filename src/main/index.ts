@@ -162,7 +162,7 @@ function handleStartupFailure(): void {
     report: () => {
       dialog.showErrorBox(
         'Dear Companion 无法启动',
-        '读取本地设置或创建桌面窗口失败。请重新启动应用。'
+        '应用没有正常打开。请退出后再试一次。你的照片和设置不会丢失。'
       )
     },
     quit: requestQuit

@@ -434,10 +434,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       )}
       {session && (
         <section className={`rest-bubble rest-${session.state}`} role="status">
-          {session.state === 'crying' ? <p>{dialogue ?? '休息一下嘛，不要乱跑呀 💧'}</p> :
-            session.state === 'celebrating' ? <p>{dialogue ?? '休息完成啦！'}</p> :
+          {session.state === 'crying' ? <p>{dialogue ?? '还没休息够。'}</p> :
+            session.state === 'celebrating' ? <p>{dialogue ?? '休息结束。'}</p> :
             <p>{session.message} · {formatCountdown(remainingSeconds)}</p>}
-          {session.state !== 'celebrating' && <button type="button" onClick={endRest}>结束本次休息</button>}
+          {session.state !== 'celebrating' && <button type="button" onClick={endRest}>结束休息</button>}
         </section>
       )}
     </main>

@@ -18,8 +18,8 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
   const valid = Boolean(draft && draft.weekdays.length > 0 && !invalidEqual)
   return (
     <article className="settings-card work-schedule-card">
-      <div className="editor-heading-row"><div><h2>工作时段</h2><p className="supporting-copy">可添加多个时段；跨午夜时，星期按开始日计算。</p></div>
-        {!draft && <button type="button" className="primary-button" disabled={disabled} onClick={() => setDraft(freshDraft())}>添加时段</button>}
+      <div className="editor-heading-row"><div><h2>专注时段</h2><p className="supporting-copy">到了这些时间，它会安静陪你，不主动走动或说话。</p></div>
+        {!draft && <button type="button" className="primary-button" disabled={disabled} onClick={() => setDraft(freshDraft())}>添加专注时段</button>}
       </div>
       {draft ? (
         <div className="work-schedule-editor">
@@ -29,7 +29,7 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
           </div>
           <WeekdayPicker value={draft.weekdays} disabled={disabled} onChange={(weekdays) => setDraft({ ...draft, weekdays })} />
           {invalidEqual && <p className="inline-status-error">开始和结束时间不能相同。</p>}
-          <label><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />启用这个时段</label>
+          <label><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />启用这个专注时段</label>
           <div className="editor-actions">
             {draft.id && <button type="button" className="danger-button" disabled={disabled} onClick={() => { onDelete(draft.id!); setDraft(null) }}>删除</button>}
             <button type="button" className="secondary-button" disabled={disabled} onClick={() => setDraft(null)}>取消</button>
@@ -38,12 +38,12 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
               if (value.id) onUpdate(value as WorkSchedule)
               else onCreate(value)
               setDraft(null)
-            }}>保存时段</button>
+            }}>保存专注时段</button>
           </div>
         </div>
       ) : (
         <div className="work-schedule-list">
-          {schedules.length === 0 && <p className="empty-editor-state">尚未设置工作时段。</p>}
+          {schedules.length === 0 && <p className="empty-editor-state">还没有专注时段。也可以随时从宠物右键菜单开始专注。</p>}
           {schedules.map((schedule) => (
             <div className="work-schedule-row" key={schedule.id}>
               <button type="button" className="reminder-summary" onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>
