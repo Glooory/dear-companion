@@ -10,7 +10,7 @@ export function usePettingGesture({ api, petId, asset, targetHeight, active, dep
   active: boolean
   dependencyKey: string
   onDetected(): void
-}): (event: PointerEvent<HTMLElement>) => void {
+}): (event: PointerEvent<HTMLElement>) => boolean {
   const armed = useRef(false)
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancel = useCallback(() => {
@@ -34,15 +34,16 @@ export function usePettingGesture({ api, petId, asset, targetHeight, active, dep
 
   useEffect(() => () => cancel(), [cancel])
 
-  return useCallback((event: PointerEvent<HTMLElement>): void => {
-    if (!active || armed.current || !asset) return
+  return useCallback((event: PointerEvent<HTMLElement>): boolean => {
+    if (!active || !asset) return false
+    if (armed.current) return true
     const ellipse = computeHeadHotspotGeometry(asset, targetHeight, { width: 320, height: 320 })
-    if (!ellipse) return
+    if (!ellipse) return false
     const normalized = Math.hypot(
       (event.clientX - ellipse.centerX) / ellipse.radiusX,
       (event.clientY - ellipse.centerY) / ellipse.radiusY
     )
-    if (normalized > 1) return
+    if (normalized > 1) return false
     const windowScreenX = event.screenX - event.clientX
     const windowScreenY = event.screenY - event.clientY
     armed.current = true
@@ -56,6 +57,7 @@ export function usePettingGesture({ api, petId, asset, targetHeight, active, dep
       armed.current = false
       resetTimer.current = null
     }, 3_100)
+    return true
   }, [active, api, asset, targetHeight])
 }
 

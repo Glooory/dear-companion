@@ -24,7 +24,15 @@ export class BodyWaddleGesture {
     private readonly cooldownMs = 1_000
   ) {}
 
-  register(sample: BodyPointerSample, region: BodyWaddleRegion): HorizontalDirection {
+  register(
+    sample: BodyPointerSample,
+    region: BodyWaddleRegion,
+    pettingCandidateActive = false
+  ): HorizontalDirection {
+    if (pettingCandidateActive) {
+      this.reset()
+      return 0
+    }
     if (!isFiniteSample(sample) || !isInBodyRegion(sample, region)) {
       this.reset()
       return 0

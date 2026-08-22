@@ -241,8 +241,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       finishAction()
     },
     onLocalPointerMove: (event) => {
-      pettingPointerMove(event)
-      bodyWaddlePointerMove(event)
+      const pettingCandidateActive = pettingPointerMove(event)
+      bodyWaddlePointerMove(event, pettingCandidateActive)
     },
     runtimeState
   })

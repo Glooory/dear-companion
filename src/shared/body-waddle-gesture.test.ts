@@ -28,6 +28,14 @@ describe('body waddle gesture', () => {
     expect(gesture.register({ x: 100, y: 100, at: 200 }, region)).toBe(0)
   })
 
+  it('does not claim movement while a petting candidate is active', () => {
+    const gesture = new BodyWaddleGesture()
+    gesture.register({ x: 10, y: 100, at: 0 }, region, true)
+    gesture.register({ x: 25, y: 100, at: 50 }, region, true)
+    expect(gesture.register({ x: 41, y: 100, at: 100 }, region, true)).toBe(0)
+    expect(gesture.register({ x: 72, y: 100, at: 150 }, region, false)).toBe(0)
+  })
+
   it('ignores movement dominated by the vertical axis', () => {
     const gesture = new BodyWaddleGesture()
     gesture.register({ x: 10, y: 100, at: 0 }, region)

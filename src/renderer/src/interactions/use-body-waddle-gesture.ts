@@ -16,14 +16,14 @@ export function useBodyWaddleGesture({
   active: boolean
   dependencyKey: string
   onDirection(direction: Exclude<HorizontalDirection, 0>): void
-}): (event: PointerEvent<HTMLElement>) => void {
+}): (event: PointerEvent<HTMLElement>, pettingCandidateActive: boolean) => void {
   const gesture = useRef(new BodyWaddleGesture())
 
   useEffect(() => {
     gesture.current.reset()
   }, [active, dependencyKey])
 
-  return useCallback((event: PointerEvent<HTMLElement>): void => {
+  return useCallback((event: PointerEvent<HTMLElement>, pettingCandidateActive: boolean): void => {
     if (!active || !asset) return
     const geometry = computeAssetGeometry(asset, targetHeight, { width: 320, height: 320 })
     const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, { width: 320, height: 320 })
@@ -40,7 +40,7 @@ export function useBodyWaddleGesture({
         height: asset.alphaBounds.height * geometry.scale
       },
       headEllipse
-    })
+    }, pettingCandidateActive)
     if (direction !== 0) onDirection(direction)
   }, [active, asset, onDirection, targetHeight])
 }
