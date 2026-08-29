@@ -47,7 +47,7 @@ export function PetGalleryManager({
       <div className="gallery-header-row">
         <div className="heading-with-tooltip">
           <h2>照片与姿态标定</h2>
-          <InfoTooltip text="调整照片缩放比例与脚底对齐线。" />
+          <InfoTooltip text="调整照片缩放比例与地面线。" />
         </div>
         <div className="gallery-header-actions">
           {activeAsset && onDeleteAsset && (

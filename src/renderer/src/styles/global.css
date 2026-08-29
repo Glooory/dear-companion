@@ -1189,7 +1189,7 @@ textarea:focus-visible {
 }
 
 .asset-baseline::after {
-  content: '脚底基线 (可拖拽)';
+  content: '地面线 (可拖拽)';
   position: absolute;
   right: 8px;
   top: -18px;

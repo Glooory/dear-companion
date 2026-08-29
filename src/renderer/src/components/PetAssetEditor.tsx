@@ -89,9 +89,9 @@ export function PetAssetEditor({
         <span
           className="asset-baseline"
           role="slider"
-          aria-label="脚底对齐线"
+          aria-label="地面线"
           aria-valuenow={normalization.baselineOffset}
-          title="按住上下拖拽调整脚底对齐线"
+          title="按住上下拖拽调整地面线"
           onPointerDown={handleBaselinePointerDown}
         />
         <img
@@ -144,9 +144,8 @@ export function PetAssetEditor({
             </div>
           </div>
 
-          <NumberControl label="水平位移 (X)" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
-          <NumberControl label="垂直位移 (Y)" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(val) => update('offsetY', val)} />
-          <NumberControl label="脚底对齐线" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
+          <NumberControl label="水平位移" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
+          <NumberControl label="地面线微调" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
         </div>
 
         <div className="hotspot-toggle-row">
