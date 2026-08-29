@@ -14,10 +14,13 @@ import type { SettingsStore } from '../settings/settings-store'
 import {
   moveRectWithinWorkArea,
   resolvePetWindowBounds,
+  resolveSettingsWindowBounds,
   type DisplaySnapshot,
   type Point,
-  type Rect
+  type Rect,
+  type SettingsWindowBounds
 } from './display-placement'
+import { loadSettingsWindowState, saveSettingsWindowState } from './settings-window-state'
 import { createPetWindowOptions, createSettingsWindowOptions } from './window-options'
 
 type WindowSettingsStore = Pick<SettingsStore, 'load' | 'update'>
@@ -27,6 +30,7 @@ interface WindowManagerOptions {
   preloadPath: string
   rendererRoot: string
   isPackaged: boolean
+  userDataPath?: string
 }
 
 export class WindowManager {
@@ -42,12 +46,16 @@ export class WindowManager {
   private readonly settingsStore: WindowSettingsStore
   private readonly preloadPath: string
   private readonly isPackaged: boolean
+  private readonly userDataPath?: string
+  private lastSettingsBounds: SettingsWindowBounds | null = null
+  private settingsBoundsLoaded = false
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
 
-  constructor({ settingsStore, preloadPath, isPackaged }: WindowManagerOptions) {
+  constructor({ settingsStore, preloadPath, isPackaged, userDataPath }: WindowManagerOptions) {
     this.settingsStore = settingsStore
     this.preloadPath = preloadPath
     this.isPackaged = isPackaged
+    this.userDataPath = userDataPath
   }
 
   async showPet(): Promise<void> {
@@ -143,10 +151,57 @@ export class WindowManager {
       return
     }
 
-    const settingsWindow = new BrowserWindow(createSettingsWindowOptions(this.preloadPath))
+    if (!this.settingsBoundsLoaded && this.userDataPath) {
+      this.settingsBoundsLoaded = true
+      const loaded = await loadSettingsWindowState(this.userDataPath)
+      if (loaded) this.lastSettingsBounds = loaded
+    }
+
+    const initialBounds = resolveSettingsWindowBounds(
+      this.displaySnapshots(),
+      this.lastSettingsBounds
+    )
+    const settingsWindow = new BrowserWindow(
+      createSettingsWindowOptions(this.preloadPath, initialBounds)
+    )
     this.settingsWindow = settingsWindow
     this.settingsWindowReady = false
     this.secureWindow(settingsWindow)
+
+    let boundsDebounceTimer: ReturnType<typeof setTimeout> | null = null
+    const recordBounds = (): void => {
+      if (this.settingsWindow !== settingsWindow || settingsWindow.isDestroyed()) return
+      const [width, height] = settingsWindow.getSize()
+      const [x, y] = settingsWindow.getPosition()
+      if (width && height) {
+        this.lastSettingsBounds = { width, height, x, y }
+        if (this.userDataPath) {
+          void saveSettingsWindowState(this.userDataPath, this.lastSettingsBounds).catch(() => undefined)
+        }
+      }
+    }
+
+    const onBoundsChanged = (): void => {
+      if (boundsDebounceTimer) clearTimeout(boundsDebounceTimer)
+      boundsDebounceTimer = setTimeout(recordBounds, 250)
+    }
+
+    settingsWindow.on('resize', onBoundsChanged)
+    settingsWindow.on('move', onBoundsChanged)
+    this.addListenerDisposer(settingsWindow, () => {
+      if (boundsDebounceTimer) clearTimeout(boundsDebounceTimer)
+      boundsDebounceTimer = null
+      settingsWindow.removeListener('resize', onBoundsChanged)
+      settingsWindow.removeListener('move', onBoundsChanged)
+    })
+
+    const onSettingsClose = (): void => {
+      recordBounds()
+    }
+    settingsWindow.on('close', onSettingsClose)
+    this.addListenerDisposer(settingsWindow, () => {
+      settingsWindow.removeListener('close', onSettingsClose)
+    })
 
     const showWhenReady = (): void => {
       if (this.settingsWindow !== settingsWindow || settingsWindow.isDestroyed()) return
@@ -160,6 +215,10 @@ export class WindowManager {
     })
 
     const clearSettingsWindow = (): void => {
+      if (boundsDebounceTimer) {
+        clearTimeout(boundsDebounceTimer)
+        boundsDebounceTimer = null
+      }
       if (this.settingsWindow === settingsWindow) {
         this.settingsWindow = null
         this.settingsWindowReady = false

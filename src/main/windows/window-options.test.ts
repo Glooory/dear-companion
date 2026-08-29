@@ -30,12 +30,12 @@ describe('secure window options', () => {
     expect(pet.webPreferences?.experimentalFeatures).not.toBe(true)
   })
 
-  it('creates the settings window with its minimum size and hardened renderer preferences', () => {
+  it('creates the settings window with its default 1000x720 size, minimum size, and hardened preferences', () => {
     const settings = createSettingsWindowOptions('/app/out/preload/index.js')
 
     expect(settings).toMatchObject({
-      width: 800,
-      height: 640,
+      width: 1000,
+      height: 720,
       minWidth: 680,
       minHeight: 520,
       show: false
@@ -50,6 +50,24 @@ describe('secure window options', () => {
     })
     expect(settings.webPreferences?.allowRunningInsecureContent).not.toBe(true)
     expect(settings.webPreferences?.experimentalFeatures).not.toBe(true)
+  })
+
+  it('respects initial bounds when provided', () => {
+    const settings = createSettingsWindowOptions('/app/out/preload/index.js', {
+      width: 1100,
+      height: 800,
+      x: 100,
+      y: 120
+    })
+
+    expect(settings).toMatchObject({
+      width: 1100,
+      height: 800,
+      minWidth: 680,
+      minHeight: 520,
+      x: 100,
+      y: 120
+    })
   })
 
   it('returns fresh option and web-preference objects', () => {

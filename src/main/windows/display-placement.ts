@@ -75,6 +75,53 @@ export function resolvePetWindowBounds(
   return clampRectToWorkArea({ ...size, x, y }, display.workArea, margin)
 }
 
+export interface SettingsWindowBounds {
+  width: number
+  height: number
+  x?: number
+  y?: number
+}
+
+export function resolveSettingsWindowBounds(
+  displays: readonly DisplaySnapshot[],
+  savedBounds?: Partial<SettingsWindowBounds> | null,
+  defaultSize: Pick<Rect, 'width' | 'height'> = { width: 1000, height: 720 },
+  minSize: Pick<Rect, 'width' | 'height'> = { width: 680, height: 520 }
+): SettingsWindowBounds {
+  const requestedWidth = Math.max(minSize.width, Math.round(savedBounds?.width ?? defaultSize.width))
+  const requestedHeight = Math.max(minSize.height, Math.round(savedBounds?.height ?? defaultSize.height))
+
+  if (
+    savedBounds?.x !== undefined &&
+    savedBounds?.y !== undefined &&
+    Number.isFinite(savedBounds.x) &&
+    Number.isFinite(savedBounds.y) &&
+    displays.length > 0
+  ) {
+    const display = chooseDisplay(displays, null, { x: savedBounds.x, y: savedBounds.y })
+    const clamped = clampRectToWorkArea(
+      { x: savedBounds.x, y: savedBounds.y, width: requestedWidth, height: requestedHeight },
+      display.workArea,
+      0
+    )
+    return {
+      x: clamped.x,
+      y: clamped.y,
+      width: clamped.width,
+      height: clamped.height
+    }
+  }
+
+  const primaryDisplay = displays.find((d) => d.isPrimary) ?? displays[0]
+  const maxWidth = primaryDisplay ? Math.max(minSize.width, primaryDisplay.workArea.width) : requestedWidth
+  const maxHeight = primaryDisplay ? Math.max(minSize.height, primaryDisplay.workArea.height) : requestedHeight
+
+  return {
+    width: Math.min(requestedWidth, maxWidth),
+    height: Math.min(requestedHeight, maxHeight)
+  }
+}
+
 function containsPoint(rect: Rect, point: Point): boolean {
   return (
     point.x >= rect.x &&

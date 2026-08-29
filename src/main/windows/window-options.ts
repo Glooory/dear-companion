@@ -1,4 +1,5 @@
 import type { BrowserWindowConstructorOptions, WebPreferences } from 'electron'
+import type { SettingsWindowBounds } from './display-placement'
 
 const secureWebPreferences = (preload: string): WebPreferences => ({
   preload,
@@ -28,13 +29,17 @@ export function createPetWindowOptions(preloadPath: string): BrowserWindowConstr
 }
 
 export function createSettingsWindowOptions(
-  preloadPath: string
+  preloadPath: string,
+  initialBounds?: Partial<SettingsWindowBounds>
 ): BrowserWindowConstructorOptions {
   return {
-    width: 800,
-    height: 640,
+    width: initialBounds?.width ?? 1000,
+    height: initialBounds?.height ?? 720,
     minWidth: 680,
     minHeight: 520,
+    ...(initialBounds?.x !== undefined && initialBounds?.y !== undefined
+      ? { x: initialBounds.x, y: initialBounds.y }
+      : {}),
     show: false,
     webPreferences: secureWebPreferences(preloadPath)
   }

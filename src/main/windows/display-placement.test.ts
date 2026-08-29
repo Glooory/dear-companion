@@ -4,6 +4,7 @@ import {
   clampRectToWorkArea,
   moveRectWithinWorkArea,
   resolvePetWindowBounds,
+  resolveSettingsWindowBounds,
   type DisplaySnapshot
 } from './display-placement'
 
@@ -71,5 +72,53 @@ describe('display placement', () => {
         { x: 100, y: 200, width: 8, height: 0 }
       )
     ).toEqual({ x: 103, y: 200, width: 2, height: 1 })
+  })
+
+  describe('settings window bounds resolution', () => {
+    it('returns default 1000x720 when no saved bounds are provided', () => {
+      expect(resolveSettingsWindowBounds(displays, null)).toEqual({
+        width: 1000,
+        height: 720
+      })
+    })
+
+    it('enforces minimum width and height', () => {
+      expect(resolveSettingsWindowBounds(displays, { width: 400, height: 300 })).toEqual({
+        width: 680,
+        height: 520
+      })
+    })
+
+    it('clamps saved bounds to display work area if placed off-screen', () => {
+      expect(
+        resolveSettingsWindowBounds(displays, {
+          width: 1200,
+          height: 800,
+          x: 1800,
+          y: 900
+        })
+      ).toEqual({
+        x: 720,
+        y: 240,
+        width: 1200,
+        height: 800
+      })
+    })
+
+    it('preserves valid custom bounds inside work area', () => {
+      expect(
+        resolveSettingsWindowBounds(displays, {
+          width: 1100,
+          height: 750,
+          x: 200,
+          y: 150
+        })
+      ).toEqual({
+        x: 200,
+        y: 150,
+        width: 1100,
+        height: 750
+      })
+    })
   })
 })

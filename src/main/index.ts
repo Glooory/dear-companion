@@ -276,6 +276,7 @@ if (!hasSingleInstanceLock) {
 
     const manager = new WindowManager({
       settingsStore: store,
+      userDataPath: app.getPath('userData'),
       preloadPath,
       rendererRoot,
       isPackaged: app.isPackaged
