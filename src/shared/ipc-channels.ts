@@ -44,5 +44,7 @@ export const IPC_CHANNELS = {
   setAutostartEnabled: 'release-hardening:set-autostart-enabled',
   getPetRendererStatus: 'release-hardening:get-pet-renderer-status',
   retryPetRenderer: 'release-hardening:retry-pet-renderer',
-  petRendererStatusChanged: 'release-hardening:pet-renderer-status-changed'
+  petRendererStatusChanged: 'release-hardening:pet-renderer-status-changed',
+  getSettingsNavigationTarget: 'foundation:get-settings-navigation-target',
+  settingsNavigationRequested: 'foundation:settings-navigation-requested'
 } as const

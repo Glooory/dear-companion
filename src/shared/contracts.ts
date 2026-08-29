@@ -293,10 +293,28 @@ export interface AudioPlaybackRequest {
   maxDurationMs: 30_000
 }
 
+export interface SettingsNavigationTarget {
+  tab: 'pets' | 'rest' | 'work' | 'system'
+  action?: 'new-reminder'
+}
+
+export function parseSettingsNavigationTarget(value: unknown): SettingsNavigationTarget | null {
+  if (!value || typeof value !== 'object') return null
+  const record = value as Record<string, unknown>
+  const tab = record.tab
+  if (tab !== 'pets' && tab !== 'rest' && tab !== 'work' && tab !== 'system') return null
+  const action = record.action
+  if (action !== undefined && action !== 'new-reminder') return null
+  return {
+    tab,
+    ...(action ? { action } : {})
+  }
+}
+
 export interface FoundationApi {
   getSettings(): Promise<AppSettings>
   setPetVisibility(visible: boolean): Promise<AppSettings>
-  openSettings(): Promise<void>
+  openSettings(target?: SettingsNavigationTarget): Promise<void>
   getWindowKind(): WindowKind
 }
 
@@ -421,6 +439,8 @@ export interface ReleaseHardeningApi extends RestSystemApi {
   getPetRendererStatus(): Promise<PetRendererStatus>
   retryPetRenderer(): Promise<PetRendererStatus>
   onPetRendererStatusChanged(listener: (status: PetRendererStatus) => void): () => void
+  getSettingsNavigationTarget(): Promise<SettingsNavigationTarget | null>
+  onSettingsNavigationRequested(listener: (target: SettingsNavigationTarget) => void): () => void
 }
 
 export interface SettingsMigrationResult {

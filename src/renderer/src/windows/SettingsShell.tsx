@@ -17,6 +17,7 @@ import {
   type ReleaseHardeningApi,
   type ReminderSchedule,
   type RestSystemSnapshot,
+  type SettingsNavigationTarget,
   type Weekday,
   type WorkSchedule,
 } from "@shared/contracts";
@@ -443,6 +444,28 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [reminderDraft]);
+
+  useEffect(() => {
+    const handleTarget = (target: SettingsNavigationTarget | null): void => {
+      if (!target) return;
+      setActiveTab(target.tab);
+      if (target.tab === "rest" && target.action === "new-reminder") {
+        newReminder();
+      }
+    };
+
+    void api.getSettingsNavigationTarget().then((target) => {
+      handleTarget(target);
+    });
+
+    const unsubscribe = api.onSettingsNavigationRequested((target) => {
+      handleTarget(target);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [api]);
 
   const importAudio = (): void => {
     void runMutation(async () => {

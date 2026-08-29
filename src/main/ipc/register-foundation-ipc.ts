@@ -1,5 +1,5 @@
 import { ipcMain, type IpcMainEvent } from 'electron'
-import type { AppSettings } from '../../shared/contracts'
+import { parseSettingsNavigationTarget, type AppSettings } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
 import type { SettingsStore } from '../settings/settings-store'
 import type { WindowManager } from '../windows/window-manager'
@@ -8,7 +8,7 @@ interface FoundationIpcDependencies {
   settingsStore: Pick<SettingsStore, 'load' | 'update'>
   windowManager: Pick<
     WindowManager,
-    'getWindowKind' | 'hidePet' | 'showPet' | 'openSettings'
+    'getWindowKind' | 'hidePet' | 'showPet' | 'openSettings' | 'getPendingSettingsTarget'
   >
   onSettingsChanged?: (settings: AppSettings) => void
 }
@@ -22,6 +22,7 @@ export function registerFoundationIpc({
   let setPetVisibilityRegistered = false
   let openSettingsRegistered = false
   let getWindowKindRegistered = false
+  let getSettingsNavigationTargetRegistered = false
   let active = true
   const getWindowKindListener = (event: IpcMainEvent): void => {
     event.returnValue = windowManager.getWindowKind(event.sender.id)
@@ -33,6 +34,9 @@ export function registerFoundationIpc({
     if (getSettingsRegistered) ipcMain.removeHandler(IPC_CHANNELS.getSettings)
     if (setPetVisibilityRegistered) ipcMain.removeHandler(IPC_CHANNELS.setPetVisibility)
     if (openSettingsRegistered) ipcMain.removeHandler(IPC_CHANNELS.openSettings)
+    if (getSettingsNavigationTargetRegistered) {
+      ipcMain.removeHandler(IPC_CHANNELS.getSettingsNavigationTarget)
+    }
     if (getWindowKindRegistered) {
       ipcMain.removeListener(IPC_CHANNELS.getWindowKind, getWindowKindListener)
     }
@@ -63,11 +67,17 @@ export function registerFoundationIpc({
     })
     setPetVisibilityRegistered = true
 
-    ipcMain.handle(IPC_CHANNELS.openSettings, async (event) => {
+    ipcMain.handle(IPC_CHANNELS.openSettings, async (event, target: unknown) => {
       windowManager.getWindowKind(event.sender.id)
-      await windowManager.openSettings()
+      await windowManager.openSettings(parseSettingsNavigationTarget(target) ?? undefined)
     })
     openSettingsRegistered = true
+
+    ipcMain.handle(IPC_CHANNELS.getSettingsNavigationTarget, (event) => {
+      windowManager.getWindowKind(event.sender.id)
+      return windowManager.getPendingSettingsTarget()
+    })
+    getSettingsNavigationTargetRegistered = true
 
     ipcMain.on(IPC_CHANNELS.getWindowKind, getWindowKindListener)
     getWindowKindRegistered = true

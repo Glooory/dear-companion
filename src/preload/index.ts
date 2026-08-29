@@ -6,14 +6,15 @@ import type {
   PetInteractionRequest,
   PetSystemSnapshot,
   ReleaseHardeningApi,
-  RestSystemSnapshot
+  RestSystemSnapshot,
+  SettingsNavigationTarget
 } from '@shared/contracts'
 import { IPC_CHANNELS } from '@shared/ipc-channels'
 
 const api: ReleaseHardeningApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getSettings),
   setPetVisibility: (visible) => ipcRenderer.invoke(IPC_CHANNELS.setPetVisibility, visible),
-  openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings),
+  openSettings: (target) => ipcRenderer.invoke(IPC_CHANNELS.openSettings, target),
   getWindowKind: () => ipcRenderer.sendSync(IPC_CHANNELS.getWindowKind),
   getPetSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getPetSystemSnapshot),
   createPet: (name) => ipcRenderer.invoke(IPC_CHANNELS.createPet, name),
@@ -88,6 +89,14 @@ const api: ReleaseHardeningApi = {
     }
     ipcRenderer.on(IPC_CHANNELS.petRendererStatusChanged, wrapped)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.petRendererStatusChanged, wrapped)
+  },
+  getSettingsNavigationTarget: () => ipcRenderer.invoke(IPC_CHANNELS.getSettingsNavigationTarget),
+  onSettingsNavigationRequested: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, target: SettingsNavigationTarget): void => {
+      listener(target)
+    }
+    ipcRenderer.on(IPC_CHANNELS.settingsNavigationRequested, wrapped)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.settingsNavigationRequested, wrapped)
   }
 }
 

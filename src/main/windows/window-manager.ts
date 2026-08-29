@@ -6,6 +6,7 @@ import type {
   PetInteractionRequest,
   PetSystemSnapshot,
   RestSystemSnapshot,
+  SettingsNavigationTarget,
   WindowKind
 } from '../../shared/contracts'
 import { IPC_CHANNELS } from '../../shared/ipc-channels'
@@ -50,12 +51,19 @@ export class WindowManager {
   private lastSettingsBounds: SettingsWindowBounds | null = null
   private settingsBoundsLoaded = false
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>()
+  private pendingSettingsTarget: SettingsNavigationTarget | null = null
 
   constructor({ settingsStore, preloadPath, isPackaged, userDataPath }: WindowManagerOptions) {
     this.settingsStore = settingsStore
     this.preloadPath = preloadPath
     this.isPackaged = isPackaged
     this.userDataPath = userDataPath
+  }
+
+  getPendingSettingsTarget(): SettingsNavigationTarget | null {
+    const target = this.pendingSettingsTarget
+    this.pendingSettingsTarget = null
+    return target
   }
 
   async showPet(): Promise<void> {
@@ -141,12 +149,19 @@ export class WindowManager {
     petWindow.show()
   }
 
-  async openSettings(): Promise<void> {
+  async openSettings(target?: SettingsNavigationTarget): Promise<void> {
     if (this.disposed) return
+    if (target) {
+      this.pendingSettingsTarget = target
+    }
     if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
       if (this.settingsWindowReady) {
         this.settingsWindow.show()
         this.settingsWindow.focus()
+        if (target) {
+          this.settingsWindow.webContents.send(IPC_CHANNELS.settingsNavigationRequested, target)
+          this.pendingSettingsTarget = null
+        }
       }
       return
     }
@@ -208,6 +223,10 @@ export class WindowManager {
       this.settingsWindowReady = true
       settingsWindow.show()
       settingsWindow.focus()
+      if (this.pendingSettingsTarget) {
+        settingsWindow.webContents.send(IPC_CHANNELS.settingsNavigationRequested, this.pendingSettingsTarget)
+        this.pendingSettingsTarget = null
+      }
     }
     settingsWindow.once('ready-to-show', showWhenReady)
     this.addListenerDisposer(settingsWindow, () => {
@@ -222,6 +241,7 @@ export class WindowManager {
       if (this.settingsWindow === settingsWindow) {
         this.settingsWindow = null
         this.settingsWindowReady = false
+        this.pendingSettingsTarget = null
       }
       this.releaseWindowListeners(settingsWindow)
     }

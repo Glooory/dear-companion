@@ -16,6 +16,7 @@ import {
   parsePetRendererStatus,
   parseAppSettings,
   parsePetUpdateInput,
+  parseSettingsNavigationTarget,
   type AppSettingsV1,
   type AppSettingsV2,
   type AppSettingsV3,
@@ -345,6 +346,19 @@ describe('settings contracts', () => {
     expect(snapshot.workSchedules).not.toBe(DEFAULT_APP_SETTINGS.workSchedules)
     expect(snapshot.runtime).not.toBe(runtime)
     expect(snapshot.runtime.available).not.toBe(runtime.available)
+  })
+
+  it('validates settings navigation target payloads', () => {
+    expect(parseSettingsNavigationTarget(null)).toBeNull()
+    expect(parseSettingsNavigationTarget({})).toBeNull()
+    expect(parseSettingsNavigationTarget({ tab: 'invalid' })).toBeNull()
+    expect(parseSettingsNavigationTarget({ tab: 'rest', action: 'invalid' })).toBeNull()
+    expect(parseSettingsNavigationTarget({ tab: 'rest' })).toEqual({ tab: 'rest' })
+    expect(parseSettingsNavigationTarget({ tab: 'rest', action: 'new-reminder' })).toEqual({
+      tab: 'rest',
+      action: 'new-reminder'
+    })
+    expect(parseSettingsNavigationTarget({ tab: 'pets' })).toEqual({ tab: 'pets' })
   })
 })
 

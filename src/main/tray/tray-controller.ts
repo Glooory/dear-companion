@@ -92,6 +92,12 @@ export class TrayController {
         }
       },
       {
+        label: '添加休息提醒…',
+        click: () => {
+          void this.windowManager.openSettings({ tab: 'rest', action: 'new-reminder' }).catch(() => undefined)
+        }
+      },
+      {
         label: '设置…',
         click: () => {
           void this.windowManager.openSettings().catch(() => undefined)
