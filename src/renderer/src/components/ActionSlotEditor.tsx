@@ -11,7 +11,7 @@ const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
   idle: '🏠 默认常驻照片',
   cute: '✨ 偶尔卖萌',
   angry: '💢 拖拽过快',
-  crying: '💧 抓包提醒',
+  crying: '💧 督促继续休息',
   resting: '☕ 休息模式'
 }
 

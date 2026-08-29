@@ -25,8 +25,8 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
       </div>
       {(['reminder', 'crying'] as const).map((cue) => {
         const source = cue === 'reminder' ? audio.reminderSource : audio.cryingSource
-        return <label className="audio-source" key={cue}><span>{cue === 'reminder' ? '休息提醒提示音' : '离开休息时的轻声提示'}</span><select disabled={disabled} value={source.kind === 'builtin' ? 'builtin' : source.assetId} onChange={(event) => update(cue, event.currentTarget.value)}>
-          <option value="builtin">{cue === 'reminder' ? '轻柔提示音' : '轻声提醒'}</option>
+        return <label className="audio-source" key={cue}><span>{cue === 'reminder' ? '休息提醒提示音' : '督促继续休息提示音'}</span><select disabled={disabled} value={source.kind === 'builtin' ? 'builtin' : source.assetId} onChange={(event) => update(cue, event.currentTarget.value)}>
+          <option value="builtin">{cue === 'reminder' ? '轻柔提示音' : '轻声督促'}</option>
           {audio.assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.fileName}{asset.available ? '' : '（无法播放，将使用内置声音）'}</option>)}
         </select></label>
       })}

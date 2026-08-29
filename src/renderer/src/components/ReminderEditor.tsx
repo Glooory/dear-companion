@@ -41,8 +41,8 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
       <label className="message-field"><span>提醒内容</span><textarea maxLength={200} value={value.message} onChange={(event) => onChange({ ...value, message: event.currentTarget.value })} /></label>
       <div className="reminder-toggles">
         <label className="toggle-control"><input type="checkbox" checked={value.enabled} disabled={!value.id || disabled} onChange={(event) => onChange({ ...value, enabled: event.currentTarget.checked })} /><span>启用此条提醒</span></label>
-        <label className="toggle-control"><input type="checkbox" checked={value.sounds.reminder} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, reminder: event.currentTarget.checked } })} /><span>播放提醒提示音</span></label>
-        <label className="toggle-control"><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} /><span>离开休息时轻声提醒</span></label>
+        <label className="toggle-control"><input type="checkbox" checked={value.sounds.reminder} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, reminder: event.currentTarget.checked } })} /><span>播放休息提示音</span></label>
+        <label className="toggle-control"><input type="checkbox" checked={value.sounds.crying} onChange={(event) => onChange({ ...value, sounds: { ...value.sounds, crying: event.currentTarget.checked } })} /><span>督促继续休息时播放提示音</span></label>
       </div>
       <div className="editor-actions">
         {onDelete && <button type="button" className="danger-button" disabled={disabled} onClick={onDelete}>删除</button>}
