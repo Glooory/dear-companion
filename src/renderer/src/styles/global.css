@@ -1741,6 +1741,34 @@ textarea:focus-visible {
   font-size: 0.82rem;
 }
 
+.audio-source-control {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.audio-source-control .audio-source {
+  flex: 1;
+}
+
+.audio-preview-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 33px;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.audio-preview-button.is-playing {
+  background: #24473d;
+  color: #ffffff;
+  border-color: #24473d;
+}
+
 .message-field textarea {
   min-height: 64px;
   resize: vertical;

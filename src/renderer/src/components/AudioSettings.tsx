@@ -1,4 +1,6 @@
 import type { AudioImportResult, AudioSettingsV3, AudioSource, AudioSourceInput } from '@shared/contracts'
+import { useEffect, useRef, useState } from 'react'
+import { playAudioSource } from '../audio/use-audio-playback'
 import { InfoTooltip } from './Tooltip'
 
 interface Props {
@@ -10,7 +12,37 @@ interface Props {
 }
 
 export function AudioSettings({ audio, report, disabled, onImport, onChange }: Props): React.JSX.Element {
+  const [playingCue, setPlayingCue] = useState<'reminder' | 'crying' | null>(null)
+  const stopPreviewRef = useRef<(() => void) | null>(null)
+
+  const stopPreview = (): void => {
+    if (stopPreviewRef.current) {
+      stopPreviewRef.current()
+      stopPreviewRef.current = null
+    }
+    setPlayingCue(null)
+  }
+
+  useEffect(() => {
+    return () => {
+      stopPreview()
+    }
+  }, [])
+
+  const handlePreview = (cue: 'reminder' | 'crying', source: AudioSource): void => {
+    if (playingCue === cue) {
+      stopPreview()
+      return
+    }
+    stopPreview()
+    setPlayingCue(cue)
+    stopPreviewRef.current = playAudioSource(cue, source, () => {
+      setPlayingCue((current) => (current === cue ? null : current))
+    })
+  }
+
   const update = (cue: 'reminder' | 'crying', value: string): void => {
+    stopPreview()
     const source: AudioSource = value === 'builtin'
       ? { kind: 'builtin', id: cue === 'reminder' ? 'gentle-chime' : 'soft-whimper' }
       : { kind: 'imported', assetId: value }
@@ -19,6 +51,7 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
       cryingSource: cue === 'crying' ? source : audio.cryingSource
     })
   }
+
   return (
     <article className="settings-card audio-settings">
       <div className="editor-heading-row">
@@ -34,10 +67,35 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
 
       {(['reminder', 'crying'] as const).map((cue) => {
         const source = cue === 'reminder' ? audio.reminderSource : audio.cryingSource
-        return <label className="audio-source" key={cue}><span>{cue === 'reminder' ? '休息提醒提示音' : '督促继续休息提示音'}</span><select disabled={disabled} value={source.kind === 'builtin' ? 'builtin' : source.assetId} onChange={(event) => update(cue, event.currentTarget.value)}>
-          <option value="builtin">{cue === 'reminder' ? '轻柔提示音' : '轻声督促'}</option>
-          {audio.assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.fileName}{asset.available ? '' : '（无法播放，将使用内置声音）'}</option>)}
-        </select></label>
+        const isPlaying = playingCue === cue
+        return (
+          <div className="audio-source-control" key={cue}>
+            <label className="audio-source">
+              <span>{cue === 'reminder' ? '休息提醒提示音' : '督促继续休息提示音'}</span>
+              <select
+                disabled={disabled}
+                value={source.kind === 'builtin' ? 'builtin' : source.assetId}
+                onChange={(event) => update(cue, event.currentTarget.value)}
+              >
+                <option value="builtin">{cue === 'reminder' ? '轻柔双音提示音' : '轻声督促音'}</option>
+                {audio.assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.fileName}{asset.available ? '' : '（无法播放，将使用内置声音）'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className={`secondary-button audio-preview-button ${isPlaying ? 'is-playing' : ''}`}
+              disabled={disabled}
+              onClick={() => handlePreview(cue, source)}
+              title="试听声音"
+            >
+              {isPlaying ? '■ 停止' : '▶ 试听'}
+            </button>
+          </div>
+        )
       })}
       {report && <div className="import-report" role="status"><strong>已导入 {report.imported.length} 个声音</strong>{report.failures.map((failure) => <p key={`${failure.index}-${failure.code}`}>第 {failure.index + 1} 个：{failure.message}</p>)}</div>}
     </article>
