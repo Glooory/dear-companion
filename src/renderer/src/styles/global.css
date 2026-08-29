@@ -194,6 +194,14 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
+.tooltip-wrapper:has(:disabled) {
+  cursor: not-allowed;
+}
+
+.tooltip-wrapper:has(:disabled) > button:disabled {
+  pointer-events: none;
+}
+
 .info-tooltip-trigger {
   display: inline-flex;
   align-items: center;
@@ -276,6 +284,23 @@ textarea:focus-visible {
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #22201e;
+}
+
+.tooltip-top-end {
+  bottom: calc(100% + 7px);
+  right: 0;
+}
+
+.tooltip-top-end::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 20px;
   width: 0;
   height: 0;
   border-left: 5px solid transparent;

@@ -3,23 +3,35 @@ import { useState, type ReactNode } from 'react'
 interface TooltipProps {
   content: string
   children: ReactNode
-  position?: 'top' | 'bottom' | 'right' | 'left'
+  position?: 'top' | 'bottom' | 'right' | 'left' | 'top-end'
   className?: string
+  disabled?: boolean
 }
 
-export function Tooltip({ content, children, position = 'top', className = '' }: TooltipProps): React.JSX.Element {
+export function Tooltip({
+  content,
+  children,
+  position = 'top',
+  className = '',
+  disabled = false
+}: TooltipProps): React.JSX.Element {
   const [visible, setVisible] = useState(false)
+  const isEnabled = !disabled && Boolean(content)
 
   return (
     <span
       className={`tooltip-wrapper ${className}`}
-      onMouseEnter={() => setVisible(true)}
+      onMouseEnter={() => {
+        if (isEnabled) setVisible(true)
+      }}
       onMouseLeave={() => setVisible(false)}
-      onFocus={() => setVisible(true)}
+      onFocus={() => {
+        if (isEnabled) setVisible(true)
+      }}
       onBlur={() => setVisible(false)}
     >
       {children}
-      {visible && (
+      {visible && isEnabled && (
         <span className={`tooltip-bubble tooltip-${position}`} role="tooltip">
           {content}
         </span>

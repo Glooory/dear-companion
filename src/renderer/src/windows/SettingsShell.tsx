@@ -32,7 +32,7 @@ import {
   type ReminderDraft,
 } from "../components/ReminderEditor";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
-import { InfoTooltip } from "../components/Tooltip";
+import { InfoTooltip, Tooltip } from "../components/Tooltip";
 
 interface SettingsShellProps {
   api: ReleaseHardeningApi;
@@ -275,7 +275,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   const saveDraft = (): void => {
-    if (!draft) return;
+    if (!draft || !selectedPet) return;
+    if (selectedPet.assets.length === 0) {
+      setError("需先导入照片才可保存设置。");
+      return;
+    }
     const targetHeight = normalizeTargetHeight(targetHeightText);
     if (targetHeight === null) {
       setError(
@@ -698,19 +702,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    disabled={isBusy}
-                    onClick={importAssets}
-                  >
-                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <rect x="2" y="2" width="12" height="12" rx="2" />
-                      <circle cx="5.5" cy="5.5" r="1.2" />
-                      <path d="M14 10l-3.5-3.5L3 14" />
-                    </svg>
-                    <span>导入照片</span>
-                  </button>
                 </div>
 
                 {importReport && (
@@ -843,14 +834,20 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   >
                     删除伙伴
                   </button>
-                  <button
-                    type="button"
-                    className={`primary-button ${saveSuccess ? "saved" : ""}`}
-                    disabled={isBusy}
-                    onClick={saveDraft}
+                  <Tooltip
+                    content="需先导入照片才可保存设置"
+                    position="top-end"
+                    disabled={selectedPet.assets.length > 0}
                   >
-                    {saveSuccess ? "已保存 ✓" : "保存设置"}
-                  </button>
+                    <button
+                      type="button"
+                      className={`primary-button ${saveSuccess ? "saved" : ""}`}
+                      disabled={isBusy || selectedPet.assets.length === 0}
+                      onClick={saveDraft}
+                    >
+                      {saveSuccess ? "已保存 ✓" : "保存设置"}
+                    </button>
+                  </Tooltip>
                 </div>
               </>
             ) : (
