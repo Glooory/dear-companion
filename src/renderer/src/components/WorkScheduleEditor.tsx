@@ -37,7 +37,7 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
           {invalidEqual && <p className="inline-status-error">开始和结束时间不能相同。</p>}
           <label className="toggle-control">
             <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />
-            <span>启用这个专注时段</span>
+            <span>启用此时段</span>
           </label>
           <div className="editor-actions">
             {draft.id && <button type="button" className="danger-button" disabled={disabled} onClick={() => { onDelete(draft.id!); setDraft(null) }}>删除</button>}
@@ -47,12 +47,12 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
               if (value.id) onUpdate(value as WorkSchedule)
               else onCreate(value)
               setDraft(null)
-            }}>保存专注时段</button>
+            }}>保存时段</button>
           </div>
         </div>
       ) : (
         <div className="work-schedule-list">
-          {schedules.length === 0 && <p className="empty-editor-state">暂无专注时段。设定后伙伴会在此时段内静静陪伴；也可以随时通过右键菜单手动开启。</p>}
+          {schedules.length === 0 && <p className="empty-editor-state">暂无专注时段。设定后伙伴在此期间会保持安静。</p>}
           {schedules.map((schedule) => (
             <div className="work-schedule-row" key={schedule.id}>
               <button type="button" className="reminder-summary" onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>

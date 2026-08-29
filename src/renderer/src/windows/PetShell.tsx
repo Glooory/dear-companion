@@ -447,13 +447,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       {prompt && (
         <section className="rest-bubble" role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
-          <div className="rest-actions"><button type="button" onClick={startRest}>开始休息</button>{([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>{minutes} 分钟后提醒</button>)}</div>
+          <div className="rest-actions"><button type="button" onClick={startRest}>开始休息</button>{([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>稍后 {minutes} 分钟</button>)}</div>
         </section>
       )}
       {session && (
         <section className={`rest-bubble rest-${session.state}`} role="status">
-          {session.state === 'crying' ? <p>{dialogue ?? '还没有休息够哦。'}</p> :
-            session.state === 'celebrating' ? <p>{dialogue ?? '休息时间结束啦。'}</p> :
+          {session.state === 'crying' ? <p>{dialogue ?? '还没休息够呢～'}</p> :
+            session.state === 'celebrating' ? <p>{dialogue ?? '休息结束啦！'}</p> :
             <p>{session.message} · {formatCountdown(remainingSeconds)}</p>}
           {session.state !== 'celebrating' && <button type="button" onClick={endRest}>结束休息</button>}
         </section>

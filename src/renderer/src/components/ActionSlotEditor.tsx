@@ -9,13 +9,13 @@ const CONFIGURABLE_ACTION_SLOTS = [
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
-  idle: '平时陪伴照片',
-  resting: '休息模式照片'
+  idle: '平时陪伴',
+  resting: '休息模式'
 }
 
 const SLOT_HINTS: Record<ConfigurableActionSlot, string> = {
-  idle: '伙伴在桌面上陪伴漫步时的照片。支持勾选多张进行轮换。',
-  resting: '进入番茄钟或久坐休息时展示的专属照片。若未选择则保持当前姿态。'
+  idle: '日常陪伴漫步时展示的照片，支持勾选多张轮换。',
+  resting: '提醒休息期间展示的照片。未选时沿用平时姿态。'
 }
 
 interface ActionSlotEditorProps {

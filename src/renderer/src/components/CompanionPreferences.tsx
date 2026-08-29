@@ -5,20 +5,20 @@ const PACE_OPTIONS = [
   {
     value: 'quiet',
     label: '安静',
-    tagline: '极少走动 · 深度专注',
-    description: '偶尔轻微呼吸，几乎不打扰，适合需要深度专注的工作时段。'
+    tagline: '偶尔呼吸 · 几乎不走动',
+    description: '保持安静，不分散视线，适合需要专注的工作时段。'
   },
   {
     value: 'natural',
     label: '惬意',
-    tagline: '轻微踱步 · 舒心陪伴',
-    description: '偶尔轻微走动或变换姿势，日常最舒心的自然陪伴节奏。'
+    tagline: '间歇走动 · 自然陪伴',
+    description: '偶尔走动或变换姿势，最舒服的日常节奏。'
   },
   {
     value: 'lively',
     label: '活跃',
-    tagline: '更爱卖萌 · 生机互动',
-    description: '更爱走动踱步与主动卖萌，充满生气与日常陪伴感。'
+    tagline: '动作丰富 · 互动频繁',
+    description: '走动更频繁，更常主动做动作和小表情。'
   }
 ] as const
 
@@ -34,7 +34,7 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
       <fieldset className="pace-options">
         <legend className="fieldset-legend-row">
           <span>陪伴节奏</span>
-          <InfoTooltip text="控制伙伴在桌面的活动频率。可随时切换不同节奏或点击试看动作。" />
+          <InfoTooltip text="调整伙伴在桌面的活动与走动频率。" />
         </legend>
         <div className="pace-options-grid">
           {PACE_OPTIONS.map((option) => (
@@ -73,9 +73,9 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
             checked={bubblesEnabled}
             onChange={(event) => onBubblesChange(event.currentTarget.checked)}
           />
-          <span>偶尔冒出对话气泡</span>
+          <span>日常对话气泡</span>
         </label>
-        <InfoTooltip text="开启后在日常漫步互动中显示轻量小气泡；关闭后仅保留设定的休息提醒。" />
+        <InfoTooltip text="漫步与互动时冒出轻量气泡；关闭后仅保留休息提醒。" />
       </div>
     </div>
   )

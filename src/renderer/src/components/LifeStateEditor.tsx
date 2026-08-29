@@ -23,7 +23,7 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
     <div className="life-state-grid">
       <LifeGroup
         title="困倦打瞌睡"
-        description="建议选用打哈欠或揉眼姿态。日常漫步空闲时将自然触发打瞌睡动效。"
+        description="建议选用打哈欠或揉眼照片。空闲时会自然打瞌睡。"
         petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
@@ -33,7 +33,7 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
       />
       <LifeGroup
         title="安睡打盹"
-        description="建议选用闭眼或卧躺姿态。开启后在安静或特定时段静静小憩。"
+        description="建议选用闭眼或趴卧照片。在安静或休息时段小憩。"
         petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
@@ -43,7 +43,7 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
       />
       <LifeGroup
         title="专注工作"
-        description="进入专注时段时的专属模样。未指定时将沿用平时陪伴照片。"
+        description="进入专注时段时展示。未指定时沿用平时照片。"
         petId={petId}
         assets={assets}
         selected={value.workingAssetIds}

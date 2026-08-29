@@ -578,7 +578,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               ))}
               {snapshot.pets.length === 0 && (
                 <p className="supporting-copy">
-                  暂无伙伴。点击下方按钮添加。
+                  还没有添加伙伴。
                 </p>
               )}
             </div>
@@ -631,7 +631,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <line x1="8" y1="3" x2="8" y2="13" />
                   <line x1="3" y1="8" x2="13" y2="8" />
                 </svg>
-                <span>添加新伙伴</span>
+                <span>添加伙伴</span>
               </button>
             )}
           </aside>
@@ -644,7 +644,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     <div className="editor-title-line">
                       <h2>{selectedPet.name}</h2>
                       {snapshot.activePetId === selectedPet.id && (
-                        <span className="pet-active-badge">桌面使用中</span>
+                        <span className="pet-active-badge">当前使用</span>
                       )}
                     </div>
                   </div>
@@ -692,7 +692,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <label>
                     <span className="field-label-row">
                       <span>显示高度</span>
-                      <InfoTooltip text={`伙伴在桌面显示的高度（范围 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 像素，建议 180–240px）。`} />
+                      <InfoTooltip text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`} />
                     </span>
                     <div className="unit-input-wrap">
                       <input
@@ -742,7 +742,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <section className="editor-section">
                   <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
                     <h2>日常状态与照片</h2>
-                    <InfoTooltip text="首张照片为默认常驻姿态。可按需分配打瞌睡、安睡或专注等专属照片。" />
+                    <InfoTooltip text="首张照片为默认常驻姿态，可按需分配打瞌睡、安睡或专注等状态照片。" />
                   </div>
                   <LifeStateEditor
                     petId={selectedPet.id}
@@ -756,8 +756,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <section className="editor-section">
                   <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                    <h2>情境照片分配</h2>
-                    <InfoTooltip text="为平时漫步和定时休息分别指定照片。未指定时将使用默认姿态。" />
+                    <h2>场景照片</h2>
+                    <InfoTooltip text="平时漫步与定时休息展示的照片。未选时使用默认姿态。" />
                   </div>
                   <ActionSlotEditor
                     petId={selectedPet.id}
@@ -770,7 +770,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <details className="editor-disclosure">
-                  <summary>精细调整（尺寸、站立脚底线与头部抚摸感应区）</summary>
+                  <summary>姿态微调（缩放、脚底对齐与摸头区域）</summary>
                   <div className="asset-editor-list">
                     {selectedPet.assets.map((asset) => {
                       const adjustment = draft.assets.find(
@@ -810,7 +810,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     })}
                     {selectedPet.assets.length === 0 && (
                       <p className="empty-editor-state">
-                        暂无照片。点击上方“导入照片”开始。
+                        暂无照片，请先导入照片。
                       </p>
                     )}
                   </div>
@@ -837,7 +837,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               </>
             ) : (
               <div className="empty-editor-state">
-                请在左侧选择一个伙伴，或点击下方添加新伙伴。
+                请选择或新建一个伙伴。
               </div>
             )}
           </section>
@@ -894,7 +894,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <div className="reminder-list">
                 {restSnapshot.reminders.length === 0 ? (
                   <p className="empty-editor-state">
-                    暂无休息提醒。需要规律作息时点击右上角添加。
+                    暂无休息提醒。
                   </p>
                 ) : (
                   restSnapshot.reminders.map((reminder) => (
@@ -958,9 +958,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <div>
                 <div className="heading-with-tooltip">
                   <h2>桌面显示</h2>
-                  <InfoTooltip text="隐藏后伙伴视窗暂停渲染与动效，可随时从系统托盘唤出。" />
+                  <InfoTooltip text="隐藏后伙伴暂时离开桌面，可随时从系统托盘唤出。" />
                 </div>
-                <p className="supporting-copy">在电脑桌面上展示活动伙伴视窗</p>
+                <p className="supporting-copy">在桌面上显示伙伴</p>
               </div>
               <label className="toggle-control" style={{ marginBottom: 0 }}>
                 <input
@@ -1010,9 +1010,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           </article>
           {petRendererStatus?.state === "safe-mode" && (
             <article className="settings-card recovery-card">
-              <h2>伙伴视窗恢复</h2>
+              <h2>伙伴窗口恢复</h2>
               <p className="supporting-copy">
-                伙伴视窗因屏幕分辨率调整或系统渲染异常暂停重试。设置与提醒仍正常运行。
+                受屏幕分辨率或系统渲染影响暂时停用，设置与提醒仍正常运行。
               </p>
               <button
                 type="button"
@@ -1020,7 +1020,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 disabled={isBusy}
                 onClick={retryPetRenderer}
               >
-                重新唤醒伙伴视窗
+                恢复伙伴窗口
               </button>
             </article>
           )}
