@@ -11,7 +11,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset)
   const currentRef = useRef(asset)
-  const [phase, setPhase] = useState<'idle' | 'covering' | 'revealing'>('idle')
+  const [outgoing, setOutgoing] = useState<PetAsset | null>(null)
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([])
   const completionRef = useRef(onTransitionComplete)
   const desiredUrl = useMemo(() => petAssetUrl(petId, asset.id), [asset.id, petId])
@@ -34,7 +34,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
     if (asset.id === currentRef.current.id) {
       currentRef.current = asset
       setCurrent(asset)
-      setPhase('idle')
+      setOutgoing(null)
       completionRef.current?.(asset.id)
       return
     }
@@ -43,21 +43,17 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
     const image = new Image()
     image.onload = () => {
       if (cancelled) return
-      setPhase('covering')
+      const previous = currentRef.current
+      setOutgoing(previous)
+      currentRef.current = asset
+      setCurrent(asset)
       timers.current.push(setTimeout(() => {
         if (cancelled) return
-        currentRef.current = asset
-        setCurrent(asset)
-        setPhase('revealing')
-        timers.current.push(setTimeout(() => {
-          if (cancelled) return
-          setPhase('idle')
-          completionRef.current?.(asset.id)
-        }, 280))
-      }, 220))
+        setOutgoing(null)
+        completionRef.current?.(asset.id)
+      }, 400))
     }
     image.onerror = () => {
-      // Preserve the last successfully loaded photo.
       if (!cancelled) completionRef.current?.(currentRef.current.id)
     }
     image.src = desiredUrl
@@ -76,15 +72,45 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
     clearTimers()
     currentRef.current = fallbackAsset
     setCurrent(fallbackAsset)
-    setPhase('idle')
+    setOutgoing(null)
   }
 
-  const geometry = computeAssetGeometry(current, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
+  const currentGeometry = computeAssetGeometry(current, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
+  const outgoingGeometry = outgoing
+    ? computeAssetGeometry(outgoing, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
+    : null
+
   return (
     <>
+      {outgoing && outgoingGeometry && (
+        <span
+          className="pet-image-frame photo-cross-outgoing"
+          style={{
+            left: outgoingGeometry.left,
+            top: outgoingGeometry.top,
+            width: outgoingGeometry.renderedWidth,
+            height: outgoingGeometry.renderedHeight,
+            zIndex: 1
+          }}
+          aria-hidden="true"
+        >
+          <img
+            className="pet-image"
+            draggable={false}
+            src={petAssetUrl(petId, outgoing.id)}
+            alt=""
+          />
+        </span>
+      )}
       <span
-        className={`pet-image-frame photo-${phase === 'covering' ? 'outgoing' : phase === 'revealing' ? 'incoming' : 'idle'}`}
-        style={{ left: geometry.left, top: geometry.top, width: geometry.renderedWidth, height: geometry.renderedHeight }}
+        className={`pet-image-frame ${outgoing ? 'photo-cross-incoming' : 'photo-idle'}`}
+        style={{
+          left: currentGeometry.left,
+          top: currentGeometry.top,
+          width: currentGeometry.renderedWidth,
+          height: currentGeometry.renderedHeight,
+          zIndex: 2
+        }}
       >
         <img
           className="pet-image"
@@ -94,11 +120,6 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
           onError={handleCurrentLoadFailure}
         />
       </span>
-      {phase !== 'idle' && (
-        <span className="photo-veil veil-clouds" aria-hidden="true">
-          {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
-        </span>
-      )}
     </>
   )
 }

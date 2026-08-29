@@ -8,6 +8,7 @@ interface UsePetInteractionsOptions {
   visible: boolean
   angryVelocity: number
   onAngry?: (finishAction: () => void) => void
+  onLand?: () => void
   onPrimaryClick(): void
   onDragStarted?(): void
   onLocalPointerMove?(event: PointerEvent<HTMLElement>): void
@@ -26,6 +27,7 @@ export function usePetInteractions({
   visible,
   angryVelocity,
   onAngry,
+  onLand,
   onPrimaryClick,
   onDragStarted,
   onLocalPointerMove,
@@ -112,6 +114,7 @@ export function usePetInteractions({
     if (session.moved) setTimeout(() => { suppressClick.current = false }, 0)
     setState((current) => transitionPetState(current, { type: 'drag-release', angry }))
     if (angry) onAngry?.(finishAction)
+    else if (session.moved) onLand?.()
   }
 
   const onClick = (): void => {

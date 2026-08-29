@@ -27,6 +27,9 @@ import { DIALOGUES } from '../dialogues/dialogue-library'
 import { useDialogue } from '../dialogues/use-dialogue'
 import { PhotoTransition } from '../components/PhotoTransition'
 
+const CLICK_ACTION_VARIANTS: readonly ActionTemplate[] = ['bounce', 'curious-tilt', 'wiggle', 'nod']
+const PETTING_ACTION_VARIANTS: readonly ActionTemplate[] = ['petting-sink', 'nuzzle', 'purr-swell']
+
 interface PetShellProps { api: RestSystemApi }
 
 export function PetShell({ api }: PetShellProps): React.JSX.Element {
@@ -148,12 +151,12 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       }
       return
     }
-    if (lifeState === 'daily-calm') {
-      showDialogue('daily:click', DIALOGUES.dailyClick)
-      performCurrentPhotoAction('bounce', 750)
-    } else if (lifeState === 'daily-playful') {
-      showDialogue('playful:click', DIALOGUES.playfulClick)
-      performCurrentPhotoAction('bounce', 850)
+    if (lifeState === 'daily-calm' || lifeState === 'daily-playful') {
+      const dialogueKey = lifeState === 'daily-calm' ? 'daily:click' : 'playful:click'
+      const dialogueList = lifeState === 'daily-calm' ? DIALOGUES.dailyClick : DIALOGUES.playfulClick
+      showDialogue(dialogueKey, dialogueList)
+      const variant = CLICK_ACTION_VARIANTS[Math.floor(Math.random() * CLICK_ACTION_VARIANTS.length)]!
+      performCurrentPhotoAction(variant, variant === 'nod' ? 720 : 600)
     } else if (lifeState === 'drowsy') {
       showDialogue('drowsy:click', DIALOGUES.drowsyClick)
       performCurrentPhotoAction('nod', 800)
@@ -171,7 +174,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       performCurrentPhotoAction('gentle-breathe', 900)
     } else if (lifeState === 'daily-calm' || lifeState === 'daily-playful') {
       showDialogue('daily:petting', DIALOGUES.dailyPetting)
-      performCurrentPhotoAction('scale-nod', activePet.actionTemplates.pettingDurationMs)
+      const variant = PETTING_ACTION_VARIANTS[Math.floor(Math.random() * PETTING_ACTION_VARIANTS.length)]!
+      performCurrentPhotoAction(variant, activePet.actionTemplates.pettingDurationMs)
     } else if (lifeState === 'drowsy') {
       showDialogue('drowsy:petting', DIALOGUES.drowsyPetting)
       performCurrentPhotoAction('scale-nod', 900)
@@ -215,6 +219,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       performCurrentPhotoAction('fast-shake', activePet?.actionTemplates.angryDurationMs ?? 1_040)
       finish()
     },
+    onLand: () => {
+      performCurrentPhotoAction('land', 380)
+    },
     onPrimaryClick: handlePrimaryClick,
     onDragStarted: () => {
       wakeSequence.current.reset()
@@ -233,7 +240,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (lifeState === 'sleeping' || lifeState === 'working' || reducedMotion) {
       performCurrentPhotoAction('gentle-breathe', 1_600)
     } else if (lifeState === 'drowsy') {
-      performCurrentPhotoAction(Math.random() < 0.5 ? 'gentle-breathe' : 'nod', 1_200)
+      const roll = Math.random()
+      if (roll < 0.45) performCurrentPhotoAction('drowsy-catch', 1_600)
+      else if (roll < 0.75) performCurrentPhotoAction('nod', 900)
+      else performCurrentPhotoAction('gentle-breathe', 1_600)
     } else {
       const templates: ActionTemplate[] = ['gentle-breathe', 'nod', 'sway']
       performCurrentPhotoAction(templates[Math.floor(Math.random() * templates.length)]!, 1_200)
