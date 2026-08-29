@@ -406,6 +406,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const startRest = (): void => { if (prompt) void api.startPromptedRest(prompt.occurrenceId).then(setRestSnapshot).catch(() => undefined) }
   const snooze = (minutes: 5 | 10 | 15): void => { if (prompt) void api.snoozePrompt(prompt.occurrenceId, minutes).then(setRestSnapshot).catch(() => undefined) }
+  const skipRest = (): void => { if (prompt) void api.skipPrompt(prompt.occurrenceId).then(setRestSnapshot).catch(() => undefined) }
   const endRest = (): void => { void api.endRestSession().then(setRestSnapshot).catch(() => undefined) }
 
   return (
@@ -447,7 +448,11 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       {prompt && (
         <section className="rest-bubble" role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
-          <div className="rest-actions"><button type="button" onClick={startRest}>开始休息</button>{([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>稍后 {minutes} 分钟</button>)}</div>
+          <div className="rest-actions">
+            <button type="button" onClick={startRest}>开始休息</button>
+            {([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>稍后 {minutes} 分钟</button>)}
+            <button type="button" onClick={skipRest}>跳过</button>
+          </div>
         </section>
       )}
       {session && (

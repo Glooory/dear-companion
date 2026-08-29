@@ -33,6 +33,7 @@ export const IPC_CHANNELS = {
   retryReminderService: 'rest-system:retry-service',
   startPromptedRest: 'rest-system:start-prompted-rest',
   snoozePrompt: 'rest-system:snooze-prompt',
+  skipPrompt: 'rest-system:skip-prompt',
   endRestSession: 'rest-system:end-session',
   importAudio: 'rest-system:import-audio',
   updateAudioSources: 'rest-system:update-audio-sources',

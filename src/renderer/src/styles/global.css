@@ -781,8 +781,8 @@ textarea:focus-visible {
 .hotspot-disable {
   position: absolute;
   z-index: 5;
+  top: 8px;
   right: 8px;
-  bottom: 8px;
   padding: 5px 8px;
   border: 1px solid #b8cbc4;
   border-radius: 7px;
@@ -792,6 +792,11 @@ textarea:focus-visible {
   font-size: 0.72rem;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(45, 42, 38, 0.08);
+}
+
+.hotspot-disable:hover {
+  background: #ffffff;
+  border-color: #2f5c4f;
 }
 
 .head-hotspot {

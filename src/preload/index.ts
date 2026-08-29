@@ -63,6 +63,7 @@ const api: ReleaseHardeningApi = {
   retryReminderService: () => ipcRenderer.invoke(IPC_CHANNELS.retryReminderService),
   startPromptedRest: (occurrenceId) => ipcRenderer.invoke(IPC_CHANNELS.startPromptedRest, occurrenceId),
   snoozePrompt: (occurrenceId, minutes) => ipcRenderer.invoke(IPC_CHANNELS.snoozePrompt, occurrenceId, minutes),
+  skipPrompt: (occurrenceId) => ipcRenderer.invoke(IPC_CHANNELS.skipPrompt, occurrenceId),
   endRestSession: () => ipcRenderer.invoke(IPC_CHANNELS.endRestSession),
   chooseAndImportAudio: () => ipcRenderer.invoke(IPC_CHANNELS.importAudio),
   updateAudioSources: (input) => ipcRenderer.invoke(IPC_CHANNELS.updateAudioSources, input),

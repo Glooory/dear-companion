@@ -126,6 +126,12 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
       dependencies.scheduler.snooze(occurrenceId, minutes)
       return broadcast()
     })
+    handle(IPC_CHANNELS.skipPrompt, async (event, occurrenceIdValue: unknown) => {
+      requirePet(event.sender.id)
+      const occurrenceId = parseOccurrenceId(occurrenceIdValue)
+      dependencies.scheduler.resolvePrompt(occurrenceId)
+      return broadcast()
+    })
     handle(IPC_CHANNELS.endRestSession, async (event) => {
       requirePet(event.sender.id)
       if (!dependencies.restController.getSnapshot().session) throw new Error('No rest session is active')

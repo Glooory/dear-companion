@@ -406,6 +406,7 @@ export interface RestSystemApi extends CompanionSystemApi {
   retryReminderService(): Promise<RestSystemSnapshot>
   startPromptedRest(occurrenceId: string): Promise<RestSystemSnapshot>
   snoozePrompt(occurrenceId: string, minutes: 5 | 10 | 15): Promise<RestSystemSnapshot>
+  skipPrompt(occurrenceId: string): Promise<RestSystemSnapshot>
   endRestSession(): Promise<RestSystemSnapshot>
   chooseAndImportAudio(): Promise<AudioImportResult>
   updateAudioSources(input: AudioSourceInput): Promise<RestSystemSnapshot>

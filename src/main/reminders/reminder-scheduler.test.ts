@@ -142,4 +142,34 @@ describe('ReminderScheduler', () => {
     expect(errors).toHaveBeenCalledTimes(1)
     expect(JSON.stringify(errors.mock.calls)).not.toContain('private path')
   })
+
+  it('skips active prompt when resolved without affecting future schedule', async () => {
+    let now = new Date(2026, 0, 5, 9, 29).getTime()
+    let timer: (() => void) | null = null
+    const prompts = vi.fn()
+    const dismissed = vi.fn()
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [schedule()],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => { timer = callback; return 1 as unknown as ReturnType<typeof setTimeout> },
+      clearTimeout: () => { timer = null },
+      isRestActive: () => false,
+      onPrompt: prompts,
+      onPromptDismissed: dismissed
+    })
+    await scheduler.start()
+    now = new Date(2026, 0, 5, 9, 30).getTime(); timer!()
+    expect(prompts).toHaveBeenCalledTimes(1)
+    const occurrenceId = prompts.mock.calls[0]![0].occurrenceId
+    expect(scheduler.getActivePrompt()?.occurrenceId).toBe(occurrenceId)
+
+    scheduler.resolvePrompt(occurrenceId)
+    expect(dismissed).toHaveBeenCalledWith(occurrenceId)
+    expect(scheduler.getActivePrompt()).toBeNull()
+
+    timer!()
+    expect(prompts).toHaveBeenCalledTimes(1)
+  })
 })
