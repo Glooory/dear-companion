@@ -841,8 +841,16 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.behavior-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+
 .slot-card,
-.life-state-card {
+.life-state-card,
+.behavior-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -855,14 +863,6 @@ textarea:focus-visible {
   border-radius: 12px;
   background: #ffffff;
   box-sizing: border-box;
-}
-
-.life-card-control-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 2px;
 }
 
 .slot-selected-stage {
@@ -960,15 +960,6 @@ textarea:focus-visible {
   background: #c9342e;
   border-color: #c9342e;
   color: #ffffff;
-}
-
-.slot-fallback-text {
-  display: inline-flex;
-  align-items: center;
-  min-height: 72px;
-  font-size: 0.8rem;
-  color: #8c867d;
-  text-align: left;
 }
 
 .slot-action-btn {

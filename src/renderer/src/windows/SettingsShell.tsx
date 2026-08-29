@@ -23,10 +23,9 @@ import {
 } from "@shared/contracts";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ActionSlotEditor } from "../components/ActionSlotEditor";
 import { AudioSettings } from "../components/AudioSettings";
+import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
-import { LifeStateEditor } from "../components/LifeStateEditor";
 import { PetGalleryManager } from "../components/PetGalleryManager";
 import {
   ReminderEditor,
@@ -818,30 +817,19 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <section className="editor-section">
                   <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                    <h2>日常状态与照片</h2>
-                    <InfoTooltip text="按需为打瞌睡、安睡或专注状态分配不同的照片。" />
+                    <h2>日常姿态与场景</h2>
+                    <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
                   </div>
-                  <LifeStateEditor
-                    petId={selectedPet.id}
-                    assets={selectedPet.assets}
-                    value={draft.lifeStates}
-                    onChange={(lifeStates) =>
-                      setDraft({ ...draft, lifeStates })
-                    }
-                  />
-                </section>
-
-                <section className="editor-section">
-                  <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                    <h2>场景照片</h2>
-                    <InfoTooltip text="平时漫步与定时休息展示的照片。未指定时沿用平时陪伴照片。" />
-                  </div>
-                  <ActionSlotEditor
+                  <CompanionBehaviorEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
                     slots={draft.actionSlots}
-                    onChange={(actionSlots) =>
+                    lifeStates={draft.lifeStates}
+                    onSlotsChange={(actionSlots) =>
                       setDraft({ ...draft, actionSlots })
+                    }
+                    onLifeStatesChange={(lifeStates) =>
+                      setDraft({ ...draft, lifeStates })
                     }
                   />
                 </section>
