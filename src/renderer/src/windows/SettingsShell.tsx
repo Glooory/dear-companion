@@ -61,6 +61,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [isBusy, setIsBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [targetHeightText, setTargetHeightText] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "pets" | "rest" | "work" | "system"
   >("pets");
@@ -241,6 +242,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     });
   };
 
+  const selectPet = (pet: PetConfig): void => {
+    if (pet.id === selectedPetId) return;
+    setSelectedPetId(pet.id);
+    setDraft(petToUpdateInput(pet));
+    setTargetHeightText(String(pet.targetHeight));
+    setImportReport(null);
+  };
+
   const saveDraft = (): void => {
     if (!draft) return;
     const targetHeight = normalizeTargetHeight(targetHeightText);
@@ -261,29 +270,33 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         setDraft(petToUpdateInput(nextPet));
         setTargetHeightText(String(nextPet.targetHeight));
       }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     });
   };
 
-  const activateDraft = (): void => {
-    if (!draft || draft.actionSlots.idle.length === 0) return;
-    const targetHeight = normalizeTargetHeight(targetHeightText);
-    if (targetHeight === null) {
-      setError(
-        `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
-      );
-      return;
-    }
-    const input = { ...draft, targetHeight };
-    setDraft(input);
-    setTargetHeightText(String(targetHeight));
+  const switchActivePet = (petId: string): void => {
     void runMutation(async () => {
-      await api.updatePet(input);
-      const next = await api.setActivePet(input.id);
+      if (draft && draft.id === petId) {
+        const targetHeight = normalizeTargetHeight(targetHeightText);
+        if (targetHeight === null) {
+          setError(
+            `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
+          );
+          return;
+        }
+        const input = { ...draft, targetHeight };
+        setDraft(input);
+        setTargetHeightText(String(targetHeight));
+        await api.updatePet(input);
+      }
+      const next = await api.setActivePet(petId);
       setSnapshot(next);
-      const nextPet = next.pets.find((pet) => pet.id === input.id);
-      if (nextPet) {
-        setDraft(petToUpdateInput(nextPet));
-        setTargetHeightText(String(nextPet.targetHeight));
+      const targetPet = next.pets.find((pet) => pet.id === petId);
+      if (targetPet) {
+        setSelectedPetId(targetPet.id);
+        setDraft(petToUpdateInput(targetPet));
+        setTargetHeightText(String(targetPet.targetHeight));
       }
       setSettings((current) =>
         current
@@ -512,20 +525,42 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             <h2>伙伴列表</h2>
             <div className="pet-list">
               {snapshot.pets.map((pet) => (
-                <button
-                  type="button"
+                <div
                   key={pet.id}
-                  className={pet.id === selectedPetId ? "selected" : ""}
-                  onClick={() => {
-                    setSelectedPetId(pet.id);
-                    setDraft(petToUpdateInput(pet));
-                    setTargetHeightText(String(pet.targetHeight));
-                    setImportReport(null);
+                  className={`pet-list-item ${pet.id === selectedPetId ? "selected" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => selectPet(pet)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      selectPet(pet);
+                    }
                   }}
                 >
-                  <span>{pet.name}</span>
-                  {pet.id === snapshot.activePetId && <small>使用中</small>}
-                </button>
+                  <span className="pet-list-item-name">{pet.name}</span>
+                  <div className="pet-list-item-actions">
+                    {pet.id === snapshot.activePetId ? (
+                      <span className="pet-active-badge">使用中</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="pet-quick-switch-button"
+                        disabled={isBusy || pet.actionSlots.idle.length === 0}
+                        title={
+                          pet.actionSlots.idle.length === 0
+                            ? "需先导入照片才可设为桌面伙伴"
+                            : "设为桌面伙伴"
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          switchActivePet(pet.id);
+                        }}
+                      >
+                        使用
+                      </button>
+                    )}
+                  </div>
+                </div>
               ))}
               {snapshot.pets.length === 0 && (
                 <p className="supporting-copy">
@@ -556,9 +591,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             {draft && selectedPet ? (
               <>
                 <div className="editor-heading-row">
-                  <div>
+                  <div className="editor-title-wrap">
                     <p className="eyebrow">正在编辑</p>
-                    <h2>{selectedPet.name}</h2>
+                    <div className="editor-title-line">
+                      <h2>{selectedPet.name}</h2>
+                      {snapshot.activePetId === selectedPet.id && (
+                        <span className="pet-active-badge">使用中</span>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -622,24 +662,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     />
                   </label>
                 </div>
-
-                {draft.actionSlots.idle.length > 0 && (
-                  <div className="quick-start-row">
-                    <span>
-                      ✨ 基础照片已配置完成，保存后即可在桌面上陪伴你。
-                    </span>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      disabled={isBusy}
-                      onClick={activateDraft}
-                    >
-                      {snapshot.activePetId === draft.id
-                        ? "保存修改"
-                        : "保存并使用"}
-                    </button>
-                  </div>
-                )}
 
                 <section className="editor-section companion-section">
                   <h2>陪伴节奏与气泡</h2>
@@ -749,26 +771,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </button>
                   <button
                     type="button"
-                    className="secondary-button"
+                    className={`primary-button ${saveSuccess ? "saved" : ""}`}
                     disabled={isBusy}
                     onClick={saveDraft}
                   >
-                    仅保存
-                  </button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={isBusy || draft.actionSlots.idle.length === 0}
-                    title={
-                      draft.actionSlots.idle.length === 0
-                        ? "请先导入一张照片"
-                        : undefined
-                    }
-                    onClick={activateDraft}
-                  >
-                    {snapshot.activePetId === draft.id
-                      ? "保存修改"
-                      : "保存并使用"}
+                    {saveSuccess ? "已保存 ✓" : "保存设置"}
                   </button>
                 </div>
               </>
