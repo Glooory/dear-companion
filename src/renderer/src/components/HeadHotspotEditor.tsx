@@ -41,7 +41,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
     <>
       <div
         className="head-hotspot"
-        title="头部热区：桌面光标在此往返晃动将触发摸头互动"
+        title="抚摸感应区：光标在此区域来回移动可触发摸头互动"
         style={{
           left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
           top: visibleTop + (hotspot.centerY - hotspot.radiusY) * visibleHeight,
@@ -60,7 +60,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
           }} />
         ))}
       </div>
-      {value && <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>恢复默认头部区域</button>}
+      {value && <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>恢复默认区域</button>}
     </>
   )
 }

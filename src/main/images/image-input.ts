@@ -106,7 +106,7 @@ export function validatePetPackSize(currentBytes: number, incomingBytes: number)
     incomingBytes < 0 ||
     currentBytes + incomingBytes > MAX_PET_PACK_BYTES
   ) {
-    throw new ImageInputError('pack-too-large', '单个宠物包不能超过 250 MB')
+    throw new ImageInputError('pack-too-large', '单个伙伴素材包不能超过 250 MB')
   }
 }
 

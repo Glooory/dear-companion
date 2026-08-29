@@ -426,7 +426,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           )}
           {dialogue && !prompt && <span className="pet-dialogue" role="status">{dialogue}</span>}
         </div>
-      ) : <div className="pet-empty-runtime"><button className="pet-empty-button" type="button" onClick={openSettings}>添加宠物</button></div>}
+      ) : <div className="pet-empty-runtime"><button className="pet-empty-button" type="button" onClick={openSettings}>添加伙伴</button></div>}
       {prompt && (
         <section className="rest-bubble" role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
@@ -435,8 +435,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       )}
       {session && (
         <section className={`rest-bubble rest-${session.state}`} role="status">
-          {session.state === 'crying' ? <p>{dialogue ?? '还没休息够。'}</p> :
-            session.state === 'celebrating' ? <p>{dialogue ?? '休息结束。'}</p> :
+          {session.state === 'crying' ? <p>{dialogue ?? '还没有休息够哦。'}</p> :
+            session.state === 'celebrating' ? <p>{dialogue ?? '休息时间结束啦。'}</p> :
             <p>{session.message} · {formatCountdown(remainingSeconds)}</p>}
           {session.state !== 'celebrating' && <button type="button" onClick={endRest}>结束休息</button>}
         </section>

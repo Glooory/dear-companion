@@ -18,7 +18,7 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
   const valid = Boolean(draft && draft.weekdays.length > 0 && !invalidEqual)
   return (
     <article className="settings-card work-schedule-card">
-      <div className="editor-heading-row"><div><h2>专注时段</h2><p className="supporting-copy">到了这些时间，它会安静陪你，不主动走动或说话。</p></div>
+      <div className="editor-heading-row"><div><h2>专注时段</h2><p className="supporting-copy">在专注时段内，伙伴会保持安静，不主动走动或展示气泡。</p></div>
         {!draft && <button type="button" className="primary-button" disabled={disabled} onClick={() => setDraft(freshDraft())}>添加专注时段</button>}
       </div>
       {draft ? (
@@ -46,12 +46,12 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
         </div>
       ) : (
         <div className="work-schedule-list">
-          {schedules.length === 0 && <p className="empty-editor-state">还没有专注时段。设置后宠物会在工作时间内保持安静；也可以随时从右键菜单手动开始。</p>}
+          {schedules.length === 0 && <p className="empty-editor-state">暂无专注时段。设定后伙伴会在此时段内静静陪伴；也可以随时通过右键菜单手动开启。</p>}
           {schedules.map((schedule) => (
             <div className="work-schedule-row" key={schedule.id}>
               <button type="button" className="reminder-summary" onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>
                 <strong>{formatTime(schedule.startHour, schedule.startMinute)}–{formatTime(schedule.endHour, schedule.endMinute)}</strong>
-                <span>{schedule.endHour * 60 + schedule.endMinute < schedule.startHour * 60 + schedule.startMinute ? '跨午夜 · ' : ''}每周 {schedule.weekdays.length} 天</span>
+                <span>{schedule.endHour * 60 + schedule.endMinute < schedule.startHour * 60 + schedule.startMinute ? '跨日 · ' : ''}每周 {schedule.weekdays.length} 天</span>
               </button>
               <label className="toggle-control" style={{ marginBottom: 0 }}>
                 <input type="checkbox" checked={schedule.enabled} disabled={disabled} onChange={() => onToggle(schedule.id, !schedule.enabled)} />

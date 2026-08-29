@@ -22,7 +22,7 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
     <div className="life-state-grid">
       <LifeGroup
         title="🥱 困倦打瞌睡"
-        description="如打哈欠或揉眼。选中后即可开启自主困倦。"
+        description="如打哈欠或揉眼。配置后会在空闲时自然打瞌睡。"
         petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
@@ -32,7 +32,7 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
       />
       <LifeGroup
         title="😴 安睡打盹"
-        description="如闭眼或卧躺。开启后可在工作之余自主小憩。"
+        description="如闭眼或卧躺。开启后可在合适时段安静小憩。"
         petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
@@ -41,8 +41,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, sleeping: { ...value.sleeping, enabled } })}
       />
       <LifeGroup
-        title="💼 专注陪伴"
-        description="进入专注时段时的专属模样，缺失时自动沿用日常照片。"
+        title="💼 专注工作"
+        description="进入专注时段的专属模样。未指定时自动沿用默认照片。"
         petId={petId}
         assets={assets}
         selected={value.workingAssetIds}
@@ -69,7 +69,7 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
       {onEnabled && (
         <label className="toggle-control compact-toggle">
           <input type="checkbox" checked={Boolean(enabled)} disabled={selected.length === 0} onChange={(event) => onEnabled(event.currentTarget.checked)} />
-          <span>使用这组照片</span>
+          <span>开启该状态</span>
         </label>
       )}
       <div className="asset-choice-list">
@@ -82,7 +82,7 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
             onChange={() => onToggle(asset.id)}
           />
         ))}
-        {assets.length === 0 && <span className="supporting-copy">先导入照片</span>}
+        {assets.length === 0 && <span className="supporting-copy">请先导入照片</span>}
       </div>
     </fieldset>
   )

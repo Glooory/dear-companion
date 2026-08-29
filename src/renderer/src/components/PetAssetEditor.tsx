@@ -61,9 +61,9 @@ export function PetAssetEditor({
         <span
           className="asset-baseline"
           role="slider"
-          aria-label="脚底对齐基准线"
+          aria-label="脚底站立基准线"
           aria-valuenow={normalization.baselineOffset}
-          title="按住上下拖拽调整脚底对齐"
+          title="按住上下拖拽调整脚底站立线"
           onPointerDown={handleBaselinePointerDown}
         />
         <img
@@ -88,7 +88,7 @@ export function PetAssetEditor({
       <div className="asset-editor-details">
         <h3>照片 {asset.id.slice(0, 8)}</h3>
         <p className="asset-metadata">
-          {asset.format.toUpperCase()} · 原图 {asset.width}×{asset.height} px · 有效人物区域 {asset.alphaBounds.width}×{asset.alphaBounds.height} px
+          {asset.format.toUpperCase()} · 原图 {asset.width}×{asset.height} 像素 · 主体范围 {asset.alphaBounds.width}×{asset.alphaBounds.height} 像素
         </p>
         <div className="normalization-grid">
           <div className="slider-field">
@@ -100,7 +100,7 @@ export function PetAssetEditor({
                 style={{ padding: '2px 7px', fontSize: '0.75rem' }}
                 onClick={() => update('scale', 1.0)}
               >
-                重置 1.0×
+                恢复 1.0×
               </button>
             </div>
             <div className="slider-row">
@@ -116,9 +116,9 @@ export function PetAssetEditor({
             </div>
           </div>
 
-          <NumberControl label="水平对齐 (X)" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
-          <NumberControl label="垂直对齐 (Y)" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(val) => update('offsetY', val)} />
-          <NumberControl label="脚底基线高度" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
+          <NumberControl label="水平位移 (X)" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
+          <NumberControl label="垂直位移 (Y)" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(val) => update('offsetY', val)} />
+          <NumberControl label="脚底基准线" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
         </div>
       </div>
     </article>

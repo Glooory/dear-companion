@@ -122,7 +122,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const createPet = (): void => {
     const name = newPetName.trim()
     if (!name || name.length > 80) {
-      setError('请给宠物起个名字，最多 80 个字。')
+      setError('请为伙伴起一个名字（最多 80 个字）。')
       return
     }
     void runMutation(async () => {
@@ -333,10 +333,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       <header className="settings-header">
         <p className="eyebrow">
           <span aria-hidden="true">✦</span>
-          <span>只属于这台电脑的桌面伙伴</span>
+          <span>桌面伙伴</span>
         </p>
         <h1>Dear Companion</h1>
-        <p className="supporting-copy">导入透明背景照片，打造低打扰、懂休息、会回应的桌面陪伴。</p>
+        <p className="supporting-copy">导入透明背景照片，让可爱的它在桌角静静陪伴你。</p>
       </header>
 
       {error && (
@@ -386,8 +386,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
       {activeTab === 'pets' && settings && snapshot && (
         <div className="settings-tab-content pet-settings-layout">
-          <aside className="pet-list-panel" aria-label="宠物列表">
-            <h2>宠物列表</h2>
+          <aside className="pet-list-panel" aria-label="伙伴列表">
+            <h2>伙伴列表</h2>
             <div className="pet-list">
               {snapshot.pets.map((pet) => (
                 <button
@@ -402,13 +402,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   }}
                 >
                   <span>{pet.name}</span>
-                  {pet.id === snapshot.activePetId && <small>在桌面上</small>}
+                  {pet.id === snapshot.activePetId && <small>使用中</small>}
                 </button>
               ))}
-              {snapshot.pets.length === 0 && <p className="supporting-copy">先起个名字，再导入一张照片。</p>}
+              {snapshot.pets.length === 0 && <p className="supporting-copy">起个名字，然后导入第一张照片吧。</p>}
             </div>
             <label className="new-pet-control">
-              <span>新建宠物名称</span>
+              <span>新伙伴名称</span>
               <input
                 value={newPetName}
                 maxLength={80}
@@ -416,7 +416,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 onChange={(event) => setNewPetName(event.currentTarget.value)}
               />
             </label>
-            <button type="button" className="primary-button" disabled={isBusy} onClick={createPet}>创建新宠物</button>
+            <button type="button" className="primary-button" disabled={isBusy} onClick={createPet}>添加伙伴</button>
           </aside>
 
           <section className="pet-editor-panel">
@@ -424,7 +424,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <>
                 <div className="editor-heading-row">
                   <div>
-                    <p className="eyebrow">正在配置</p>
+                    <p className="eyebrow">正在编辑</p>
                     <h2>{selectedPet.name}</h2>
                   </div>
                   <button type="button" className="secondary-button" disabled={isBusy} onClick={importAssets}>
@@ -443,7 +443,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <div className="pet-basic-fields">
                   <label>
-                    <span>宠物名称</span>
+                    <span>伙伴名称</span>
                     <input
                       value={draft.name}
                       maxLength={80}
@@ -451,7 +451,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     />
                   </label>
                   <label>
-                    <span>桌面显示高度 (80–260 px)</span>
+                    <span>显示高度 (80–260 像素)</span>
                     <input
                       type="number"
                       min={80}
@@ -477,15 +477,15 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 {draft.actionSlots.idle.length > 0 && (
                   <div className="quick-start-row">
-                    <span>✨ 已具备日常陪伴照片，其他动作与细节可随时调整。</span>
+                    <span>✨ 基础照片已配置完成，保存后即可在桌面上陪伴你。</span>
                     <button type="button" className="primary-button" disabled={isBusy} onClick={activateDraft}>
-                      {snapshot.activePetId === draft.id ? '保存并使用' : '保存并换成它'}
+                      {snapshot.activePetId === draft.id ? '保存修改' : '保存并使用'}
                     </button>
                   </div>
                 )}
 
                 <section className="editor-section companion-section">
-                  <h2>陪伴方式与节奏</h2>
+                  <h2>活动节奏与气泡</h2>
                   <CompanionPreferences
                     pace={draft.companionPace}
                     bubblesEnabled={draft.interactionBubblesEnabled}
@@ -496,8 +496,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>生活状态与照片</h2>
-                  <p className="supporting-copy">导入的第一张照片已自动设为平时陪伴。其他状态为可选。</p>
+                  <h2>日常状态与照片</h2>
+                  <p className="supporting-copy">首张照片已作为默认姿态。其他状态可按需添加。</p>
                   <LifeStateEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
@@ -507,8 +507,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>更多动作照片</h2>
-                  <p className="supporting-copy">都是可选的。没有专门的照片也没关系，它会用平时的样子陪你动一动。</p>
+                  <h2>特殊动作照片</h2>
+                  <p className="supporting-copy">可选配置。未指定单独照片时，将以默认姿态做相应动作。</p>
                   <ActionSlotEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
@@ -518,8 +518,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <details className="editor-disclosure">
-                  <summary>调整照片尺寸、基线与摸头区域</summary>
-                  <p className="supporting-copy">可微调缩放、水平位置、脚底对齐线及头部抚摸感应区。原始照片副本保持不变。</p>
+                  <summary>精细调整（尺寸、位置与抚摸感应区）</summary>
+                  <p className="supporting-copy">微调大小、站立脚底线和头部感应区。不会修改原图。</p>
                   <div className="asset-editor-list">
                     {selectedPet.assets.map((asset) => {
                       const adjustment = draft.assets.find((entry) => entry.id === asset.id)
@@ -543,12 +543,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                         />
                       )
                     })}
-                    {selectedPet.assets.length === 0 && <p className="empty-editor-state">还没有照片。点击上方“导入照片”开始。</p>}
+                    {selectedPet.assets.length === 0 && <p className="empty-editor-state">暂无照片。点击上方“导入照片”开始。</p>}
                   </div>
                 </details>
 
                 <div className="editor-actions">
-                  <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>删除宠物</button>
+                  <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>删除伙伴</button>
                   <button type="button" className="secondary-button" disabled={isBusy} onClick={saveDraft}>仅保存</button>
                   <button
                     type="button"
@@ -557,12 +557,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     title={draft.actionSlots.idle.length === 0 ? '请先导入一张照片' : undefined}
                     onClick={activateDraft}
                   >
-                    {snapshot.activePetId === draft.id ? '保存并使用' : '保存并换成它'}
+                    {snapshot.activePetId === draft.id ? '保存修改' : '保存并使用'}
                   </button>
                 </div>
               </>
             ) : (
-              <div className="empty-editor-state">从左侧选择一个宠物，或先创建一个新宠物。</div>
+              <div className="empty-editor-state">请在左侧选择一个伙伴，或点击下方添加新伙伴。</div>
             )}
           </section>
         </div>
@@ -574,7 +574,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             <div className="editor-heading-row">
               <div>
                 <h2>休息提醒计划</h2>
-                <p className="supporting-copy">按设定的时间邀请你站起来活动或喝水。默认不会打扰你。</p>
+                <p className="supporting-copy">按设定的时间提醒起身活动或喝水。默认保持静音，不打扰工作。</p>
               </div>
               {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加休息提醒</button>}
             </div>
@@ -596,7 +596,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             ) : (
               <div className="reminder-list">
                 {restSnapshot.reminders.length === 0 ? (
-                  <p className="empty-editor-state">还没有休息提醒。需要养成健康作息时点击上方按钮添加。</p>
+                  <p className="empty-editor-state">暂无休息提醒。需要养成规律作息时点击右上角添加。</p>
                 ) : (
                   restSnapshot.reminders.map((reminder) => (
                     <div className="reminder-row" key={reminder.id}>
@@ -634,8 +634,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       {activeTab === 'system' && settings && (
         <section className="settings-tab-content settings-sections">
           <article className="settings-card">
-            <h2>桌面宠物显示</h2>
-            <p className="supporting-copy">隐藏后宠物窗口将暂停动效，可以通过系统托盘随时唤出。</p>
+            <h2>桌面显示</h2>
+            <p className="supporting-copy">隐藏后视窗将暂停渲染与动效，可随时从系统托盘唤出。</p>
             <label className="toggle-control">
               <input
                 type="checkbox"
@@ -643,7 +643,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 disabled={isBusy}
                 onChange={updatePetVisibility}
               />
-              <span>在桌面上显示宠物伙伴</span>
+              <span>在桌面上显示伙伴</span>
             </label>
           </article>
           <article className="settings-card">
@@ -657,25 +657,25 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     disabled={isBusy || !autostartStatus.supported}
                     onChange={updateAutostart}
                   />
-                  <span>随系统开机自动运行 Dear Companion</span>
+                  <span>开机时自动启动应用</span>
                 </label>
                 {!autostartStatus.supported && (
-                  <p className="supporting-copy">仅安装后的 Windows 与 macOS 正式运行支持；开发调试模式不会写入系统启动项。</p>
+                  <p className="supporting-copy">仅在安装后的正式版本中生效；开发调试模式不会写入系统启动项。</p>
                 )}
                 {autostartStatus.errorCode && (
                   <p className="inline-status-error" role="status">
-                    开机启动没有设置成功（{autostartErrorMessage(autostartStatus.errorCode)}）。原来的设置没有改变。
+                    自启动设置失败（{autostartErrorMessage(autostartStatus.errorCode)}）。原设置保持不变。
                   </p>
                 )}
               </>
-            ) : <p className="supporting-copy">正在读取系统自启动状态…</p>}
+            ) : <p className="supporting-copy">正在读取自启动状态…</p>}
           </article>
           {petRendererStatus?.state === 'safe-mode' && (
             <article className="settings-card recovery-card">
-              <h2>宠物视窗异常恢复</h2>
-              <p className="supporting-copy">宠物窗口由于系统显示器变更或渲染崩溃暂停重试。休息提醒和设置仍然安全可用。</p>
+              <h2>伙伴视窗恢复</h2>
+              <p className="supporting-copy">伙伴视窗因屏幕分辨率调整或系统渲染异常暂停重试。设置与提醒仍正常运行。</p>
               <button type="button" className="secondary-button" disabled={isBusy} onClick={retryPetRenderer}>
-                重新唤醒宠物视窗
+                重新唤醒伙伴视窗
               </button>
             </article>
           )}
@@ -683,7 +683,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       <footer className="privacy-note">
-        🔒 照片、声音和所有设置仅保存在这台电脑本地，完全离线运行，绝不上传任何数据。
+        🔒 所有照片、声音及设置均仅保存在本地设备，完全离线运行，保护隐私。
       </footer>
     </main>
   )

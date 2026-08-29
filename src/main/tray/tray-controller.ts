@@ -86,7 +86,7 @@ export class TrayController {
 
     const menuTemplate: MenuItemConstructorOptions[] = [
       {
-        label: settings.petWindow.visible ? '隐藏宠物' : '显示宠物',
+        label: settings.petWindow.visible ? '隐藏伙伴' : '显示伙伴',
         click: () => {
           void this.setVisibility(!settings.petWindow.visible).catch(() => undefined)
         }

@@ -8,11 +8,11 @@ const CONFIGURABLE_ACTION_SLOTS = [
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
-  idle: '🏠 平时陪伴照片',
-  cute: '✨ 卖萌逗趣',
-  angry: '💢 拖拽太快抗议',
-  crying: '💧 休息偷看提醒',
-  resting: '☕ 休息坐姿'
+  idle: '🏠 默认常驻照片',
+  cute: '✨ 偶尔卖萌',
+  angry: '💢 拖拽过快',
+  crying: '💧 抓包提醒',
+  resting: '☕ 休息模式'
 }
 
 interface ActionSlotEditorProps {
@@ -37,7 +37,7 @@ export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotE
         <fieldset key={slot}>
           <legend>{SLOT_LABELS[slot]}</legend>
           {assets.length === 0 ? (
-            <p className="supporting-copy">先导入照片</p>
+            <p className="supporting-copy">请先导入照片</p>
           ) : assets.map((asset) => (
             <AssetChoice
               key={asset.id}
