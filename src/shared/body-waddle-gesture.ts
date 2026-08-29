@@ -2,7 +2,7 @@ import type { ScreenEllipse } from './contracts'
 
 export interface BodyWaddleRegion {
   visibleRect: { x: number; y: number; width: number; height: number }
-  headEllipse: ScreenEllipse
+  headEllipse: ScreenEllipse | null
 }
 
 export interface BodyPointerSample {
@@ -95,7 +95,7 @@ function isInBodyRegion(sample: BodyPointerSample, region: BodyWaddleRegion): bo
   ) {
     return false
   }
-  if (headEllipse.radiusX <= 0 || headEllipse.radiusY <= 0) return true
+  if (!headEllipse || headEllipse.radiusX <= 0 || headEllipse.radiusY <= 0) return true
   const normalizedX = (sample.x - headEllipse.centerX) / headEllipse.radiusX
   const normalizedY = (sample.y - headEllipse.centerY) / headEllipse.radiusY
   return normalizedX * normalizedX + normalizedY * normalizedY > 1

@@ -27,7 +27,6 @@ export function useBodyWaddleGesture({
     if (!active || !asset) return
     const geometry = computeAssetGeometry(asset, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
     const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
-    if (!headEllipse) return
     const direction = gesture.current.register({
       x: event.clientX,
       y: event.clientY,

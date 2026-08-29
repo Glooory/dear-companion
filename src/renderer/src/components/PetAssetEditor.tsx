@@ -1,6 +1,8 @@
 import type { AssetNormalization, HeadHotspot, PetAsset } from '@shared/contracts'
+import { defaultHeadHotspot } from '@shared/head-hotspot'
 import { computeAssetGeometry } from '@shared/image-normalization'
 import { HeadHotspotEditor } from './HeadHotspotEditor'
+import { InfoTooltip } from './Tooltip'
 
 interface PetAssetEditorProps {
   petId: string
@@ -21,6 +23,32 @@ export function PetAssetEditor({
   onChange,
   onHeadHotspotChange
 }: PetAssetEditorProps): React.JSX.Element {
+  const isHotspotEnabled = headHotspot?.enabled !== false
+  const defaultCoords = defaultHeadHotspot(asset.alphaBounds)
+  const isCustomHotspot = Boolean(
+    headHotspot && (
+      Math.abs(headHotspot.centerX - defaultCoords.centerX) > 0.001 ||
+      Math.abs(headHotspot.centerY - defaultCoords.centerY) > 0.001 ||
+      Math.abs(headHotspot.radiusX - defaultCoords.radiusX) > 0.001 ||
+      Math.abs(headHotspot.radiusY - defaultCoords.radiusY) > 0.001
+    )
+  )
+
+  const handleToggleHotspot = (nextEnabled: boolean): void => {
+    const currentCoords = headHotspot ?? defaultCoords
+    onHeadHotspotChange({
+      ...currentCoords,
+      enabled: nextEnabled
+    })
+  }
+
+  const handleResetHotspot = (): void => {
+    if (isHotspotEnabled) {
+      onHeadHotspotChange(null)
+    } else {
+      onHeadHotspotChange({ ...defaultCoords, enabled: false })
+    }
+  }
   const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, {
     width: 240,
     height: 350,
@@ -119,6 +147,34 @@ export function PetAssetEditor({
           <NumberControl label="水平位移 (X)" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
           <NumberControl label="垂直位移 (Y)" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(val) => update('offsetY', val)} />
           <NumberControl label="脚底对齐线" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
+        </div>
+
+        <div className="hotspot-toggle-row">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label className="toggle-control" style={{ marginBottom: 0 }}>
+              <input
+                type="checkbox"
+                checked={isHotspotEnabled}
+                onChange={(event) => handleToggleHotspot(event.currentTarget.checked)}
+              />
+              <span>摸头感应区</span>
+            </label>
+            <InfoTooltip text="光标在感应区内来回移动可触发摸头互动；关闭后此照片不响应摸头。" />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {!isHotspotEnabled && (
+              <span style={{ fontSize: '0.75rem', color: '#8c877e' }}>未启用</span>
+            )}
+            {isHotspotEnabled && isCustomHotspot && (
+              <button
+                type="button"
+                className="secondary-button compact-button"
+                onClick={handleResetHotspot}
+              >
+                恢复默认区域
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </article>

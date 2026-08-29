@@ -82,6 +82,7 @@ export interface AlphaBounds {
 }
 
 export interface HeadHotspot {
+  enabled?: boolean
   centerX: number
   centerY: number
   radiusX: number
@@ -1292,7 +1293,13 @@ function parseNormalization(value: unknown): AssetNormalization {
 
 export function parseHeadHotspot(value: unknown): HeadHotspot {
   if (!isRecord(value)) throw new Error('Invalid head hotspot')
-  assertExactKeys(value, ['centerX', 'centerY', 'radiusX', 'radiusY'], 'Invalid head hotspot')
+  const hasEnabled = 'enabled' in value
+  if (hasEnabled) {
+    assertExactKeys(value, ['centerX', 'centerY', 'radiusX', 'radiusY', 'enabled'], 'Invalid head hotspot')
+    if (typeof value.enabled !== 'boolean') throw new Error('Invalid head hotspot enabled state')
+  } else {
+    assertExactKeys(value, ['centerX', 'centerY', 'radiusX', 'radiusY'], 'Invalid head hotspot')
+  }
   if (!isFiniteNumberInRange(value.centerX, 0, 1) ||
       !isFiniteNumberInRange(value.centerY, 0, 1) ||
       !isFiniteNumberInRange(value.radiusX, 0.03, 0.5) ||
@@ -1300,6 +1307,7 @@ export function parseHeadHotspot(value: unknown): HeadHotspot {
     throw new Error('Invalid head hotspot')
   }
   return {
+    ...(hasEnabled ? { enabled: value.enabled as boolean } : {}),
     centerX: value.centerX,
     centerY: value.centerY,
     radiusX: value.radiusX,

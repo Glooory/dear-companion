@@ -10,6 +10,7 @@ export function defaultHeadHotspot(alphaBounds: AlphaBounds): HeadHotspot {
 
 export function clampHeadHotspot(hotspot: HeadHotspot): HeadHotspot {
   return {
+    ...(hotspot.enabled !== undefined ? { enabled: hotspot.enabled } : {}),
     centerX: clamp(hotspot.centerX, 0, 1),
     centerY: clamp(hotspot.centerY, 0, 1),
     radiusX: clamp(hotspot.radiusX, 0.03, 0.5),
@@ -22,6 +23,9 @@ export function computeHeadHotspotGeometry(
   targetHeight: number,
   viewport: AssetViewport
 ): ScreenEllipse | null {
+  if (asset.headHotspot?.enabled === false) {
+    return null
+  }
   const geometry = computeAssetGeometry(asset, targetHeight, viewport)
   const hotspot = clampHeadHotspot(asset.headHotspot ?? defaultHeadHotspot(asset.alphaBounds))
   return {

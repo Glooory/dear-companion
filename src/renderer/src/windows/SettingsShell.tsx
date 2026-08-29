@@ -177,8 +177,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     setError(null);
     try {
       await operation();
-    } catch {
-      setError("没有保存成功。原来的设置还在，请再试一次。");
+    } catch (err) {
+      console.error("Mutation failed:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`没有保存成功：${message}`);
     } finally {
       setIsBusy(false);
     }

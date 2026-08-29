@@ -34,14 +34,18 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
     if (current.kind === 'center') { next.centerX += dx; next.centerY += dy }
     if (current.kind === 'left' || current.kind === 'right') next.radiusX += (current.kind === 'right' ? dx : -dx)
     if (current.kind === 'top' || current.kind === 'bottom') next.radiusY += (current.kind === 'bottom' ? dy : -dy)
-    onChange(clampHeadHotspot(next))
+    onChange({ ...clampHeadHotspot(next), enabled: true })
+  }
+
+  if (value?.enabled === false) {
+    return <></>
   }
 
   return (
     <>
       <div
         className="head-hotspot"
-        title="抚摸感应区：光标在此区域来回移动可触发摸头互动"
+        title="摸头感应区：光标在此区域来回移动可触发摸头互动"
         style={{
           left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
           top: visibleTop + (hotspot.centerY - hotspot.radiusY) * visibleHeight,
@@ -52,7 +56,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
         onPointerMove={move}
         onPointerUp={() => { drag.current = null }}
       >
-        <span className="hotspot-guide-label">抚摸感应区</span>
+        <span className="hotspot-guide-label">摸头感应区</span>
         {(['left', 'right', 'top', 'bottom'] as const).map((kind) => (
           <span key={kind} className={`hotspot-handle ${kind}`} onPointerDown={(event) => {
             event.stopPropagation()
@@ -60,7 +64,6 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
           }} />
         ))}
       </div>
-      {value && <button type="button" className="hotspot-disable" onClick={() => onChange(null)}>恢复默认区域</button>}
     </>
   )
 }

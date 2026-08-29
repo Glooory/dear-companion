@@ -15,6 +15,7 @@ import {
   parseAutostartStatus,
   parsePetRendererStatus,
   parseAppSettings,
+  parseHeadHotspot,
   parsePetUpdateInput,
   parseSettingsNavigationTarget,
   type AppSettingsV1,
@@ -359,6 +360,20 @@ describe('settings contracts', () => {
       action: 'new-reminder'
     })
     expect(parseSettingsNavigationTarget({ tab: 'pets' })).toEqual({ tab: 'pets' })
+  })
+
+  it('parses head hotspot with optional enabled flag', () => {
+    const legacy = { centerX: 0.5, centerY: 0.22, radiusX: 0.18, radiusY: 0.18 }
+    expect(parseHeadHotspot(legacy)).toEqual(legacy)
+
+    const disabled = { ...legacy, enabled: false }
+    expect(parseHeadHotspot(disabled)).toEqual(disabled)
+
+    const enabled = { ...legacy, enabled: true }
+    expect(parseHeadHotspot(enabled)).toEqual(enabled)
+
+    expect(() => parseHeadHotspot({ ...legacy, enabled: 'yes' })).toThrow('Invalid head hotspot enabled state')
+    expect(() => parseHeadHotspot({ ...legacy, extra: 1 })).toThrow('Invalid head hotspot')
   })
 })
 

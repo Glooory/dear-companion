@@ -1206,25 +1206,16 @@ textarea:focus-visible {
   border-top-color: #c9342e;
 }
 
-.hotspot-disable {
-  position: absolute;
-  z-index: 5;
-  top: 8px;
-  right: 8px;
-  padding: 5px 8px;
-  border: 1px solid #b8cbc4;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #2f5c4f;
-  cursor: pointer;
-  font-size: 0.72rem;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(45, 42, 38, 0.08);
-}
-
-.hotspot-disable:hover {
+.hotspot-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid #ede8e1;
+  border-radius: 10px;
   background: #ffffff;
-  border-color: #2f5c4f;
 }
 
 .head-hotspot {

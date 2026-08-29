@@ -29,4 +29,22 @@ describe('head hotspot geometry', () => {
       }, 80, { width: 100, height: 100 })
     )
   })
+
+  it('returns null when head hotspot is explicitly disabled', () => {
+    const geometry = computeHeadHotspotGeometry({
+      width: 100, height: 200, alphaBounds: { x: 10, y: 20, width: 80, height: 160 },
+      normalization: { scale: 1, offsetX: 0, offsetY: 0, baselineOffset: 0 },
+      headHotspot: { enabled: false, centerX: 0.5, centerY: 0.25, radiusX: 0.2, radiusY: 0.1 }
+    }, 160, { width: 200, height: 220, baselineY: 200 })
+    expect(geometry).toBeNull()
+  })
+
+  it('computes geometry when head hotspot is explicitly enabled', () => {
+    const geometry = computeHeadHotspotGeometry({
+      width: 100, height: 200, alphaBounds: { x: 10, y: 20, width: 80, height: 160 },
+      normalization: { scale: 1, offsetX: 0, offsetY: 0, baselineOffset: 0 },
+      headHotspot: { enabled: true, centerX: 0.5, centerY: 0.25, radiusX: 0.2, radiusY: 0.1 }
+    }, 160, { width: 200, height: 220, baselineY: 200 })
+    expect(geometry).toEqual({ centerX: 100, centerY: 80, radiusX: 16, radiusY: 16 })
+  })
 })
