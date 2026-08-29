@@ -1,4 +1,5 @@
 import type { AudioImportResult, AudioSettingsV3, AudioSource, AudioSourceInput } from '@shared/contracts'
+import { InfoTooltip } from './Tooltip'
 
 interface Props {
   audio: AudioSettingsV3
@@ -20,9 +21,14 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
   }
   return (
     <article className="settings-card audio-settings">
-      <div className="editor-heading-row"><div><h2>提醒声音</h2><p className="supporting-copy">声音默认保持静音。每条休息提醒可单独开启提示音。</p></div>
+      <div className="editor-heading-row">
+        <div className="heading-with-tooltip">
+          <h2>提醒声音</h2>
+          <InfoTooltip text="声音默认保持静音。每条休息提醒可单独开启提示音。" />
+        </div>
         <button type="button" className="secondary-button" disabled={disabled} onClick={onImport}>导入声音</button>
       </div>
+
       {(['reminder', 'crying'] as const).map((cue) => {
         const source = cue === 'reminder' ? audio.reminderSource : audio.cryingSource
         return <label className="audio-source" key={cue}><span>{cue === 'reminder' ? '休息提醒提示音' : '督促继续休息提示音'}</span><select disabled={disabled} value={source.kind === 'builtin' ? 'builtin' : source.assetId} onChange={(event) => update(cue, event.currentTarget.value)}>

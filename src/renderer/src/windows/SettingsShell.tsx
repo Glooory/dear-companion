@@ -29,6 +29,7 @@ import {
   type ReminderDraft,
 } from "../components/ReminderEditor";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
+import { InfoTooltip } from "../components/Tooltip";
 
 interface SettingsShellProps {
   api: ReleaseHardeningApi;
@@ -49,6 +50,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PetUpdateInput | null>(null);
   const [newPetName, setNewPetName] = useState("");
+  const [isCreatingPet, setIsCreatingPet] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importReport, setImportReport] = useState<ImageImportResult | null>(
     null,
@@ -65,6 +67,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<
     "pets" | "rest" | "work" | "system"
   >("pets");
+
 
   useEffect(() => {
     let cancelled = false;
@@ -192,8 +195,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setDraft(created ? petToUpdateInput(created) : null);
       setTargetHeightText(created ? String(created.targetHeight) : "");
       setNewPetName("");
+      setIsCreatingPet(false);
     });
   };
+
 
   const importAssets = (): void => {
     if (!selectedPetId) return;
@@ -448,15 +453,63 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot
       }
     >
-      <header className="settings-header">
-        <p className="eyebrow">
-          <span aria-hidden="true">✦</span>
-          <span>桌面伙伴</span>
-        </p>
-        <h1>Dear Companion</h1>
-        <p className="supporting-copy">
-          导入透明背景照片，让它在桌角静静陪伴你。
-        </p>
+      <header className="settings-topbar">
+        <div className="settings-brand">
+          <span className="brand-logo-mark" aria-hidden="true">✦</span>
+          <span className="brand-title">Dear Companion</span>
+          <span className="brand-badge">本地离线</span>
+        </div>
+
+        <nav className="settings-nav" aria-label="设置分类">
+          <button
+            type="button"
+            className={`settings-nav-button ${activeTab === "pets" ? "active" : ""}`}
+            onClick={() => setActiveTab("pets")}
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10 14c-2.5 0-4-1.5-4-3.5 0-1.8 1.5-3 4-3s4 1.2 4 3c0 2-1.5 3.5-4 3.5z" />
+              <circle cx="6" cy="5.5" r="1.5" />
+              <circle cx="14" cy="5.5" r="1.5" />
+              <circle cx="3.5" cy="9.5" r="1.3" />
+              <circle cx="16.5" cy="9.5" r="1.3" />
+            </svg>
+            <span>我的伙伴</span>
+          </button>
+          <button
+            type="button"
+            className={`settings-nav-button ${activeTab === "rest" ? "active" : ""}`}
+            onClick={() => setActiveTab("rest")}
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7.5" />
+              <polyline points="10,6 10,10 13,12" />
+            </svg>
+            <span>休息健康</span>
+          </button>
+          <button
+            type="button"
+            className={`settings-nav-button ${activeTab === "work" ? "active" : ""}`}
+            onClick={() => setActiveTab("work")}
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="6" width="14" height="11" rx="2" />
+              <path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3h3A1.5 1.5 0 0 1 13 4.5V6" />
+              <path d="M3 11h14" />
+            </svg>
+            <span>专注时段</span>
+          </button>
+          <button
+            type="button"
+            className={`settings-nav-button ${activeTab === "system" ? "active" : ""}`}
+            onClick={() => setActiveTab("system")}
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="3" />
+              <path d="M16.2 12.3a1 1 0 0 0 .2 1.1l.6.6a1.2 1.2 0 0 1-1.7 1.7l-.6-.6a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.9a1.2 1.2 0 0 1-2.4 0v-.9a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.6.6a1.2 1.2 0 0 1-1.7-1.7l.6-.6a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3.8a1.2 1.2 0 0 1 0-2.4h.9a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.6-.6a1.2 1.2 0 0 1 1.7-1.7l.6.6a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V3.8a1.2 1.2 0 0 1 2.4 0v.9a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.6-.6a1.2 1.2 0 0 1 1.7 1.7l-.6.6a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.9a1.2 1.2 0 0 1 0 2.4h-.9a1 1 0 0 0-.9.6z" />
+            </svg>
+            <span>通用设置</span>
+          </button>
+        </nav>
       </header>
 
       {error && (
@@ -476,53 +529,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </div>
       )}
 
-      <nav className="settings-nav" aria-label="设置分类">
-        <button
-          type="button"
-          className={`settings-nav-button ${activeTab === "pets" ? "active" : ""}`}
-          onClick={() => setActiveTab("pets")}
-        >
-          <span className="settings-nav-icon" aria-hidden="true">
-            🐾
-          </span>
-          <span>我的伙伴</span>
-        </button>
-        <button
-          type="button"
-          className={`settings-nav-button ${activeTab === "rest" ? "active" : ""}`}
-          onClick={() => setActiveTab("rest")}
-        >
-          <span className="settings-nav-icon" aria-hidden="true">
-            ⏰
-          </span>
-          <span>休息健康</span>
-        </button>
-        <button
-          type="button"
-          className={`settings-nav-button ${activeTab === "work" ? "active" : ""}`}
-          onClick={() => setActiveTab("work")}
-        >
-          <span className="settings-nav-icon" aria-hidden="true">
-            💼
-          </span>
-          <span>专注时段</span>
-        </button>
-        <button
-          type="button"
-          className={`settings-nav-button ${activeTab === "system" ? "active" : ""}`}
-          onClick={() => setActiveTab("system")}
-        >
-          <span className="settings-nav-icon" aria-hidden="true">
-            ⚙️
-          </span>
-          <span>通用设置</span>
-        </button>
-      </nav>
-
       {activeTab === "pets" && settings && snapshot && (
         <div className="settings-tab-content pet-settings-layout">
           <aside className="pet-list-panel" aria-label="伙伴列表">
-            <h2>伙伴列表</h2>
+            <div className="panel-header-row">
+              <h2>伙伴列表</h2>
+              <span className="count-pill">{snapshot.pets.length}</span>
+            </div>
+
             <div className="pet-list">
               {snapshot.pets.map((pet) => (
                 <div
@@ -564,27 +578,62 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               ))}
               {snapshot.pets.length === 0 && (
                 <p className="supporting-copy">
-                  起个名字，然后导入第一张照片吧。
+                  暂无伙伴。点击下方按钮添加。
                 </p>
               )}
             </div>
-            <label className="new-pet-control">
-              <span>新伙伴名称</span>
-              <input
-                value={newPetName}
-                maxLength={80}
-                placeholder="例如：宝贝"
-                onChange={(event) => setNewPetName(event.currentTarget.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={isBusy}
-              onClick={createPet}
-            >
-              添加伙伴
-            </button>
+
+            {isCreatingPet ? (
+              <div className="new-pet-form">
+                <input
+                  autoFocus
+                  value={newPetName}
+                  maxLength={80}
+                  placeholder="新伙伴名称"
+                  onChange={(event) => setNewPetName(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") createPet();
+                    if (event.key === "Escape") {
+                      setIsCreatingPet(false);
+                      setNewPetName("");
+                    }
+                  }}
+                />
+                <div className="new-pet-form-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      setIsCreatingPet(false);
+                      setNewPetName("");
+                    }}
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={isBusy || !newPetName.trim()}
+                    onClick={createPet}
+                  >
+                    添加
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="add-pet-trigger"
+                disabled={isBusy}
+                onClick={() => setIsCreatingPet(true)}
+              >
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="8" y1="3" x2="8" y2="13" />
+                  <line x1="3" y1="8" x2="13" y2="8" />
+                </svg>
+                <span>添加新伙伴</span>
+              </button>
+            )}
           </aside>
 
           <section className="pet-editor-panel">
@@ -592,11 +641,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <>
                 <div className="editor-heading-row">
                   <div className="editor-title-wrap">
-                    <p className="eyebrow">正在编辑</p>
                     <div className="editor-title-line">
                       <h2>{selectedPet.name}</h2>
                       {snapshot.activePetId === selectedPet.id && (
-                        <span className="pet-active-badge">使用中</span>
+                        <span className="pet-active-badge">桌面使用中</span>
                       )}
                     </div>
                   </div>
@@ -606,7 +654,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     disabled={isBusy}
                     onClick={importAssets}
                   >
-                    导入照片
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="2" y="2" width="12" height="12" rx="2" />
+                      <circle cx="5.5" cy="5.5" r="1.2" />
+                      <path d="M14 10l-3.5-3.5L3 14" />
+                    </svg>
+                    <span>导入照片</span>
                   </button>
                 </div>
 
@@ -625,7 +678,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <div className="pet-basic-fields">
                   <label>
-                    <span>伙伴名称</span>
+                    <span className="field-label-row">
+                      <span>伙伴名称</span>
+                    </span>
                     <input
                       value={draft.name}
                       maxLength={80}
@@ -635,36 +690,38 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     />
                   </label>
                   <label>
-                    <span>
-                      显示高度 ({MIN_PET_TARGET_HEIGHT}–{MAX_PET_TARGET_HEIGHT}{" "}
-                      像素)
+                    <span className="field-label-row">
+                      <span>显示高度</span>
+                      <InfoTooltip text={`伙伴在桌面显示的高度（范围 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 像素，建议 180–240px）。`} />
                     </span>
-                    <input
-                      type="number"
-                      min={MIN_PET_TARGET_HEIGHT}
-                      max={MAX_PET_TARGET_HEIGHT}
-                      step={1}
-                      inputMode="numeric"
-                      value={targetHeightText}
-                      onChange={(event) => {
-                        const text = event.currentTarget.value;
-                        setTargetHeightText(text);
-                        const value = parseTargetHeight(text);
-                        if (value !== null)
+                    <div className="unit-input-wrap">
+                      <input
+                        type="number"
+                        min={MIN_PET_TARGET_HEIGHT}
+                        max={MAX_PET_TARGET_HEIGHT}
+                        step={1}
+                        inputMode="numeric"
+                        value={targetHeightText}
+                        onChange={(event) => {
+                          const text = event.currentTarget.value;
+                          setTargetHeightText(text);
+                          const value = parseTargetHeight(text);
+                          if (value !== null)
+                            setDraft({ ...draft, targetHeight: value });
+                        }}
+                        onBlur={() => {
+                          const value = normalizeTargetHeight(targetHeightText);
+                          if (value === null) return;
+                          setTargetHeightText(String(value));
                           setDraft({ ...draft, targetHeight: value });
-                      }}
-                      onBlur={() => {
-                        const value = normalizeTargetHeight(targetHeightText);
-                        if (value === null) return;
-                        setTargetHeightText(String(value));
-                        setDraft({ ...draft, targetHeight: value });
-                      }}
-                    />
+                        }}
+                      />
+                      <span className="unit-suffix">px</span>
+                    </div>
                   </label>
                 </div>
 
                 <section className="editor-section companion-section">
-                  <h2>陪伴节奏与气泡</h2>
                   <CompanionPreferences
                     pace={draft.companionPace}
                     bubblesEnabled={draft.interactionBubblesEnabled}
@@ -683,10 +740,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>日常状态与照片</h2>
-                  <p className="supporting-copy">
-                    首张照片已作为默认常驻姿态。更多状态可按需添加。
-                  </p>
+                  <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
+                    <h2>日常状态与照片</h2>
+                    <InfoTooltip text="首张照片为默认常驻姿态。可按需分配打瞌睡、安睡或专注等专属照片。" />
+                  </div>
                   <LifeStateEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
@@ -698,8 +755,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>情境照片分配</h2>
-                  <p className="supporting-copy">为平时陪伴和休息设置照片。</p>
+                  <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
+                    <h2>情境照片分配</h2>
+                    <InfoTooltip text="为平时漫步和定时休息分别指定照片。未指定时将使用默认姿态。" />
+                  </div>
                   <ActionSlotEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
@@ -711,10 +770,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <details className="editor-disclosure">
-                  <summary>精细调整（尺寸、位置与抚摸感应区）</summary>
-                  <p className="supporting-copy">
-                    微调大小、站立脚底线和头部感应区。不会修改原图。
-                  </p>
+                  <summary>精细调整（尺寸、站立脚底线与头部抚摸感应区）</summary>
                   <div className="asset-editor-list">
                     {selectedPet.assets.map((asset) => {
                       const adjustment = draft.assets.find(
@@ -792,11 +848,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         <section className="settings-tab-content settings-sections">
           <article className="settings-card">
             <div className="editor-heading-row">
-              <div>
+              <div className="heading-with-tooltip">
                 <h2>休息提醒</h2>
-                <p className="supporting-copy">
-                  按设定的时间提醒起身活动或喝水。默认保持静音，不打扰工作。
-                </p>
+                <InfoTooltip text="按设定时间提醒起身活动或喝水。默认保持静音，不打扰工作。" />
               </div>
               {!reminderDraft && (
                 <button
@@ -840,7 +894,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <div className="reminder-list">
                 {restSnapshot.reminders.length === 0 ? (
                   <p className="empty-editor-state">
-                    暂无休息提醒。需要养成规律作息时点击右上角添加。
+                    暂无休息提醒。需要规律作息时点击右上角添加。
                   </p>
                 ) : (
                   restSnapshot.reminders.map((reminder) => (
@@ -900,48 +954,58 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       {activeTab === "system" && settings && (
         <section className="settings-tab-content settings-sections">
           <article className="settings-card">
-            <h2>桌面显示</h2>
-            <p className="supporting-copy">
-              隐藏后视窗将暂停渲染与动效，可随时从系统托盘唤出。
-            </p>
-            <label className="toggle-control">
-              <input
-                type="checkbox"
-                checked={settings.petWindow.visible}
-                disabled={isBusy}
-                onChange={updatePetVisibility}
-              />
-              <span>在桌面上显示伙伴</span>
-            </label>
+            <div className="settings-row-between">
+              <div>
+                <div className="heading-with-tooltip">
+                  <h2>桌面显示</h2>
+                  <InfoTooltip text="隐藏后伙伴视窗暂停渲染与动效，可随时从系统托盘唤出。" />
+                </div>
+                <p className="supporting-copy">在电脑桌面上展示活动伙伴视窗</p>
+              </div>
+              <label className="toggle-control" style={{ marginBottom: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={settings.petWindow.visible}
+                  disabled={isBusy}
+                  onChange={updatePetVisibility}
+                />
+                <span>显示伙伴</span>
+              </label>
+            </div>
           </article>
           <article className="settings-card">
-            <h2>开机自启动</h2>
-            {autostartStatus ? (
-              <>
-                <label className="toggle-control">
+            <div className="settings-row-between">
+              <div>
+                <div className="heading-with-tooltip">
+                  <h2>开机自启动</h2>
+                  <InfoTooltip text="电脑开机后自动在后台启动应用并常驻托盘。" />
+                </div>
+                {!autostartStatus?.supported && (
+                  <p className="supporting-copy">
+                    开发调试模式下不写入系统启动项，仅在安装版本中生效。
+                  </p>
+                )}
+              </div>
+              {autostartStatus ? (
+                <label className="toggle-control" style={{ marginBottom: 0 }}>
                   <input
                     type="checkbox"
                     checked={autostartStatus.requested}
                     disabled={isBusy || !autostartStatus.supported}
                     onChange={updateAutostart}
                   />
-                  <span>开机时自动启动应用</span>
+                  <span>开机启动</span>
                 </label>
-                {!autostartStatus.supported && (
-                  <p className="supporting-copy">
-                    仅在安装后的正式版本中生效；开发调试模式不会写入系统启动项。
-                  </p>
-                )}
-                {autostartStatus.errorCode && (
-                  <p className="inline-status-error" role="status">
-                    自启动设置失败（
-                    {autostartErrorMessage(autostartStatus.errorCode)}
-                    ）。原设置保持不变。
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="supporting-copy">正在读取自启动状态…</p>
+              ) : (
+                <span className="supporting-copy">读取中…</span>
+              )}
+            </div>
+            {autostartStatus?.errorCode && (
+              <p className="inline-status-error" role="status">
+                自启动设置失败（
+                {autostartErrorMessage(autostartStatus.errorCode)}
+                ）。原设置保持不变。
+              </p>
             )}
           </article>
           {petRendererStatus?.state === "safe-mode" && (
@@ -963,8 +1027,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </section>
       )}
 
-      <footer className="privacy-note">
-        🔒 所有照片、声音及设置均仅保存在本地设备，完全离线运行，保护隐私。
+      <footer className="settings-footer">
+        <span>全本地离线运行 · 数据安全保存在此设备</span>
       </footer>
     </main>
   );

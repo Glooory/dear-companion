@@ -1,5 +1,6 @@
 import type { PetAsset, PetLifeStates } from '@shared/contracts'
 import { AssetChoice } from './AssetChoice'
+import { InfoTooltip } from './Tooltip'
 
 export function LifeStateEditor({ petId, assets, value, onChange }: {
   petId: string
@@ -21,8 +22,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
   return (
     <div className="life-state-grid">
       <LifeGroup
-        title="🥱 困倦打瞌睡"
-        description="如打哈欠或揉眼。配置后会在空闲时自然打瞌睡。"
+        title="困倦打瞌睡"
+        description="建议选用打哈欠或揉眼姿态。日常漫步空闲时将自然触发打瞌睡动效。"
         petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
@@ -31,8 +32,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, drowsy: { ...value.drowsy, enabled } })}
       />
       <LifeGroup
-        title="😴 安睡打盹"
-        description="如闭眼或卧躺。开启后可在合适时段安静小憩。"
+        title="安睡打盹"
+        description="建议选用闭眼或卧躺姿态。开启后在安静或特定时段静静小憩。"
         petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
@@ -41,8 +42,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, sleeping: { ...value.sleeping, enabled } })}
       />
       <LifeGroup
-        title="💼 专注工作"
-        description="进入专注时段的专属模样。未指定时自动沿用默认照片。"
+        title="专注工作"
+        description="进入专注时段时的专属模样。未指定时将沿用平时陪伴照片。"
         petId={petId}
         assets={assets}
         selected={value.workingAssetIds}
@@ -64,12 +65,14 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
 }): React.JSX.Element {
   return (
     <fieldset className="life-state-group">
-      <legend>{title}</legend>
-      <p className="supporting-copy">{description}</p>
+      <legend className="fieldset-legend-row">
+        <span>{title}</span>
+        <InfoTooltip text={description} />
+      </legend>
       {onEnabled && (
         <label className="toggle-control compact-toggle">
           <input type="checkbox" checked={Boolean(enabled)} disabled={selected.length === 0} onChange={(event) => onEnabled(event.currentTarget.checked)} />
-          <span>开启该状态</span>
+          <span>启用此状态</span>
         </label>
       )}
       <div className="asset-choice-list">
@@ -91,3 +94,4 @@ function LifeGroup({ title, description, petId, assets, selected, enabled, onTog
 function toggle(values: readonly string[], value: string): readonly string[] {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value]
 }
+

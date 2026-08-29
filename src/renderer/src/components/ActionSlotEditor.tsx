@@ -1,5 +1,6 @@
 import type { PetActionSlots, PetAsset } from '@shared/contracts'
 import { AssetChoice } from './AssetChoice'
+import { InfoTooltip } from './Tooltip'
 
 type ConfigurableActionSlot = 'idle' | 'resting'
 
@@ -8,13 +9,13 @@ const CONFIGURABLE_ACTION_SLOTS = [
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
-  idle: '☀️ 平时陪伴照片',
-  resting: '🌙 休息模式照片'
+  idle: '平时陪伴照片',
+  resting: '休息模式照片'
 }
 
 const SLOT_HINTS: Record<ConfigurableActionSlot, string> = {
-  idle: '日常在桌面上陪伴你的照片，支持选择多张在漫步时轮换',
-  resting: '可选，在番茄钟或久坐提醒进入休息时显示'
+  idle: '伙伴在桌面上陪伴漫步时的照片。支持勾选多张进行轮换。',
+  resting: '进入番茄钟或久坐休息时展示的专属照片。若未选择则保持当前姿态。'
 }
 
 interface ActionSlotEditorProps {
@@ -37,8 +38,10 @@ export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotE
     <div className="action-slot-grid">
       {CONFIGURABLE_ACTION_SLOTS.map((slot) => (
         <fieldset key={slot}>
-          <legend>{SLOT_LABELS[slot]}</legend>
-          <p className="supporting-copy" style={{ margin: '0 0 8px 0', fontSize: '12px' }}>{SLOT_HINTS[slot]}</p>
+          <legend className="fieldset-legend-row">
+            <span>{SLOT_LABELS[slot]}</span>
+            <InfoTooltip text={SLOT_HINTS[slot]} />
+          </legend>
           {assets.length === 0 ? (
             <p className="supporting-copy">请先导入照片</p>
           ) : assets.map((asset) => (
@@ -55,3 +58,4 @@ export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotE
     </div>
   )
 }
+

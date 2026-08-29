@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CreateWorkScheduleInput, WorkSchedule } from '@shared/contracts'
 import { WeekdayPicker } from './WeekdayPicker'
+import { InfoTooltip } from './Tooltip'
 
 interface Draft extends CreateWorkScheduleInput { id?: string }
 const freshDraft = (): Draft => ({ enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, weekdays: [1, 2, 3, 4, 5] })
@@ -18,9 +19,14 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
   const valid = Boolean(draft && draft.weekdays.length > 0 && !invalidEqual)
   return (
     <article className="settings-card work-schedule-card">
-      <div className="editor-heading-row"><div><h2>专注时段</h2><p className="supporting-copy">在专注时段内，伙伴会保持安静，不主动走动或展示气泡。</p></div>
+      <div className="editor-heading-row">
+        <div className="heading-with-tooltip">
+          <h2>专注时段</h2>
+          <InfoTooltip text="在专注时段内，伙伴将保持安静，不主动走动或展示气泡。" />
+        </div>
         {!draft && <button type="button" className="primary-button" disabled={disabled} onClick={() => setDraft(freshDraft())}>添加专注时段</button>}
       </div>
+
       {draft ? (
         <div className="work-schedule-editor">
           <div className="work-time-fields">
