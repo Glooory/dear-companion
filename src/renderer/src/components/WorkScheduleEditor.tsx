@@ -29,7 +29,10 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
           </div>
           <WeekdayPicker value={draft.weekdays} disabled={disabled} onChange={(weekdays) => setDraft({ ...draft, weekdays })} />
           {invalidEqual && <p className="inline-status-error">开始和结束时间不能相同。</p>}
-          <label><input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />启用这个专注时段</label>
+          <label className="toggle-control">
+            <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />
+            <span>启用这个专注时段</span>
+          </label>
           <div className="editor-actions">
             {draft.id && <button type="button" className="danger-button" disabled={disabled} onClick={() => { onDelete(draft.id!); setDraft(null) }}>删除</button>}
             <button type="button" className="secondary-button" disabled={disabled} onClick={() => setDraft(null)}>取消</button>
@@ -43,14 +46,17 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
         </div>
       ) : (
         <div className="work-schedule-list">
-          {schedules.length === 0 && <p className="empty-editor-state">还没有专注时段。也可以随时从宠物右键菜单开始专注。</p>}
+          {schedules.length === 0 && <p className="empty-editor-state">还没有专注时段。设置后宠物会在工作时间内保持安静；也可以随时从右键菜单手动开始。</p>}
           {schedules.map((schedule) => (
             <div className="work-schedule-row" key={schedule.id}>
               <button type="button" className="reminder-summary" onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>
                 <strong>{formatTime(schedule.startHour, schedule.startMinute)}–{formatTime(schedule.endHour, schedule.endMinute)}</strong>
-                <span>{schedule.endHour * 60 + schedule.endMinute < schedule.startHour * 60 + schedule.startMinute ? '跨午夜 · ' : ''}{schedule.weekdays.length} 天</span>
+                <span>{schedule.endHour * 60 + schedule.endMinute < schedule.startHour * 60 + schedule.startMinute ? '跨午夜 · ' : ''}每周 {schedule.weekdays.length} 天</span>
               </button>
-              <label><input type="checkbox" checked={schedule.enabled} disabled={disabled} onChange={() => onToggle(schedule.id, !schedule.enabled)} />启用</label>
+              <label className="toggle-control" style={{ marginBottom: 0 }}>
+                <input type="checkbox" checked={schedule.enabled} disabled={disabled} onChange={() => onToggle(schedule.id, !schedule.enabled)} />
+                <span>启用</span>
+              </label>
             </div>
           ))}
         </div>

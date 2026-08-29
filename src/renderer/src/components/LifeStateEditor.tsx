@@ -21,8 +21,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
   return (
     <div className="life-state-grid">
       <LifeGroup
-        title="困倦照片"
-        description="例如打哈欠或揉眼睛。选好照片后可以开启。"
+        title="🥱 困倦打瞌睡"
+        description="如打哈欠或揉眼。选中后即可开启自主困倦。"
         petId={petId}
         assets={assets}
         selected={value.drowsy.assetIds}
@@ -31,8 +31,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, drowsy: { ...value.drowsy, enabled } })}
       />
       <LifeGroup
-        title="睡觉照片"
-        description="选好照片后，它才能自己打盹。"
+        title="😴 安睡打盹"
+        description="如闭眼或卧躺。开启后可在工作之余自主小憩。"
         petId={petId}
         assets={assets}
         selected={value.sleeping.assetIds}
@@ -41,8 +41,8 @@ export function LifeStateEditor({ petId, assets, value, onChange }: {
         onEnabled={(enabled) => onChange({ ...value, sleeping: { ...value.sleeping, enabled } })}
       />
       <LifeGroup
-        title="专注照片"
-        description="不选也可以，专注时会继续使用平时的照片。"
+        title="💼 专注陪伴"
+        description="进入专注时段时的专属模样，缺失时自动沿用日常照片。"
         petId={petId}
         assets={assets}
         selected={value.workingAssetIds}

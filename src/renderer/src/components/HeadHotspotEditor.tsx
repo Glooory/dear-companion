@@ -41,6 +41,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
     <>
       <div
         className="head-hotspot"
+        title="头部热区：桌面光标在此往返晃动将触发摸头互动"
         style={{
           left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
           top: visibleTop + (hotspot.centerY - hotspot.radiusY) * visibleHeight,
@@ -51,6 +52,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
         onPointerMove={move}
         onPointerUp={() => { drag.current = null }}
       >
+        <span className="hotspot-guide-label">抚摸感应区</span>
         {(['left', 'right', 'top', 'bottom'] as const).map((kind) => (
           <span key={kind} className={`hotspot-handle ${kind}`} onPointerDown={(event) => {
             event.stopPropagation()

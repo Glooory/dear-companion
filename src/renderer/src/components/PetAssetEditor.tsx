@@ -27,18 +27,45 @@ export function PetAssetEditor({
     baselineY: 242
   })
 
-  const update = (key: keyof AssetNormalization, value: string): void => {
-    if (value.trim() === '') return
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed)) return
+  const update = (key: keyof AssetNormalization, value: number): void => {
+    if (!Number.isFinite(value)) return
     const [minimum, maximum] = NORMALIZATION_RANGES[key]
-    onChange({ ...normalization, [key]: clamp(parsed, minimum, maximum) })
+    onChange({ ...normalization, [key]: clamp(value, minimum, maximum) })
+  }
+
+  const handleBaselinePointerDown = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const startY = event.clientY
+    const startOffset = normalization.baselineOffset
+
+    const onPointerMove = (moveEvent: PointerEvent): void => {
+      const deltaY = moveEvent.clientY - startY
+      update('baselineOffset', Math.round(startOffset + deltaY))
+    }
+
+    const onPointerUp = (): void => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
   }
 
   return (
     <article className="asset-editor">
       <div className="asset-preview" aria-label="照片调整预览">
-        <span className="asset-baseline" aria-hidden="true" />
+        <span
+          className="asset-baseline"
+          role="slider"
+          aria-label="脚底对齐基准线"
+          aria-valuenow={normalization.baselineOffset}
+          title="按住上下拖拽调整脚底对齐"
+          onPointerDown={handleBaselinePointerDown}
+        />
         <img
           src={petAssetUrl(petId, asset.id)}
           alt=""
@@ -61,13 +88,37 @@ export function PetAssetEditor({
       <div className="asset-editor-details">
         <h3>照片 {asset.id.slice(0, 8)}</h3>
         <p className="asset-metadata">
-          {asset.format.toUpperCase()} · {asset.width}×{asset.height} · 可见边界 {asset.alphaBounds.width}×{asset.alphaBounds.height}
+          {asset.format.toUpperCase()} · 原图 {asset.width}×{asset.height} px · 有效人物区域 {asset.alphaBounds.width}×{asset.alphaBounds.height} px
         </p>
         <div className="normalization-grid">
-          <NumberControl label="大小" value={normalization.scale} min={0.25} max={4} step={0.05} onChange={(value) => update('scale', value)} />
-          <NumberControl label="水平偏移" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(value) => update('offsetX', value)} />
-          <NumberControl label="上下位置" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(value) => update('offsetY', value)} />
-          <NumberControl label="脚底位置" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(value) => update('baselineOffset', value)} />
+          <div className="slider-field">
+            <div className="editor-heading-row" style={{ marginBottom: 4 }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#55514b' }}>缩放比例</span>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ padding: '2px 7px', fontSize: '0.75rem' }}
+                onClick={() => update('scale', 1.0)}
+              >
+                重置 1.0×
+              </button>
+            </div>
+            <div className="slider-row">
+              <input
+                type="range"
+                min={0.5}
+                max={2.5}
+                step={0.05}
+                value={normalization.scale}
+                onChange={(event) => update('scale', Number(event.currentTarget.value))}
+              />
+              <span className="slider-value">{normalization.scale.toFixed(2)}×</span>
+            </div>
+          </div>
+
+          <NumberControl label="水平对齐 (X)" value={normalization.offsetX} min={-512} max={512} step={1} onChange={(val) => update('offsetX', val)} />
+          <NumberControl label="垂直对齐 (Y)" value={normalization.offsetY} min={-512} max={512} step={1} onChange={(val) => update('offsetY', val)} />
+          <NumberControl label="脚底基线高度" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
         </div>
       </div>
     </article>
@@ -98,7 +149,7 @@ function NumberControl({
   min: number
   max: number
   step: number
-  onChange(value: string): void
+  onChange(value: number): void
 }): React.JSX.Element {
   return (
     <label>
@@ -109,7 +160,10 @@ function NumberControl({
         min={min}
         max={max}
         step={step}
-        onChange={(event) => onChange(event.currentTarget.value)}
+        onChange={(event) => {
+          const parsed = Number(event.currentTarget.value)
+          if (Number.isFinite(parsed)) onChange(parsed)
+        }}
       />
     </label>
   )

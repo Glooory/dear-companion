@@ -46,6 +46,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [isBusy, setIsBusy] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [targetHeightText, setTargetHeightText] = useState('')
+  const [activeTab, setActiveTab] = useState<'pets' | 'rest' | 'work' | 'system'>('pets')
 
   useEffect(() => {
     let cancelled = false
@@ -330,9 +331,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   return (
     <main className="settings-shell pet-settings-shell" aria-busy={isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot}>
       <header className="settings-header">
-        <p className="eyebrow">只属于这台电脑的桌面伙伴</p>
+        <p className="eyebrow">
+          <span aria-hidden="true">✦</span>
+          <span>只属于这台电脑的桌面伙伴</span>
+        </p>
         <h1>Dear Companion</h1>
-        <p className="supporting-copy">用自己的透明照片，做一个会回应、会休息的桌面伙伴。</p>
+        <p className="supporting-copy">导入透明背景照片，打造低打扰、懂休息、会回应的桌面陪伴。</p>
       </header>
 
       {error && (
@@ -345,10 +349,45 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </div>
       )}
 
-      {settings && snapshot && (
-        <div className="pet-settings-layout">
+      <nav className="settings-nav" aria-label="设置分类">
+        <button
+          type="button"
+          className={`settings-nav-button ${activeTab === 'pets' ? 'active' : ''}`}
+          onClick={() => setActiveTab('pets')}
+        >
+          <span className="settings-nav-icon" aria-hidden="true">🐾</span>
+          <span>我的伙伴</span>
+        </button>
+        <button
+          type="button"
+          className={`settings-nav-button ${activeTab === 'rest' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rest')}
+        >
+          <span className="settings-nav-icon" aria-hidden="true">⏰</span>
+          <span>休息健康</span>
+        </button>
+        <button
+          type="button"
+          className={`settings-nav-button ${activeTab === 'work' ? 'active' : ''}`}
+          onClick={() => setActiveTab('work')}
+        >
+          <span className="settings-nav-icon" aria-hidden="true">💼</span>
+          <span>专注时段</span>
+        </button>
+        <button
+          type="button"
+          className={`settings-nav-button ${activeTab === 'system' ? 'active' : ''}`}
+          onClick={() => setActiveTab('system')}
+        >
+          <span className="settings-nav-icon" aria-hidden="true">⚙️</span>
+          <span>通用设置</span>
+        </button>
+      </nav>
+
+      {activeTab === 'pets' && settings && snapshot && (
+        <div className="settings-tab-content pet-settings-layout">
           <aside className="pet-list-panel" aria-label="宠物列表">
-            <h2>宠物</h2>
+            <h2>宠物列表</h2>
             <div className="pet-list">
               {snapshot.pets.map((pet) => (
                 <button
@@ -363,13 +402,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   }}
                 >
                   <span>{pet.name}</span>
-                  {pet.id === snapshot.activePetId && <small>当前</small>}
+                  {pet.id === snapshot.activePetId && <small>在桌面上</small>}
                 </button>
               ))}
               {snapshot.pets.length === 0 && <p className="supporting-copy">先起个名字，再导入一张照片。</p>}
             </div>
             <label className="new-pet-control">
-              <span>宠物名称</span>
+              <span>新建宠物名称</span>
               <input
                 value={newPetName}
                 maxLength={80}
@@ -377,7 +416,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 onChange={(event) => setNewPetName(event.currentTarget.value)}
               />
             </label>
-            <button type="button" className="primary-button" disabled={isBusy} onClick={createPet}>创建宠物</button>
+            <button type="button" className="primary-button" disabled={isBusy} onClick={createPet}>创建新宠物</button>
           </aside>
 
           <section className="pet-editor-panel">
@@ -385,7 +424,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <>
                 <div className="editor-heading-row">
                   <div>
-                    <p className="eyebrow">正在编辑</p>
+                    <p className="eyebrow">正在配置</p>
                     <h2>{selectedPet.name}</h2>
                   </div>
                   <button type="button" className="secondary-button" disabled={isBusy} onClick={importAssets}>
@@ -395,7 +434,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 {importReport && (
                   <div className="import-report" role="status">
-                    <strong>已导入 {importReport.imported.length} 张</strong>
+                    <strong>已成功导入 {importReport.imported.length} 张照片</strong>
                     {importReport.failures.map((failure) => (
                       <p key={`${failure.index}-${failure.code}`}>第 {failure.index + 1} 张：{failure.message}</p>
                     ))}
@@ -404,7 +443,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <div className="pet-basic-fields">
                   <label>
-                    <span>名称</span>
+                    <span>宠物名称</span>
                     <input
                       value={draft.name}
                       maxLength={80}
@@ -412,7 +451,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     />
                   </label>
                   <label>
-                    <span>桌面上的大小（80–260）</span>
+                    <span>桌面显示高度 (80–260 px)</span>
                     <input
                       type="number"
                       min={80}
@@ -438,7 +477,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 {draft.actionSlots.idle.length > 0 && (
                   <div className="quick-start-row">
-                    <span>已经可以开始陪伴了，其他内容都能以后再调。</span>
+                    <span>✨ 已具备日常陪伴照片，其他动作与细节可随时调整。</span>
                     <button type="button" className="primary-button" disabled={isBusy} onClick={activateDraft}>
                       {snapshot.activePetId === draft.id ? '保存并使用' : '保存并换成它'}
                     </button>
@@ -446,7 +485,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 )}
 
                 <section className="editor-section companion-section">
-                  <h2>陪伴方式</h2>
+                  <h2>陪伴方式与节奏</h2>
                   <CompanionPreferences
                     pace={draft.companionPace}
                     bubblesEnabled={draft.interactionBubblesEnabled}
@@ -456,9 +495,31 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   />
                 </section>
 
-                <details className="editor-section editor-disclosure">
-                  <summary>高级：调整照片</summary>
-                  <p className="supporting-copy">需要时再调整大小、位置、脚底位置和摸头区域。原照片不会改变。</p>
+                <section className="editor-section">
+                  <h2>生活状态与照片</h2>
+                  <p className="supporting-copy">导入的第一张照片已自动设为平时陪伴。其他状态为可选。</p>
+                  <LifeStateEditor
+                    petId={selectedPet.id}
+                    assets={selectedPet.assets}
+                    value={draft.lifeStates}
+                    onChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
+                  />
+                </section>
+
+                <section className="editor-section">
+                  <h2>更多动作照片</h2>
+                  <p className="supporting-copy">都是可选的。没有专门的照片也没关系，它会用平时的样子陪你动一动。</p>
+                  <ActionSlotEditor
+                    petId={selectedPet.id}
+                    assets={selectedPet.assets}
+                    slots={draft.actionSlots}
+                    onChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
+                  />
+                </section>
+
+                <details className="editor-disclosure">
+                  <summary>调整照片尺寸、基线与摸头区域</summary>
+                  <p className="supporting-copy">可微调缩放、水平位置、脚底对齐线及头部抚摸感应区。原始照片副本保持不变。</p>
                   <div className="asset-editor-list">
                     {selectedPet.assets.map((asset) => {
                       const adjustment = draft.assets.find((entry) => entry.id === asset.id)
@@ -486,31 +547,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </div>
                 </details>
 
-                <section className="editor-section">
-                  <h2>行为与照片</h2>
-                  <p className="supporting-copy">第一张照片会自动用于平时陪伴。其他状态可以稍后再设置。</p>
-                  <LifeStateEditor
-                    petId={selectedPet.id}
-                    assets={selectedPet.assets}
-                    value={draft.lifeStates}
-                    onChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
-                  />
-                </section>
-
-                <section className="editor-section">
-                  <h2>更多动作照片</h2>
-                  <p className="supporting-copy">这些照片都可以不选；没有专用照片时，它会直接动一动当前照片。</p>
-                  <ActionSlotEditor
-                    petId={selectedPet.id}
-                    assets={selectedPet.assets}
-                    slots={draft.actionSlots}
-                    onChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
-                  />
-                </section>
-
                 <div className="editor-actions">
-                  <button type="button" className="secondary-button" disabled={isBusy} onClick={deletePet}>删除宠物</button>
-                  <button type="button" className="secondary-button" disabled={isBusy} onClick={saveDraft}>保存</button>
+                  <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>删除宠物</button>
+                  <button type="button" className="secondary-button" disabled={isBusy} onClick={saveDraft}>仅保存</button>
                   <button
                     type="button"
                     className="primary-button"
@@ -523,16 +562,80 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </div>
               </>
             ) : (
-              <div className="empty-editor-state">从左侧选择一个宠物，或先创建一个。</div>
+              <div className="empty-editor-state">从左侧选择一个宠物，或先创建一个新宠物。</div>
             )}
           </section>
         </div>
       )}
 
-      {settings && restSnapshot && (
-        <section className="settings-sections phase-two-foundation phase-three-settings">
+      {activeTab === 'rest' && settings && restSnapshot && (
+        <section className="settings-tab-content settings-sections">
           <article className="settings-card">
-            <h2>桌面显示</h2>
+            <div className="editor-heading-row">
+              <div>
+                <h2>休息提醒计划</h2>
+                <p className="supporting-copy">按设定的时间邀请你站起来活动或喝水。默认不会打扰你。</p>
+              </div>
+              {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加休息提醒</button>}
+            </div>
+            {restSnapshot.runtime.serviceStatus === 'error' && (
+              <div className="service-error" role="alert">
+                <span>{restSnapshot.runtime.serviceError?.message ?? '休息提醒暂时不可用。'}</span>
+                <button type="button" onClick={() => void runMutation(async () => applyRestSnapshot(await api.retryReminderService()))}>再试一次</button>
+              </div>
+            )}
+            {reminderDraft ? (
+              <ReminderEditor
+                value={reminderDraft}
+                disabled={isBusy}
+                onChange={setReminderDraft}
+                onSave={saveReminder}
+                onCancel={() => setReminderDraft(null)}
+                onDelete={reminderDraft.id ? deleteReminder : undefined}
+              />
+            ) : (
+              <div className="reminder-list">
+                {restSnapshot.reminders.length === 0 ? (
+                  <p className="empty-editor-state">还没有休息提醒。需要养成健康作息时点击上方按钮添加。</p>
+                ) : (
+                  restSnapshot.reminders.map((reminder) => (
+                    <div className="reminder-row" key={reminder.id}>
+                      <button type="button" className="reminder-summary" onClick={() => editReminder(reminder)}>
+                        <strong>{String(reminder.hour).padStart(2, '0')}:{String(reminder.minute).padStart(2, '0')}</strong>
+                        <span>{reminder.message}</span>
+                      </button>
+                      <label className="toggle-control" style={{ marginBottom: 0 }}>
+                        <input type="checkbox" checked={reminder.enabled} disabled={isBusy} onChange={() => setReminderEnabled(reminder)} />
+                        <span>启用</span>
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </article>
+          <AudioSettings audio={restSnapshot.audio} report={audioImportReport} disabled={isBusy} onImport={importAudio} onChange={updateAudioSources} />
+        </section>
+      )}
+
+      {activeTab === 'work' && companionSnapshot && (
+        <section className="settings-tab-content settings-sections">
+          <WorkScheduleEditor
+            schedules={companionSnapshot.workSchedules}
+            disabled={isBusy}
+            onCreate={createWorkSchedule}
+            onUpdate={updateWorkSchedule}
+            onDelete={deleteWorkSchedule}
+            onToggle={setWorkScheduleEnabled}
+          />
+        </section>
+      )}
+
+      {activeTab === 'system' && settings && (
+        <section className="settings-tab-content settings-sections">
+          <article className="settings-card">
+            <h2>桌面宠物显示</h2>
+            <p className="supporting-copy">隐藏后宠物窗口将暂停动效，可以通过系统托盘随时唤出。</p>
             <label className="toggle-control">
               <input
                 type="checkbox"
@@ -540,11 +643,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 disabled={isBusy}
                 onChange={updatePetVisibility}
               />
-              <span>显示桌面宠物</span>
+              <span>在桌面上显示宠物伙伴</span>
             </label>
           </article>
           <article className="settings-card">
-            <h2>随系统登录启动</h2>
+            <h2>开机自启动</h2>
             {autostartStatus ? (
               <>
                 <label className="toggle-control">
@@ -554,10 +657,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     disabled={isBusy || !autostartStatus.supported}
                     onChange={updateAutostart}
                   />
-                  <span>开机后自动运行 Dear Companion</span>
+                  <span>随系统开机自动运行 Dear Companion</span>
                 </label>
                 {!autostartStatus.supported && (
-                  <p className="supporting-copy">仅安装后的 Windows 与 macOS 应用支持；开发模式不会写入系统启动项。</p>
+                  <p className="supporting-copy">仅安装后的 Windows 与 macOS 正式运行支持；开发调试模式不会写入系统启动项。</p>
                 )}
                 {autostartStatus.errorCode && (
                   <p className="inline-status-error" role="status">
@@ -565,40 +668,23 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </p>
                 )}
               </>
-            ) : <p className="supporting-copy">正在读取系统状态…</p>}
+            ) : <p className="supporting-copy">正在读取系统自启动状态…</p>}
           </article>
           {petRendererStatus?.state === 'safe-mode' && (
             <article className="settings-card recovery-card">
-              <h2>宠物窗口没有正常打开</h2>
-              <p className="supporting-copy">应用已经暂停重试。休息提醒和设置仍然可以使用。</p>
+              <h2>宠物视窗异常恢复</h2>
+              <p className="supporting-copy">宠物窗口由于系统显示器变更或渲染崩溃暂停重试。休息提醒和设置仍然安全可用。</p>
               <button type="button" className="secondary-button" disabled={isBusy} onClick={retryPetRenderer}>
-                重新打开宠物
+                重新唤醒宠物视窗
               </button>
             </article>
-          )}
-          <article className="settings-card">
-            <div className="editor-heading-row"><div><h2>休息提醒</h2><p className="supporting-copy">需要时再添加，默认不会打扰你。</p></div>
-              {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加休息提醒</button>}
-            </div>
-            {restSnapshot.runtime.serviceStatus === 'error' && <div className="service-error" role="alert"><span>{restSnapshot.runtime.serviceError?.message ?? '休息提醒暂时不可用。'}</span><button type="button" onClick={() => void runMutation(async () => applyRestSnapshot(await api.retryReminderService()))}>再试一次</button></div>}
-            {reminderDraft ? <ReminderEditor value={reminderDraft} disabled={isBusy} onChange={setReminderDraft} onSave={saveReminder} onCancel={() => setReminderDraft(null)} onDelete={reminderDraft.id ? deleteReminder : undefined} /> :
-              <div className="reminder-list">{restSnapshot.reminders.length === 0 ? <p className="empty-editor-state">还没有休息提醒。需要时再添加。</p> : restSnapshot.reminders.map((reminder) => <div className="reminder-row" key={reminder.id}><button type="button" className="reminder-summary" onClick={() => editReminder(reminder)}><strong>{String(reminder.hour).padStart(2, '0')}:{String(reminder.minute).padStart(2, '0')}</strong><span>{reminder.message}</span></button><label><input type="checkbox" checked={reminder.enabled} disabled={isBusy} onChange={() => setReminderEnabled(reminder)} />启用</label></div>)}</div>}
-          </article>
-          <AudioSettings audio={restSnapshot.audio} report={audioImportReport} disabled={isBusy} onImport={importAudio} onChange={updateAudioSources} />
-          {companionSnapshot && (
-            <WorkScheduleEditor
-              schedules={companionSnapshot.workSchedules}
-              disabled={isBusy}
-              onCreate={createWorkSchedule}
-              onUpdate={updateWorkSchedule}
-              onDelete={deleteWorkSchedule}
-              onToggle={setWorkScheduleEnabled}
-            />
           )}
         </section>
       )}
 
-      <footer className="privacy-note">照片、声音和设置只保存在这台电脑上，不会上传。</footer>
+      <footer className="privacy-note">
+        🔒 照片、声音和所有设置仅保存在这台电脑本地，完全离线运行，绝不上传任何数据。
+      </footer>
     </main>
   )
 }

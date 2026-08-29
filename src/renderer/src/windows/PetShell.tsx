@@ -409,8 +409,21 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             targetHeight={activePet.targetHeight}
             onTransitionComplete={handlePhotoTransitionComplete}
           />
-          {resolvedAction?.overlays.includes('tears') && <span className="pet-tears" aria-hidden="true">💧</span>}
-          {heartVisible && <span className="pet-heart" aria-hidden="true">♥</span>}
+          {resolvedAction?.overlays.includes('tears') && (
+            <span className="pet-tears-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+                <path d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z" fill="#60A5FA" />
+                <path d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.65" />
+              </svg>
+            </span>
+          )}
+          {heartVisible && (
+            <span className="pet-heart-wrap" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#F43F5E" />
+              </svg>
+            </span>
+          )}
           {dialogue && !prompt && <span className="pet-dialogue" role="status">{dialogue}</span>}
         </div>
       ) : <div className="pet-empty-runtime"><button className="pet-empty-button" type="button" onClick={openSettings}>添加宠物</button></div>}

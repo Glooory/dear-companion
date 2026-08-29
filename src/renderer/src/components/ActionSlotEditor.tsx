@@ -8,11 +8,11 @@ const CONFIGURABLE_ACTION_SLOTS = [
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
-  idle: '平时陪伴照片',
-  cute: '卖萌',
-  angry: '生气',
-  crying: '不想休息',
-  resting: '休息时'
+  idle: '🏠 平时陪伴照片',
+  cute: '✨ 卖萌逗趣',
+  angry: '💢 拖拽太快抗议',
+  crying: '💧 休息偷看提醒',
+  resting: '☕ 休息坐姿'
 }
 
 interface ActionSlotEditorProps {

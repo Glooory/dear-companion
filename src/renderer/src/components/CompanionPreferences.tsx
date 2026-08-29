@@ -1,9 +1,9 @@
 import type { CompanionPace } from '@shared/contracts'
 
 const PACE_OPTIONS = [
-  { value: 'quiet', label: '安静', description: '偶尔轻轻动一下，很少走动或说话。' },
-  { value: 'natural', label: '自然', description: '时不时自己活动，适合日常陪伴。' },
-  { value: 'lively', label: '爱玩', description: '更常走动和卖萌，但不会频繁说话。' }
+  { value: 'quiet', label: '🌱 安静陪伴', description: '偶尔轻微呼吸或点头，极少打扰，适合专注工作。' },
+  { value: 'natural', label: '🍃 自然节奏', description: '时不时走动或变换姿态，最舒心的日常桌伴。' },
+  { value: 'lively', label: '✨ 活泼爱玩', description: '更常踱步与主动卖萌，充满朝气与互动感。' }
 ] as const
 
 export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBubblesChange, onPreview }: {
