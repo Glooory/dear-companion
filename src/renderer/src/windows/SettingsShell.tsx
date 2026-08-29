@@ -336,7 +336,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           <span>桌面伙伴</span>
         </p>
         <h1>Dear Companion</h1>
-        <p className="supporting-copy">导入透明背景照片，让可爱的它在桌角静静陪伴你。</p>
+        <p className="supporting-copy">导入透明背景照片，让它在桌角静静陪伴你。</p>
       </header>
 
       {error && (
@@ -485,7 +485,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 )}
 
                 <section className="editor-section companion-section">
-                  <h2>活动节奏与气泡</h2>
+                  <h2>陪伴节奏与气泡</h2>
                   <CompanionPreferences
                     pace={draft.companionPace}
                     bubblesEnabled={draft.interactionBubblesEnabled}
@@ -497,7 +497,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                 <section className="editor-section">
                   <h2>日常状态与照片</h2>
-                  <p className="supporting-copy">首张照片已作为默认姿态。其他状态可按需添加。</p>
+                  <p className="supporting-copy">首张照片已作为默认常驻姿态。更多状态可按需添加。</p>
                   <LifeStateEditor
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
@@ -507,7 +507,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <h2>特殊动作照片</h2>
+                  <h2>互动动作照片</h2>
                   <p className="supporting-copy">可选配置。未指定单独照片时，将以默认姿态做相应动作。</p>
                   <ActionSlotEditor
                     petId={selectedPet.id}
@@ -573,7 +573,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           <article className="settings-card">
             <div className="editor-heading-row">
               <div>
-                <h2>休息提醒计划</h2>
+                <h2>休息提醒</h2>
                 <p className="supporting-copy">按设定的时间提醒起身活动或喝水。默认保持静音，不打扰工作。</p>
               </div>
               {!reminderDraft && <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>添加休息提醒</button>}

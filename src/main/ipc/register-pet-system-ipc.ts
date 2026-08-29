@@ -244,6 +244,6 @@ function currentCompanionLabel(companion: ReturnType<NonNullable<PetSystemIpcDep
   if (companion.lifeState === 'sleeping') return '当前状态：打盹中'
   if (companion.lifeState === 'drowsy') return '当前状态：闭目小憩'
   if (companion.manualSelection === 'daily-calm') return '当前状态：安静模式'
-  const paceLabel = companion.pace === 'quiet' ? '安静' : companion.pace === 'lively' ? '活跃' : '自然'
+  const paceLabel = companion.pace === 'quiet' ? '安静' : companion.pace === 'lively' ? '活跃' : '惬意'
   return `当前状态：自动 · ${paceLabel}`
 }
