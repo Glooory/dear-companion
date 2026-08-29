@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { resolveAction, type ActionTemplate, type ResolvedAction } from '@shared/action-fallback'
 import {
-  createDirectedWaddleSteps,
-  createWaddleSteps,
+  createPeepApproachSteps,
+  createPostureShiftSteps
 } from '@shared/companion-rhythm'
 import {
   PET_WINDOW_HEIGHT,
@@ -119,16 +119,20 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const performWaddle = useCallback((direction?: -1 | 1): void => {
     if (!baseAsset) return
-    const steps = direction === undefined
-      ? createWaddleSteps(Math.random)
-      : createDirectedWaddleSteps(direction, Math.random)
-    performResolvedAction({
-      slot: 'idle', assetIds: [baseAsset.id], template: 'waddle', overlays: [], usedFallback: true
-    }, 1_200)
-    steps.forEach((deltaX, index) => {
-      actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 180 + index * 180))
-    })
-  }, [api, baseAsset, performResolvedAction])
+    if (direction === undefined) {
+      const steps = createPeepApproachSteps(Math.random)
+      performCurrentPhotoAction('peep-approach', 1_600)
+      steps.forEach((deltaX, index) => {
+        actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 180 + index * 180))
+      })
+    } else {
+      const steps = createPostureShiftSteps(direction, Math.random)
+      performCurrentPhotoAction('posture-shift', 800)
+      steps.forEach((deltaX, index) => {
+        actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 140 + index * 160))
+      })
+    }
+  }, [api, baseAsset, performCurrentPhotoAction])
 
   const handlePrimaryClick = useCallback((): void => {
     if (!activePet || !baseAsset || runtimeActive) return
@@ -245,7 +249,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       else if (roll < 0.75) performCurrentPhotoAction('nod', 900)
       else performCurrentPhotoAction('gentle-breathe', 1_600)
     } else {
-      const templates: ActionTemplate[] = ['gentle-breathe', 'nod', 'sway']
+      const templates: ActionTemplate[] = ['gentle-breathe', 'nod', 'rhythm-sway']
       performCurrentPhotoAction(templates[Math.floor(Math.random() * templates.length)]!, 1_200)
     }
   }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, reducedMotion])
@@ -258,7 +262,14 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       setDailyIndex(nextIndex)
       performResolvedAction({ slot: 'idle', assetIds: [nextId], template: 'asset-swap', overlays: [], usedFallback: true }, 2_000)
     } else {
-      performCurrentPhotoAction(Math.random() < 0.5 ? 'bounce' : 'sway', 950)
+      const roll = Math.random()
+      if (roll < 0.35) {
+        performCurrentPhotoAction('stretch', 1_800)
+      } else if (roll < 0.7) {
+        performCurrentPhotoAction('rhythm-sway', 1_100)
+      } else {
+        performCurrentPhotoAction('curious-tilt', 800)
+      }
     }
   }, [activePet, dailyIndex, performCurrentPhotoAction, performResolvedAction, showDialogue])
 

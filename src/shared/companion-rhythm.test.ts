@@ -16,11 +16,11 @@ describe('companion rhythm', () => {
 
   it('creates back-and-forth waddle pacing steps that return to the starting position', () => {
     const leftPacing = createWaddleSteps(() => 0)
-    expect(leftPacing).toEqual([-4, -4, -4, 4, 4, 4])
+    expect(leftPacing).toEqual([-2, -2, -2, 2, 2, 2])
     expect(leftPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0)
 
     const rightPacing = createWaddleSteps(() => 1)
-    expect(rightPacing).toEqual([8, 8, 8, -8, -8, -8])
+    expect(rightPacing).toEqual([3, 3, 4, -4, -3, -3])
     expect(rightPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0)
 
     for (let r = 0; r <= 1; r += 0.1) {
@@ -31,8 +31,8 @@ describe('companion rhythm', () => {
   })
 
   it('creates shorter waddle steps in the requested pointer direction', () => {
-    expect(createDirectedWaddleSteps(-1, () => 0)).toEqual([-5, -5, -5, -5])
-    expect(createDirectedWaddleSteps(1, () => 1)).toEqual([6, 6, 7, 7, 7, 7])
+    expect(createDirectedWaddleSteps(-1, () => 0)).toEqual([-1, -1, -2, -2])
+    expect(createDirectedWaddleSteps(1, () => 1)).toEqual([1, 1, 2, 2, 2, 2])
   })
 
   it('enters available sleep states only after the awake floor', () => {
