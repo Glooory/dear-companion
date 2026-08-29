@@ -18,7 +18,8 @@
     "icons:generate": "node scripts/generate-icons.mjs",
     "release:validate-tag": "node scripts/validate-release-tag.mjs",
     "package:dir": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder --publish never"
+    "dist": "npm run build && electron-builder --publish never",
+    "postinstall": "node node_modules/electron/install.js"
   },
   "dependencies": {
     "react": "^19.2.8",

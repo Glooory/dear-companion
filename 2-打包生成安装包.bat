@@ -21,6 +21,17 @@ if not exist node_modules (
     )
 )
 
+if not exist "node_modules\electron\path.txt" (
+    echo [提示] 正在下载 Electron 运行环境...
+    call node node_modules\electron\install.js
+    if %errorlevel% neq 0 (
+        echo.
+        echo [错误] Electron 下载失败。
+        pause
+        exit /b %errorlevel%
+    )
+)
+
 echo [提示] 正在执行编译与打包，请稍候（首次打包可能需要几分钟下载工具链）...
 call npm run dist
 
