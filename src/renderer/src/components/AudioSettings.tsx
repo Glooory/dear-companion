@@ -22,9 +22,12 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
   return (
     <article className="settings-card audio-settings">
       <div className="editor-heading-row">
-        <div className="heading-with-tooltip">
-          <h2>提醒声音</h2>
-          <InfoTooltip text="声音默认保持静音。每条休息提醒可单独开启提示音。" />
+        <div>
+          <div className="heading-with-tooltip">
+            <h2>提醒声音</h2>
+            <InfoTooltip text="声音默认保持静音。每条休息提醒可单独开启提示音。" />
+          </div>
+          <p className="settings-subtext">设置全局声音来源。每条休息提醒可单独开启或关闭提示音。</p>
         </div>
         <button type="button" className="secondary-button" disabled={disabled} onClick={onImport}>导入声音</button>
       </div>

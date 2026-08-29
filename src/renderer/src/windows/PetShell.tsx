@@ -52,6 +52,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const actionCompletion = useRef<(() => void) | null>(null)
   const wakeSequence = useRef(new WakeSequence())
   const previousLifeState = useRef<CompanionLifeState | null>(null)
+  const previousRuntimeState = useRef<string | null>(null)
 
   const activePet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null,
@@ -346,9 +347,16 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [lifeState, showDialogue])
 
   useEffect(() => {
-    if (runtimeState === 'crying') showDialogue('system:crying', DIALOGUES.crying, true)
-    if (runtimeState === 'celebrating') showDialogue('system:completion', DIALOGUES.reminderCompletion, true)
-  }, [runtimeState, showDialogue])
+    const prev = previousRuntimeState.current
+    previousRuntimeState.current = runtimeState
+    if (runtimeState === 'crying') {
+      showDialogue('system:crying', DIALOGUES.crying, true)
+    } else if (runtimeState === 'celebrating') {
+      showDialogue('system:completion', DIALOGUES.reminderCompletion, true)
+    } else if (prev === 'crying' || prev === 'celebrating' || (prev !== null && runtimeState === null)) {
+      clearDialogue()
+    }
+  }, [clearDialogue, runtimeState, showDialogue])
 
   useEffect(() => {
     wakeSequence.current.reset()
@@ -442,7 +450,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
               </svg>
             </span>
           )}
-          {dialogue && !prompt && <span className="pet-dialogue" role="status">{dialogue}</span>}
+          {dialogue && !runtimeActive && <span className="pet-dialogue" role="status">{dialogue}</span>}
         </div>
       ) : <div className="pet-empty-runtime"><button className="pet-empty-button" type="button" onClick={openSettings}>添加伙伴</button></div>}
       {prompt && (

@@ -8,6 +8,7 @@ import {
   type CompanionSystemSnapshot,
   type CreateReminderInput,
   type CreateWorkScheduleInput,
+  type CursorTolerance,
   type ImageImportResult,
   type PetConfig,
   type PetRendererStatus,
@@ -16,9 +17,11 @@ import {
   type ReleaseHardeningApi,
   type ReminderSchedule,
   type RestSystemSnapshot,
+  type Weekday,
   type WorkSchedule,
 } from "@shared/contracts";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { ActionSlotEditor } from "../components/ActionSlotEditor";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionPreferences } from "../components/CompanionPreferences";
@@ -431,6 +434,15 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       ),
     );
   };
+
+  useEffect(() => {
+    if (!reminderDraft) return;
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") setReminderDraft(null);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [reminderDraft]);
 
   const importAudio = (): void => {
     void runMutation(async () => {
@@ -852,16 +864,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <h2>休息提醒</h2>
                 <InfoTooltip text="按设定时间提醒起身活动或喝水。默认保持静音，不打扰工作。" />
               </div>
-              {!reminderDraft && (
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={isBusy}
-                  onClick={newReminder}
-                >
-                  添加休息提醒
-                </button>
-              )}
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isBusy}
+                onClick={newReminder}
+              >
+                添加休息提醒
+              </button>
             </div>
             {restSnapshot.runtime.serviceStatus === "error" && (
               <div className="service-error" role="alert">
@@ -881,52 +891,74 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </button>
               </div>
             )}
-            {reminderDraft ? (
-              <ReminderEditor
-                value={reminderDraft}
-                disabled={isBusy}
-                onChange={setReminderDraft}
-                onSave={saveReminder}
-                onCancel={() => setReminderDraft(null)}
-                onDelete={reminderDraft.id ? deleteReminder : undefined}
-              />
-            ) : (
-              <div className="reminder-list">
-                {restSnapshot.reminders.length === 0 ? (
-                  <p className="empty-editor-state">
-                    暂无休息提醒。
-                  </p>
-                ) : (
-                  restSnapshot.reminders.map((reminder) => (
-                    <div className="reminder-row" key={reminder.id}>
-                      <button
-                        type="button"
-                        className="reminder-summary"
+            <div className="reminder-list">
+              {restSnapshot.reminders.length === 0 ? (
+                <p className="empty-editor-state">
+                  暂无休息提醒。
+                </p>
+              ) : (
+                restSnapshot.reminders.map((reminder) => {
+                  const soundBadge = formatSoundBadge(reminder.sounds);
+                  return (
+                    <div
+                      className={`reminder-row ${reminder.enabled ? "" : "reminder-disabled"}`}
+                      key={reminder.id}
+                    >
+                      <div
+                        className="reminder-content"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => editReminder(reminder)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            editReminder(reminder);
+                          }
+                        }}
                       >
-                        <strong>
-                          {String(reminder.hour).padStart(2, "0")}:
-                          {String(reminder.minute).padStart(2, "0")}
-                        </strong>
-                        <span>{reminder.message}</span>
-                      </button>
-                      <label
-                        className="toggle-control"
-                        style={{ marginBottom: 0 }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={reminder.enabled}
-                          disabled={isBusy}
-                          onChange={() => setReminderEnabled(reminder)}
-                        />
-                        <span>启用</span>
-                      </label>
+                        <div className="reminder-primary-row">
+                          <strong className="reminder-time">
+                            {String(reminder.hour).padStart(2, "0")}:
+                            {String(reminder.minute).padStart(2, "0")}
+                          </strong>
+                          <span className="reminder-message">{reminder.message}</span>
+                        </div>
+                        <div className="reminder-badges">
+                          <span className="reminder-badge">{formatReminderWeekdays(reminder.weekdays)}</span>
+                          <span className="reminder-badge">{reminder.restDurationMinutes} 分钟休息</span>
+                          <span className={`reminder-badge ${soundBadge.enabled ? "badge-sound-on" : "badge-sound-off"}`}>
+                            {soundBadge.label}
+                          </span>
+                          <span className="reminder-badge">{formatTolerance(reminder.cursorTolerance)}</span>
+                        </div>
+                      </div>
+                      <div className="reminder-actions">
+                        <button
+                          type="button"
+                          className="reminder-edit-button"
+                          onClick={() => editReminder(reminder)}
+                          title="编辑此条提醒"
+                        >
+                          编辑 ›
+                        </button>
+                        <label
+                          className="toggle-control"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={reminder.enabled}
+                            disabled={isBusy}
+                            onChange={() => setReminderEnabled(reminder)}
+                          />
+                          <span>启用</span>
+                        </label>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                  );
+                })
+              )}
+            </div>
           </article>
           <AudioSettings
             audio={restSnapshot.audio}
@@ -935,6 +967,45 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             onImport={importAudio}
             onChange={updateAudioSources}
           />
+          {reminderDraft &&
+            createPortal(
+              <div
+                className="modal-backdrop"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="reminder-modal-title"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) setReminderDraft(null);
+                }}
+              >
+                <div className="modal-card">
+                  <div className="modal-header">
+                    <h3 id="reminder-modal-title">
+                      {reminderDraft.id
+                        ? `编辑休息提醒 · ${String(reminderDraft.hour ?? 0).padStart(2, "0")}:${String(reminderDraft.minute ?? 0).padStart(2, "0")}`
+                        : "添加休息提醒"}
+                    </h3>
+                    <button
+                      type="button"
+                      className="modal-close-button"
+                      onClick={() => setReminderDraft(null)}
+                      aria-label="关闭"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <ReminderEditor
+                    value={reminderDraft}
+                    disabled={isBusy}
+                    onChange={setReminderDraft}
+                    onSave={saveReminder}
+                    onCancel={() => setReminderDraft(null)}
+                    onDelete={reminderDraft.id ? deleteReminder : undefined}
+                  />
+                </div>
+              </div>,
+              document.body,
+            )}
         </section>
       )}
 
@@ -1131,3 +1202,34 @@ function normalizeTargetHeight(value: string): number | null {
     Math.min(Math.max(parsed, MIN_PET_TARGET_HEIGHT), MAX_PET_TARGET_HEIGHT),
   );
 }
+
+function formatReminderWeekdays(weekdays: readonly Weekday[]): string {
+  if (weekdays.length === 7) return "每天";
+  if (weekdays.length === 5 && [1, 2, 3, 4, 5].every((d) => weekdays.includes(d as Weekday))) return "工作日";
+  if (weekdays.length === 2 && [0, 6].every((d) => weekdays.includes(d as Weekday))) return "周末";
+  const names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+  return weekdays
+    .slice()
+    .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+    .map((d) => names[d])
+    .join("、");
+}
+
+function formatTolerance(tolerance: CursorTolerance): string {
+  switch (tolerance) {
+    case "sensitive":
+      return "轻微移动即提醒";
+    case "relaxed":
+      return "明显移动才提醒";
+    default:
+      return "适度移动后提醒";
+  }
+}
+
+function formatSoundBadge(sounds: { reminder: boolean; crying: boolean }): { label: string; enabled: boolean } {
+  if (sounds.reminder && sounds.crying) return { label: "🔔 提示音+督促音", enabled: true };
+  if (sounds.reminder) return { label: "🔔 提示音开启", enabled: true };
+  if (sounds.crying) return { label: "🔔 督促音开启", enabled: true };
+  return { label: "🔕 静音", enabled: false };
+}
+
