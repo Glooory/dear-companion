@@ -1,3 +1,5 @@
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from '../../shared/contracts'
+
 export interface Rect {
   x: number
   y: number
@@ -65,7 +67,7 @@ export function resolvePetWindowBounds(
   displays: readonly DisplaySnapshot[],
   savedDisplayId: string | null,
   savedPoint: Point | null,
-  size: Pick<Rect, 'width' | 'height'> = { width: 320, height: 320 },
+  size: Pick<Rect, 'width' | 'height'> = { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT },
   margin = 8
 ): Rect {
   const display = chooseDisplay(displays, savedDisplayId, savedPoint)

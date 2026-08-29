@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import type {
-  AppSettings,
-  AutostartStatus,
-  AudioImportResult,
-  AudioSourceInput,
-  CompanionSystemSnapshot,
-  CreateWorkScheduleInput,
-  CreateReminderInput,
-  ImageImportResult,
-  PetConfig,
-  PetRendererStatus,
-  ReminderSchedule,
-  ReleaseHardeningApi,
-  RestSystemSnapshot,
-  PetSystemSnapshot,
-  PetUpdateInput,
-  WorkSchedule
+import {
+  MIN_PET_TARGET_HEIGHT,
+  MAX_PET_TARGET_HEIGHT,
+  type AppSettings,
+  type AutostartStatus,
+  type AudioImportResult,
+  type AudioSourceInput,
+  type CompanionSystemSnapshot,
+  type CreateWorkScheduleInput,
+  type CreateReminderInput,
+  type ImageImportResult,
+  type PetConfig,
+  type PetRendererStatus,
+  type ReminderSchedule,
+  type ReleaseHardeningApi,
+  type RestSystemSnapshot,
+  type PetSystemSnapshot,
+  type PetUpdateInput,
+  type WorkSchedule
 } from '@shared/contracts'
 import { ActionSlotEditor } from '../components/ActionSlotEditor'
 import { PetAssetEditor } from '../components/PetAssetEditor'
@@ -178,7 +180,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     if (!draft) return
     const targetHeight = normalizeTargetHeight(targetHeightText)
     if (targetHeight === null) {
-      setError('桌面上的大小需要在 80–260 之间。')
+      setError(`桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`)
       return
     }
     const input = { ...draft, targetHeight }
@@ -199,7 +201,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     if (!draft || draft.actionSlots.idle.length === 0) return
     const targetHeight = normalizeTargetHeight(targetHeightText)
     if (targetHeight === null) {
-      setError('桌面上的大小需要在 80–260 之间。')
+      setError(`桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`)
       return
     }
     const input = { ...draft, targetHeight }
@@ -451,11 +453,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     />
                   </label>
                   <label>
-                    <span>显示高度 (80–260 像素)</span>
+                    <span>显示高度 ({MIN_PET_TARGET_HEIGHT}–{MAX_PET_TARGET_HEIGHT} 像素)</span>
                     <input
                       type="number"
-                      min={80}
-                      max={260}
+                      min={MIN_PET_TARGET_HEIGHT}
+                      max={MAX_PET_TARGET_HEIGHT}
                       step={1}
                       inputMode="numeric"
                       value={targetHeightText}
@@ -757,12 +759,12 @@ function mergeImportedAssetsIntoDraft(
 function parseTargetHeight(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed >= 80 && parsed <= 260 ? Math.round(parsed) : null
+  return Number.isFinite(parsed) && parsed >= MIN_PET_TARGET_HEIGHT && parsed <= MAX_PET_TARGET_HEIGHT ? Math.round(parsed) : null
 }
 
 function normalizeTargetHeight(value: string): number | null {
   if (value.trim() === '') return null
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return null
-  return Math.round(Math.min(Math.max(parsed, 80), 260))
+  return Math.round(Math.min(Math.max(parsed, MIN_PET_TARGET_HEIGHT), MAX_PET_TARGET_HEIGHT))
 }

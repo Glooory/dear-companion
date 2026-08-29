@@ -1,4 +1,4 @@
-import type { PetAsset } from './contracts'
+import { MIN_PET_TARGET_HEIGHT, MAX_PET_TARGET_HEIGHT, type PetAsset } from './contracts'
 
 export interface AssetViewport {
   width: number
@@ -20,8 +20,8 @@ export function computeAssetGeometry(
   targetHeight: number,
   viewport: AssetViewport
 ): AssetRenderGeometry {
-  if (!Number.isFinite(targetHeight) || targetHeight < 80 || targetHeight > 260) {
-    throw new RangeError('Target height must be between 80 and 260')
+  if (!Number.isFinite(targetHeight) || targetHeight < MIN_PET_TARGET_HEIGHT || targetHeight > MAX_PET_TARGET_HEIGHT) {
+    throw new RangeError(`Target height must be between ${MIN_PET_TARGET_HEIGHT} and ${MAX_PET_TARGET_HEIGHT}`)
   }
   if (!Number.isFinite(viewport.width) || viewport.width <= 0 || !Number.isFinite(viewport.height) || viewport.height <= 0) {
     throw new RangeError('Viewport dimensions must be positive')

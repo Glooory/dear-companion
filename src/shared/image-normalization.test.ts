@@ -31,7 +31,7 @@ describe('image normalization', () => {
     expect(geometry.visibleHeight).toBeCloseTo(120)
     expect(geometry.left).toBeCloseTo(67)
     expect(geometry.top).toBeCloseTo(125)
-    expect(() => computeAssetGeometry(asset, 261, { width: 320, height: 320 })).toThrow('80 and 260')
+    expect(() => computeAssetGeometry(asset, 321, { width: 320, height: 320 })).toThrow('80 and 320')
   })
 
   it('gives differently padded assets the same visible baseline', () => {

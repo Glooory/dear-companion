@@ -6,8 +6,8 @@ describe('secure window options', () => {
     const pet = createPetWindowOptions('/app/out/preload/index.js')
 
     expect(pet).toMatchObject({
-      width: 320,
-      height: 320,
+      width: 360,
+      height: 460,
       transparent: true,
       frame: false,
       resizable: false,

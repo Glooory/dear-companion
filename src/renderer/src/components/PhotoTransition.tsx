@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PetAsset } from '@shared/contracts'
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type PetAsset } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
 
 export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onTransitionComplete }: {
@@ -79,7 +79,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
     setPhase('idle')
   }
 
-  const geometry = computeAssetGeometry(current, targetHeight, { width: 320, height: 320 })
+  const geometry = computeAssetGeometry(current, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
   return (
     <>
       <span

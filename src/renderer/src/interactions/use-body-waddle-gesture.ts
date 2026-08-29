@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type PointerEvent } from 'react'
 import { BodyWaddleGesture, type HorizontalDirection } from '@shared/body-waddle-gesture'
-import type { PetAsset } from '@shared/contracts'
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type PetAsset } from '@shared/contracts'
 import { computeHeadHotspotGeometry } from '@shared/head-hotspot'
 import { computeAssetGeometry } from '@shared/image-normalization'
 
@@ -25,8 +25,8 @@ export function useBodyWaddleGesture({
 
   return useCallback((event: PointerEvent<HTMLElement>, pettingCandidateActive: boolean): void => {
     if (!active || !asset) return
-    const geometry = computeAssetGeometry(asset, targetHeight, { width: 320, height: 320 })
-    const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, { width: 320, height: 320 })
+    const geometry = computeAssetGeometry(asset, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
+    const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
     if (!headEllipse) return
     const direction = gesture.current.register({
       x: event.clientX,

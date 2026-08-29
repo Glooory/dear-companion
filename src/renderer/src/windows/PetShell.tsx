@@ -4,15 +4,17 @@ import {
   createDirectedWaddleSteps,
   createWaddleSteps,
 } from '@shared/companion-rhythm'
-import type {
-  ActionSlot,
-  CompanionLifeState,
-  CompanionSystemSnapshot,
-  PetAsset,
-  PetConfig,
-  PetSystemSnapshot,
-  RestSystemApi,
-  RestSystemSnapshot
+import {
+  PET_WINDOW_HEIGHT,
+  PET_WINDOW_WIDTH,
+  type ActionSlot,
+  type CompanionLifeState,
+  type CompanionSystemSnapshot,
+  type PetAsset,
+  type PetConfig,
+  type PetSystemSnapshot,
+  type RestSystemApi,
+  type RestSystemSnapshot
 } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
 import { WakeSequence } from '@shared/wake-sequence'
@@ -371,14 +373,14 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const template = resolvedAction?.template ?? (runtimeActive ? 'gentle-breathe' : 'still')
   const actorStyle = { '--pet-tilt-x': `${tilt.x}deg`, '--pet-tilt-y': `${tilt.y}deg` } as CSSProperties
   const petGeometry = activePet && desiredAsset
-    ? computeAssetGeometry(desiredAsset, activePet.targetHeight, { width: 320, height: 320 })
+    ? computeAssetGeometry(desiredAsset, activePet.targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
     : null
   const visibleImageTop = petGeometry && desiredAsset
     ? petGeometry.top + desiredAsset.alphaBounds.y * petGeometry.scale
     : null
   const shellStyle = visibleImageTop === null
     ? undefined
-    : { '--pet-visible-top': `${Math.max(0, Math.min(320, visibleImageTop))}px` } as CSSProperties
+    : { '--pet-visible-top': `${Math.max(0, Math.min(PET_WINDOW_HEIGHT, visibleImageTop))}px` } as CSSProperties
   const prompt = restSnapshot?.runtime.prompt ?? null
   const session = restSnapshot?.runtime.session ?? null
   const remainingSeconds = session ? Math.max(0, Math.ceil((session.endsAt - displayNow) / 1_000)) : 0

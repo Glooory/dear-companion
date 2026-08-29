@@ -13,7 +13,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
   onChange(value: HeadHotspot | null): void
 }): React.JSX.Element {
   const drag = useRef<{ kind: DragKind; x: number; y: number; start: HeadHotspot } | null>(null)
-  const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, { width: 220, height: 260, baselineY: 242 })
+  const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, { width: 240, height: 350, baselineY: 332 })
   const visibleWidth = asset.alphaBounds.width * geometry.scale
   const visibleHeight = asset.alphaBounds.height * geometry.scale
   const visibleLeft = geometry.left + asset.alphaBounds.x * geometry.scale

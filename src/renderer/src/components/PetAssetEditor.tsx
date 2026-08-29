@@ -22,9 +22,9 @@ export function PetAssetEditor({
   onHeadHotspotChange
 }: PetAssetEditorProps): React.JSX.Element {
   const geometry = computeAssetGeometry({ ...asset, normalization }, targetHeight, {
-    width: 220,
-    height: 260,
-    baselineY: 242
+    width: 240,
+    height: 350,
+    baselineY: 332
   })
 
   const update = (key: keyof AssetNormalization, value: number): void => {

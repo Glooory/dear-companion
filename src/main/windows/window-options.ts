@@ -1,4 +1,5 @@
 import type { BrowserWindowConstructorOptions, WebPreferences } from 'electron'
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from '../../shared/contracts'
 import type { SettingsWindowBounds } from './display-placement'
 
 const secureWebPreferences = (preload: string): WebPreferences => ({
@@ -12,8 +13,8 @@ const secureWebPreferences = (preload: string): WebPreferences => ({
 
 export function createPetWindowOptions(preloadPath: string): BrowserWindowConstructorOptions {
   return {
-    width: 320,
-    height: 320,
+    width: PET_WINDOW_WIDTH,
+    height: PET_WINDOW_HEIGHT,
     transparent: true,
     frame: false,
     hasShadow: false,

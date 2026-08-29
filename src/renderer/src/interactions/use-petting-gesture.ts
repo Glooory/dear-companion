@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type PointerEvent } from 'react'
-import type { CompanionSystemApi, PetAsset } from '@shared/contracts'
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type CompanionSystemApi, type PetAsset } from '@shared/contracts'
 import { computeHeadHotspotGeometry } from '@shared/head-hotspot'
 
 export function usePettingGesture({ api, petId, asset, targetHeight, active, dependencyKey, onDetected }: {
@@ -37,7 +37,7 @@ export function usePettingGesture({ api, petId, asset, targetHeight, active, dep
   return useCallback((event: PointerEvent<HTMLElement>): boolean => {
     if (!active || !asset) return false
     if (armed.current) return true
-    const ellipse = computeHeadHotspotGeometry(asset, targetHeight, { width: 320, height: 320 })
+    const ellipse = computeHeadHotspotGeometry(asset, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
     if (!ellipse) return false
     const normalized = Math.hypot(
       (event.clientX - ellipse.centerX) / ellipse.radiusX,

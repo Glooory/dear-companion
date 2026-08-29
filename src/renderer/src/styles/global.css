@@ -389,7 +389,7 @@ textarea:focus-visible {
 
 .asset-editor {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 20px;
   padding: 16px;
   border: 1px solid #ede8e1;
@@ -400,8 +400,8 @@ textarea:focus-visible {
 
 .asset-preview {
   position: relative;
-  width: 220px;
-  height: 260px;
+  width: 240px;
+  height: 350px;
   overflow: hidden;
   border: 1px solid #e6e0d6;
   border-radius: 14px;
@@ -1141,10 +1141,10 @@ textarea:focus-visible {
   position: absolute;
   z-index: 7;
   top: auto;
-  bottom: calc(320px - var(--pet-visible-top) + 12px);
+  bottom: calc(460px - var(--pet-visible-top) + 10px);
   left: 50%;
-  max-width: 250px;
-  max-height: max(0px, calc(var(--pet-visible-top) - 20px));
+  max-width: 290px;
+  max-height: max(0px, calc(var(--pet-visible-top) - 16px));
   padding: 9px 13px;
   transform: translateX(-50%);
   border: 1px solid rgba(45, 42, 38, 0.1);
@@ -1156,9 +1156,13 @@ textarea:focus-visible {
   font-weight: 500;
   text-align: center;
   overflow-wrap: anywhere;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
+  scrollbar-width: none;
   animation: bubble-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.pet-dialogue::-webkit-scrollbar {
+  display: none;
 }
 
 .pet-dialogue::after {
@@ -1191,10 +1195,14 @@ textarea:focus-visible {
 
 .pet-shell[data-has-pet='true'] .rest-bubble {
   top: auto;
-  bottom: calc(320px - var(--pet-visible-top) + 10px);
-  max-height: max(0px, calc(var(--pet-visible-top) - 18px));
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  bottom: calc(460px - var(--pet-visible-top) + 10px);
+  max-height: max(0px, calc(var(--pet-visible-top) - 16px));
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.rest-bubble::-webkit-scrollbar {
+  display: none;
 }
 
 .rest-bubble p {

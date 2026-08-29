@@ -66,6 +66,10 @@ export const ACTION_SLOTS = [
 export type ActionSlot = (typeof ACTION_SLOTS)[number]
 export type PetAssetFormat = 'png' | 'webp'
 export const MAX_PET_PACK_BYTES = 250 * 1024 * 1024
+export const PET_WINDOW_WIDTH = 360
+export const PET_WINDOW_HEIGHT = 460
+export const MIN_PET_TARGET_HEIGHT = 80
+export const MAX_PET_TARGET_HEIGHT = 320
 
 export interface PetWindowSettings {
   x: number | null
@@ -727,7 +731,7 @@ export function parsePetUpdateInput(
   )
   const id = parsePetIdentifier(value.id)
   const name = parsePetName(value.name)
-  if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
+  if (!isFiniteNumberInRange(value.targetHeight, MIN_PET_TARGET_HEIGHT, MAX_PET_TARGET_HEIGHT)) {
     throw new Error('Invalid pet target height')
   }
   if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset adjustments')
@@ -1122,7 +1126,7 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
   if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
   const name = parsePetName(value.name)
   if (name !== value.name) throw new Error('Invalid pet name')
-  if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
+  if (!isFiniteNumberInRange(value.targetHeight, MIN_PET_TARGET_HEIGHT, MAX_PET_TARGET_HEIGHT)) {
     throw new Error('Invalid pet target height')
   }
   if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset collection')
@@ -1157,7 +1161,7 @@ function parseLegacyPetConfig(value: unknown, index: number): LegacyPetConfig {
   if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
   const name = parsePetName(value.name)
   if (name !== value.name) throw new Error('Invalid pet name')
-  if (!isFiniteNumberInRange(value.targetHeight, 80, 260)) {
+  if (!isFiniteNumberInRange(value.targetHeight, MIN_PET_TARGET_HEIGHT, MAX_PET_TARGET_HEIGHT)) {
     throw new Error('Invalid pet target height')
   }
   if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset collection')
