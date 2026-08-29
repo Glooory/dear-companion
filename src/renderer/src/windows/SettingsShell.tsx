@@ -538,7 +538,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <input
                 value={newPetName}
                 maxLength={80}
-                placeholder="例如：小桃"
+                placeholder="例如：宝贝"
                 onChange={(event) => setNewPetName(event.currentTarget.value)}
               />
             </label>
