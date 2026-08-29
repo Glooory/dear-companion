@@ -110,7 +110,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const performCurrentPhotoAction = useCallback((template: ActionTemplate, duration = 900): void => {
     if (!baseAsset) return
     performResolvedAction({
-      slot: 'cute', assetIds: [baseAsset.id], template, overlays: [], usedFallback: true
+      slot: 'idle', assetIds: [baseAsset.id], template, overlays: [], usedFallback: true
     }, duration)
   }, [baseAsset, performResolvedAction])
 
@@ -120,22 +120,12 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       ? createWaddleSteps(Math.random)
       : createDirectedWaddleSteps(direction, Math.random)
     performResolvedAction({
-      slot: 'cute', assetIds: [baseAsset.id], template: 'waddle', overlays: [], usedFallback: true
+      slot: 'idle', assetIds: [baseAsset.id], template: 'waddle', overlays: [], usedFallback: true
     }, 1_200)
     steps.forEach((deltaX, index) => {
       actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 180 + index * 180))
     })
   }, [api, baseAsset, performResolvedAction])
-
-  const performAction = useCallback((slot: ActionSlot, complete: () => void): void => {
-    if (!activePet || !baseAsset) return
-    const action = resolveAction(activePet, slot, Math.floor(Math.random() * 10_000), baseAsset.id)
-    if (slot === 'angry') showDialogue('angry', DIALOGUES.angry)
-    const duration = action.template === 'asset-swap'
-      ? Math.max(actionDuration(activePet, slot), 1_800)
-      : actionDuration(activePet, slot)
-    performResolvedAction(action, duration, complete)
-  }, [activePet, baseAsset, performResolvedAction, showDialogue])
 
   const handlePrimaryClick = useCallback((): void => {
     if (!activePet || !baseAsset || runtimeActive) return
@@ -148,7 +138,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         showDialogue('sleeping:stirring', DIALOGUES.sleepingStirring)
         const drowsyId = activePet.lifeStates.drowsy.assetIds[0]
         performResolvedAction({
-          slot: 'cute', assetIds: drowsyId ? [drowsyId] : [baseAsset.id],
+          slot: 'idle', assetIds: drowsyId ? [drowsyId] : [baseAsset.id],
           template: drowsyId ? 'asset-swap' : 'nod', overlays: [], usedFallback: !drowsyId
         }, 1_100)
       } else {
@@ -160,15 +150,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     }
     if (lifeState === 'daily-calm') {
       showDialogue('daily:click', DIALOGUES.dailyClick)
-      performAction('cute', () => undefined)
+      performCurrentPhotoAction('bounce', 750)
     } else if (lifeState === 'daily-playful') {
       showDialogue('playful:click', DIALOGUES.playfulClick)
-      if (activePet.actionSlots.idle.length > 1) {
-        const nextIndex = (dailyIndex + 1) % activePet.actionSlots.idle.length
-        const nextId = activePet.actionSlots.idle[nextIndex]!
-        setDailyIndex(nextIndex)
-        performResolvedAction({ slot: 'cute', assetIds: [nextId], template: 'asset-swap', overlays: [], usedFallback: true }, 1_200)
-      } else performCurrentPhotoAction('bounce', 850)
+      performCurrentPhotoAction('bounce', 850)
     } else if (lifeState === 'drowsy') {
       showDialogue('drowsy:click', DIALOGUES.drowsyClick)
       performCurrentPhotoAction('nod', 800)
@@ -176,7 +161,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       showDialogue('working:click', DIALOGUES.workingClick)
       performCurrentPhotoAction('nod', 650)
     }
-  }, [activePet, api, baseAsset, dailyIndex, finishAction, lifeState, performAction, performCurrentPhotoAction, performResolvedAction, runtimeActive, showDialogue])
+  }, [activePet, api, baseAsset, finishAction, lifeState, performCurrentPhotoAction, performResolvedAction, runtimeActive, showDialogue])
 
   const handlePettingDetected = useCallback((): void => {
     if (!activePet || !baseAsset || runtimeActive) return
@@ -186,8 +171,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       performCurrentPhotoAction('gentle-breathe', 900)
     } else if (lifeState === 'daily-calm' || lifeState === 'daily-playful') {
       showDialogue('daily:petting', DIALOGUES.dailyPetting)
-      const action = resolveAction(activePet, 'petting', Math.floor(Math.random() * 10_000), baseAsset.id)
-      performResolvedAction(action, activePet.actionTemplates.pettingDurationMs)
+      performCurrentPhotoAction('scale-nod', activePet.actionTemplates.pettingDurationMs)
     } else if (lifeState === 'drowsy') {
       showDialogue('drowsy:petting', DIALOGUES.drowsyPetting)
       performCurrentPhotoAction('scale-nod', 900)
@@ -195,7 +179,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       showDialogue('working:petting', DIALOGUES.workingPetting)
       performCurrentPhotoAction('scale-nod', 650)
     }
-  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, performResolvedAction, runtimeActive, showDialogue])
+  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue])
 
   const pettingPointerMove = usePettingGesture({
     api,
@@ -221,13 +205,16 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const {
     state: interactionState,
     tilt,
-    triggerAction,
     handlers: interactionHandlers
   } = usePetInteractions({
     api,
     visible: Boolean((snapshot?.petWindow.visible || runtimeActive) && pageVisible),
     angryVelocity: activePet?.actionTemplates.dragAngryVelocity ?? 1_200,
-    onAction: performAction,
+    onAngry: (finish) => {
+      showDialogue('angry', DIALOGUES.angry)
+      performCurrentPhotoAction('fast-shake', activePet?.actionTemplates.angryDurationMs ?? 1_040)
+      finish()
+    },
     onPrimaryClick: handlePrimaryClick,
     onDragStarted: () => {
       wakeSequence.current.reset()
@@ -255,8 +242,15 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const performPersonality = useCallback((): void => {
     if (Math.random() < 0.35) showDialogue('auto:cute', DIALOGUES.dailyCute)
-    triggerAction('cute')
-  }, [showDialogue, triggerAction])
+    if (activePet && activePet.actionSlots.idle.length > 1 && Math.random() < 0.35) {
+      const nextIndex = (dailyIndex + 1) % activePet.actionSlots.idle.length
+      const nextId = activePet.actionSlots.idle[nextIndex]!
+      setDailyIndex(nextIndex)
+      performResolvedAction({ slot: 'idle', assetIds: [nextId], template: 'asset-swap', overlays: [], usedFallback: true }, 2_000)
+    } else {
+      performCurrentPhotoAction(Math.random() < 0.5 ? 'bounce' : 'sway', 950)
+    }
+  }, [activePet, dailyIndex, performCurrentPhotoAction, performResolvedAction, showDialogue])
 
   useCompanionPresence({
     enabled: Boolean(activePet && baseAsset && pageVisible && snapshot?.petWindow.visible && !runtimeActive),
@@ -275,13 +269,13 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (request.type === 'play-now') {
       if (lifeState !== 'daily-calm' && lifeState !== 'daily-playful') return
       showDialogue('daily:click', DIALOGUES.dailyClick)
-      performAction('cute', () => undefined)
+      performCurrentPhotoAction('bounce', 850)
       return
     }
     if (request.pace === 'quiet') performCurrentPhotoAction('gentle-breathe', 1_600)
     else if (request.pace === 'natural') performCurrentPhotoAction('sway', 900)
     else performCurrentPhotoAction('bounce', 900)
-  }), [activePet, api, baseAsset, lifeState, performAction, performCurrentPhotoAction, runtimeActive, showDialogue])
+  }), [activePet, api, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue])
 
   useEffect(() => {
     let cancelled = false
@@ -358,8 +352,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   if (error) return <main className="pet-shell pet-empty-shell"><button className="pet-settings-button" type="button" onClick={openSettings}>打开设置</button></main>
 
-  const runtimeSlot: ActionSlot | null = runtimeState === 'resting' || runtimeState === 'celebrating'
-    ? 'resting' : runtimeState === 'crying' ? 'crying' : null
+  const runtimeSlot: ActionSlot | null = runtimeState === 'resting' || runtimeState === 'celebrating' || runtimeState === 'crying'
+    ? 'resting' : null
   const resolvedAction = activePet && baseAsset
     ? (runtimeActive
         ? (runtimeSlot ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id) : null)
@@ -462,10 +456,4 @@ function formatCountdown(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-}
-
-function actionDuration(pet: PetConfig, slot: ActionSlot): number {
-  if (slot === 'petting') return pet.actionTemplates.pettingDurationMs
-  if (slot === 'angry') return pet.actionTemplates.angryDurationMs
-  return pet.actionTemplates.cuteDurationMs
 }

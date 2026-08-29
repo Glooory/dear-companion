@@ -1,18 +1,20 @@
-import type { ActionSlot, PetActionSlots, PetAsset } from '@shared/contracts'
+import type { PetActionSlots, PetAsset } from '@shared/contracts'
 import { AssetChoice } from './AssetChoice'
 
-type ConfigurableActionSlot = Exclude<ActionSlot, 'petting' | 'blink'>
+type ConfigurableActionSlot = 'idle' | 'resting'
 
 const CONFIGURABLE_ACTION_SLOTS = [
-  'idle', 'cute', 'angry', 'crying', 'resting'
+  'idle', 'resting'
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
-  idle: '🏠 默认常驻照片',
-  cute: '✨ 偶尔卖萌',
-  angry: '💢 拖拽过快',
-  crying: '💧 督促继续休息',
-  resting: '☕ 休息模式'
+  idle: '☀️ 平时陪伴照片',
+  resting: '🌙 休息模式照片'
+}
+
+const SLOT_HINTS: Record<ConfigurableActionSlot, string> = {
+  idle: '日常在桌面上陪伴你的照片，支持选择多张在漫步时轮换',
+  resting: '可选，在番茄钟或久坐提醒进入休息时显示'
 }
 
 interface ActionSlotEditorProps {
@@ -36,6 +38,7 @@ export function ActionSlotEditor({ petId, assets, slots, onChange }: ActionSlotE
       {CONFIGURABLE_ACTION_SLOTS.map((slot) => (
         <fieldset key={slot}>
           <legend>{SLOT_LABELS[slot]}</legend>
+          <p className="supporting-copy" style={{ margin: '0 0 8px 0', fontSize: '12px' }}>{SLOT_HINTS[slot]}</p>
           {assets.length === 0 ? (
             <p className="supporting-copy">请先导入照片</p>
           ) : assets.map((asset) => (

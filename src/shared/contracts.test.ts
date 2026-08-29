@@ -133,9 +133,9 @@ describe('settings contracts', () => {
     expect(() =>
       parseAppSettings({
         ...DEFAULT_APP_SETTINGS,
-        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, cute: ['missing'] } }]
+        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, resting: ['missing'] } }]
       })
-    ).toThrow('Unknown asset in cute action slot')
+    ).toThrow('Unknown asset in resting action slot')
   })
 
   it('rejects invalid immutable metadata and normalization values', () => {

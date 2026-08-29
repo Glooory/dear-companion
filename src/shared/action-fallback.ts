@@ -31,63 +31,31 @@ export function resolveAction(
   if (!idleAssetId) throw new Error('An idle asset is required to resolve pet actions')
 
   if (slot === 'idle') {
-    return { slot, assetIds: [idleAssetId], template: 'still', overlays: [], usedFallback: false }
+    return { slot: 'idle', assetIds: [idleAssetId], template: 'still', overlays: [], usedFallback: false }
   }
 
-  if (slot === 'petting') {
-    return { slot, assetIds: [idleAssetId], template: 'scale-nod', overlays: [], usedFallback: true }
-  }
-
-  if (slot === 'blink') {
-    const fallback = FALLBACKS.blink!
-    const template = Array.isArray(fallback.template)
-      ? fallback.template[positiveModulo(randomIndex, fallback.template.length)]!
-      : fallback.template
+  const restingAssetId = select(pet.actionSlots.resting, randomIndex)
+  if (restingAssetId) {
     return {
-      slot,
-      assetIds: [idleAssetId],
-      template,
-      overlays: fallback.overlays,
-      usedFallback: true
-    }
-  }
-
-  const assignedAssetId = select(pet.actionSlots[slot], randomIndex)
-  if (assignedAssetId) {
-    return {
-      slot,
-      assetIds: [assignedAssetId],
+      slot: 'resting',
+      assetIds: [restingAssetId],
       template: 'asset-swap',
       overlays: [],
       usedFallback: false
     }
   }
 
-  const fallback = FALLBACKS[slot]
-  if (!fallback) throw new Error(`No fallback is defined for ${slot}`)
-  const template = Array.isArray(fallback.template)
-    ? fallback.template[positiveModulo(randomIndex, fallback.template.length)]!
-    : fallback.template
   return {
-    slot,
+    slot: 'resting',
     assetIds: [idleAssetId],
-    template,
-    overlays: fallback.overlays,
+    template: 'gentle-breathe',
+    overlays: [],
     usedFallback: true
   }
 }
 
-const FALLBACKS: Partial<Record<ActionSlot, { template: ActionTemplate | readonly ActionTemplate[]; overlays: readonly ActionOverlay[] }>> = {
-  cute: { template: ['bounce', 'sway'], overlays: [] },
-  petting: { template: 'scale-nod', overlays: [] },
-  angry: { template: 'fast-shake', overlays: ['protest-bubble'] },
-  crying: { template: 'still', overlays: ['tears'] },
-  resting: { template: 'gentle-breathe', overlays: [] },
-  blink: { template: ['nod', 'gentle-breathe'], overlays: [] }
-}
-
 function select(values: readonly string[], index: number): string | null {
-  if (values.length === 0) return null
+  if (!values || values.length === 0) return null
   return values[positiveModulo(index, values.length)] ?? null
 }
 

@@ -55,12 +55,7 @@ export interface AudioSettingsV3 {
 
 export const ACTION_SLOTS = [
   'idle',
-  'cute',
-  'petting',
-  'angry',
-  'crying',
-  'resting',
-  'blink'
+  'resting'
 ] as const
 
 export type ActionSlot = (typeof ACTION_SLOTS)[number]
@@ -450,12 +445,7 @@ export const DEFAULT_ACTION_TEMPLATES: Readonly<PetActionTemplates> = Object.fre
 
 export const EMPTY_ACTION_SLOTS: Readonly<PetActionSlots> = Object.freeze({
   idle: Object.freeze([]),
-  cute: Object.freeze([]),
-  petting: Object.freeze([]),
-  angry: Object.freeze([]),
-  crying: Object.freeze([]),
-  resting: Object.freeze([]),
-  blink: Object.freeze([])
+  resting: Object.freeze([])
 })
 
 export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
@@ -1352,11 +1342,10 @@ function parseInteractionBubblesEnabled(value: unknown): boolean {
 
 function parseActionSlots(value: unknown, assetIds: ReadonlySet<string>): PetActionSlots {
   if (!isRecord(value)) throw new Error('Invalid action slots')
-  assertExactKeys(value, ACTION_SLOTS, 'Invalid action slots')
   const result = {} as Record<ActionSlot, readonly string[]>
 
   for (const slot of ACTION_SLOTS) {
-    const assignments = value[slot]
+    const assignments = value[slot] ?? []
     if (!Array.isArray(assignments) || !assignments.every(isSafeIdentifier)) {
       throw new Error(`Invalid ${slot} action slot`)
     }

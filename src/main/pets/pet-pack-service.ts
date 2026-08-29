@@ -310,12 +310,7 @@ function cloneEmptySlots(): PetConfig['actionSlots'] {
 function cloneSlots(slots: PetConfig['actionSlots']): PetConfig['actionSlots'] {
   return {
     idle: [...slots.idle],
-    cute: [...slots.cute],
-    petting: [...slots.petting],
-    angry: [...slots.angry],
-    crying: [...slots.crying],
-    resting: [...slots.resting],
-    blink: [...slots.blink]
+    resting: [...slots.resting]
   }
 }
 

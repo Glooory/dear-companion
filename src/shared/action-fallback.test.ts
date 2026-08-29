@@ -7,59 +7,45 @@ function slots(overrides: Partial<PetActionSlots> = {}): PetActionSlots {
 }
 
 describe('action fallback resolution', () => {
-  it('selects assigned action assets deterministically', () => {
-    expect(resolveAction({ actionSlots: slots({ cute: ['cute-a', 'cute-b'] }) }, 'cute', 3)).toEqual({
-      slot: 'cute',
-      assetIds: ['cute-b'],
+  it('selects assigned action assets deterministically for resting mode', () => {
+    expect(resolveAction({ actionSlots: slots({ resting: ['resting-a', 'resting-b'] }) }, 'resting', 3)).toEqual({
+      slot: 'resting',
+      assetIds: ['resting-b'],
       template: 'asset-swap',
       overlays: [],
       usedFallback: false
     })
   })
 
-  it.each([
-    ['cute', 'bounce', []],
-    ['petting', 'scale-nod', []],
-    ['angry', 'fast-shake', ['protest-bubble']],
-    ['crying', 'still', ['tears']],
-    ['resting', 'gentle-breathe', []]
-  ] as const)('uses the specified idle fallback for %s', (slot, template, overlays) => {
-    expect(resolveAction({ actionSlots: slots() }, slot, 0)).toMatchObject({
+  it('uses gentle-breathe fallback when no resting asset is configured', () => {
+    expect(resolveAction({ actionSlots: slots() }, 'resting', 0)).toEqual({
+      slot: 'resting',
       assetIds: ['idle-a'],
-      template,
-      overlays,
-      usedFallback: true
-    })
-  })
-
-  it('uses nod or breathing without simulating an eyelid or closed-eye frame', () => {
-    expect(resolveAction({ actionSlots: slots({ blink: ['closed'] }) }, 'blink', 0)).toMatchObject({
-      slot: 'blink',
-      template: 'nod',
+      template: 'gentle-breathe',
       overlays: [],
       usedFallback: true
     })
-    expect(resolveAction({ actionSlots: slots() }, 'blink', 0)).toMatchObject({ template: 'nod', overlays: [] })
-    expect(resolveAction({ actionSlots: slots() }, 'blink', 1)).toMatchObject({ template: 'gentle-breathe', overlays: [] })
   })
 
-  it('requires at least one idle asset', () => {
-    expect(() => resolveAction({ actionSlots: { ...EMPTY_ACTION_SLOTS } }, 'cute')).toThrow('idle asset')
-  })
-
-  it('animates the caller current life photo for missing actions', () => {
-    expect(resolveAction({ actionSlots: slots() }, 'petting', 0, 'sleeping-a')).toMatchObject({
-      assetIds: ['sleeping-a'],
-      template: 'scale-nod',
-      usedFallback: true
+  it('resolves idle slot as still with current idle asset', () => {
+    expect(resolveAction({ actionSlots: slots() }, 'idle', 0)).toEqual({
+      slot: 'idle',
+      assetIds: ['idle-a'],
+      template: 'still',
+      overlays: [],
+      usedFallback: false
     })
   })
 
-  it('ignores legacy petting assets and animates the current life photo', () => {
-    expect(resolveAction({ actionSlots: slots({ petting: ['petting-a'] }) }, 'petting', 0, 'working-a')).toEqual({
-      slot: 'petting',
-      assetIds: ['working-a'],
-      template: 'scale-nod',
+  it('requires at least one idle asset', () => {
+    expect(() => resolveAction({ actionSlots: { ...EMPTY_ACTION_SLOTS } }, 'resting')).toThrow('idle asset')
+  })
+
+  it('uses caller specified base asset when provided', () => {
+    expect(resolveAction({ actionSlots: slots() }, 'resting', 0, 'custom-base')).toEqual({
+      slot: 'resting',
+      assetIds: ['custom-base'],
+      template: 'gentle-breathe',
       overlays: [],
       usedFallback: true
     })

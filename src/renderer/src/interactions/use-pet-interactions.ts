@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
-import type { ActionSlot, PetSystemApi } from '@shared/contracts'
+import type { PetSystemApi } from '@shared/contracts'
 import { isAngryDragRelease, type PointerSample } from '@shared/drag-gesture'
 import { transitionPetState, type PetState } from '@shared/pet-state-machine'
 
@@ -7,7 +7,7 @@ interface UsePetInteractionsOptions {
   api: Pick<PetSystemApi, 'movePetBy' | 'showPetContextMenu'>
   visible: boolean
   angryVelocity: number
-  onAction: (slot: ActionSlot, complete: () => void) => void
+  onAngry?: (finishAction: () => void) => void
   onPrimaryClick(): void
   onDragStarted?(): void
   onLocalPointerMove?(event: PointerEvent<HTMLElement>): void
@@ -25,7 +25,7 @@ export function usePetInteractions({
   api,
   visible,
   angryVelocity,
-  onAction,
+  onAngry,
   onPrimaryClick,
   onDragStarted,
   onLocalPointerMove,
@@ -58,14 +58,6 @@ export function usePetInteractions({
       : transitionPetState(current, { type: 'action-complete' })
     )
   }, [])
-
-  const triggerAction = useCallback((slot: 'cute' | 'petting'): void => {
-    const next = transitionPetState(state, { type: 'action-start' })
-    if (next === 'performingAction' && state !== 'performingAction') {
-      setState(next)
-      onAction(slot, finishAction)
-    }
-  }, [finishAction, onAction, state])
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0 || state === 'hidden' || runtimeState) return
@@ -119,7 +111,7 @@ export function usePetInteractions({
     suppressClick.current = session.moved
     if (session.moved) setTimeout(() => { suppressClick.current = false }, 0)
     setState((current) => transitionPetState(current, { type: 'drag-release', angry }))
-    if (angry) onAction('angry', finishAction)
+    if (angry) onAngry?.(finishAction)
   }
 
   const onClick = (): void => {
@@ -145,7 +137,6 @@ export function usePetInteractions({
   return {
     state: runtimeState ?? (visible ? state : 'hidden'),
     tilt: visible ? tilt : { x: 0, y: 0 },
-    triggerAction,
     finishAction,
     handlers: {
       onPointerDown,
