@@ -391,6 +391,7 @@ export interface PetSystemApi extends FoundationApi {
   getPetSystemSnapshot(): Promise<PetSystemSnapshot>
   createPet(name: string): Promise<PetSystemSnapshot>
   deletePet(petId: string): Promise<PetSystemSnapshot>
+  deletePetAsset(petId: string, assetId: string): Promise<PetSystemSnapshot>
   chooseAndImportPetAssets(petId: string): Promise<ImageImportResult>
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>
   setActivePet(petId: string): Promise<PetSystemSnapshot>

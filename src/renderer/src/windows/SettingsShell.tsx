@@ -27,7 +27,7 @@ import { ActionSlotEditor } from "../components/ActionSlotEditor";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionPreferences } from "../components/CompanionPreferences";
 import { LifeStateEditor } from "../components/LifeStateEditor";
-import { PetAssetEditor } from "../components/PetAssetEditor";
+import { PetGalleryManager } from "../components/PetGalleryManager";
 import {
   ReminderEditor,
   type ReminderDraft,
@@ -248,6 +248,22 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             }
           : current,
       );
+    });
+  };
+
+  const deleteAsset = (assetId: string): void => {
+    if (!selectedPet) return;
+    const targetAssetIndex = selectedPet.assets.findIndex((a) => a.id === assetId);
+    const label = targetAssetIndex >= 0 ? `照片 ${targetAssetIndex + 1}` : "这张照片";
+    if (!window.confirm(`确定要删除“${selectedPet.name}”的${label}吗？`)) return;
+
+    void runMutation(async () => {
+      const next = await api.deletePetAsset(selectedPet.id, assetId);
+      setSnapshot(next);
+      const nextPet = next.pets.find((pet) => pet.id === selectedPet.id);
+      if (nextPet) {
+        setDraft(petToUpdateInput(nextPet));
+      }
     });
   };
 
@@ -774,10 +790,36 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   />
                 </section>
 
+                <PetGalleryManager
+                  petId={selectedPet.id}
+                  assets={selectedPet.assets}
+                  targetHeight={draft.targetHeight}
+                  assetAdjustments={draft.assets}
+                  onImport={importAssets}
+                  onDeleteAsset={deleteAsset}
+                  isBusy={isBusy}
+                  onUpdateNormalization={(assetId, normalization) =>
+                    setDraft({
+                      ...draft,
+                      assets: draft.assets.map((entry) =>
+                        entry.id === assetId ? { ...entry, normalization } : entry,
+                      ),
+                    })
+                  }
+                  onUpdateHeadHotspot={(assetId, headHotspot) =>
+                    setDraft({
+                      ...draft,
+                      assets: draft.assets.map((entry) =>
+                        entry.id === assetId ? { ...entry, headHotspot } : entry,
+                      ),
+                    })
+                  }
+                />
+
                 <section className="editor-section">
                   <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
                     <h2>日常状态与照片</h2>
-                    <InfoTooltip text="首张照片为默认常驻姿态，可按需分配打瞌睡、安睡或专注等状态照片。" />
+                    <InfoTooltip text="按需为打瞌睡、安睡或专注状态分配不同的照片。" />
                   </div>
                   <LifeStateEditor
                     petId={selectedPet.id}
@@ -792,7 +834,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <section className="editor-section">
                   <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
                     <h2>场景照片</h2>
-                    <InfoTooltip text="平时漫步与定时休息展示的照片。未选时使用默认姿态。" />
+                    <InfoTooltip text="平时漫步与定时休息展示的照片。未指定时沿用平时陪伴照片。" />
                   </div>
                   <ActionSlotEditor
                     petId={selectedPet.id}
@@ -803,53 +845,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     }
                   />
                 </section>
-
-                <details className="editor-disclosure">
-                  <summary>姿态微调（缩放、脚底对齐与摸头区域）</summary>
-                  <div className="asset-editor-list">
-                    {selectedPet.assets.map((asset) => {
-                      const adjustment = draft.assets.find(
-                        (entry) => entry.id === asset.id,
-                      );
-                      if (!adjustment) return null;
-                      return (
-                        <PetAssetEditor
-                          key={asset.id}
-                          petId={selectedPet.id}
-                          asset={asset}
-                          targetHeight={draft.targetHeight}
-                          normalization={adjustment.normalization}
-                          headHotspot={adjustment.headHotspot}
-                          onChange={(normalization) =>
-                            setDraft({
-                              ...draft,
-                              assets: draft.assets.map((entry) =>
-                                entry.id === asset.id
-                                  ? { ...entry, normalization }
-                                  : entry,
-                              ),
-                            })
-                          }
-                          onHeadHotspotChange={(headHotspot) =>
-                            setDraft({
-                              ...draft,
-                              assets: draft.assets.map((entry) =>
-                                entry.id === asset.id
-                                  ? { ...entry, headHotspot }
-                                  : entry,
-                              ),
-                            })
-                          }
-                        />
-                      );
-                    })}
-                    {selectedPet.assets.length === 0 && (
-                      <p className="empty-editor-state">
-                        暂无照片，请先导入照片。
-                      </p>
-                    )}
-                  </div>
-                </details>
 
                 <div className="editor-actions">
                   <button

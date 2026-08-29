@@ -6,6 +6,7 @@ export const IPC_CHANNELS = {
   getPetSystemSnapshot: 'pet-system:get-snapshot',
   createPet: 'pet-system:create-pet',
   deletePet: 'pet-system:delete-pet',
+  deletePetAsset: 'pet-system:delete-pet-asset',
   importPetAssets: 'pet-system:import-assets',
   updatePet: 'pet-system:update-pet',
   setActivePet: 'pet-system:set-active-pet',

@@ -14,7 +14,7 @@ import type { WindowManager } from '../windows/window-manager'
 interface PetSystemIpcDependencies {
   petPackService: Pick<
     PetPackService,
-    'getSnapshot' | 'createPet' | 'deletePet' | 'importAssets' | 'updatePet' | 'setActivePet'
+    'getSnapshot' | 'createPet' | 'deletePet' | 'deleteAsset' | 'importAssets' | 'updatePet' | 'setActivePet'
   >
   settingsStore: Pick<SettingsStore, 'update'>
   windowManager: Pick<
@@ -188,6 +188,11 @@ export function registerPetSystemIpc({
     handle(IPC_CHANNELS.deletePet, async (event, petId: unknown) => {
       requireSettingsSender(event.sender.id)
       return broadcast(await petPackService.deletePet(petId))
+    })
+
+    handle(IPC_CHANNELS.deletePetAsset, async (event, petId: unknown, assetId: unknown) => {
+      requireSettingsSender(event.sender.id)
+      return broadcast(await petPackService.deleteAsset(petId, assetId))
     })
 
     handle(IPC_CHANNELS.importPetAssets, async (event, petId: unknown) => {

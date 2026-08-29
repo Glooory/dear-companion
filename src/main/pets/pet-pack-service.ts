@@ -114,6 +114,60 @@ export class PetPackService {
     return this.enqueue(() => this.importAssetsExclusive(petId, sourcePaths))
   }
 
+  deleteAsset(petIdValue: unknown, assetIdValue: unknown): Promise<PetSystemSnapshot> {
+    const petId = parsePetIdentifier(petIdValue)
+    const assetId = parsePetIdentifier(assetIdValue)
+    return this.enqueue(async () => {
+      const current = await this.settingsStore.load()
+      const existing = requirePet(current, petId)
+      const targetAsset = existing.assets.find((asset) => asset.id === assetId)
+      if (!targetAsset) {
+        throw new Error(`Asset ${assetId} does not exist on pet ${petId}`)
+      }
+
+      const assetPath = join(this.userDataPath, 'pets', petId, 'assets', targetAsset.fileName)
+      await rm(assetPath, { force: true }).catch(() => undefined)
+
+      const settings = await this.settingsStore.update((latest) => {
+        const pet = requirePet(latest, petId)
+        const updatedAssets = pet.assets.filter((asset) => asset.id !== assetId)
+        const updatedIdle = pet.actionSlots.idle.filter((id) => id !== assetId)
+        const updatedResting = pet.actionSlots.resting.filter((id) => id !== assetId)
+
+        const updatedDrowsyAssets = pet.lifeStates.drowsy.assetIds.filter((id) => id !== assetId)
+        const updatedSleepingAssets = pet.lifeStates.sleeping.assetIds.filter((id) => id !== assetId)
+        const updatedWorkingAssets = pet.lifeStates.workingAssetIds.filter((id) => id !== assetId)
+
+        const updatedPet: PetConfig = {
+          ...pet,
+          assets: updatedAssets,
+          actionSlots: {
+            idle: updatedIdle,
+            resting: updatedResting
+          },
+          lifeStates: {
+            drowsy: {
+              enabled: updatedDrowsyAssets.length > 0 && pet.lifeStates.drowsy.enabled,
+              assetIds: updatedDrowsyAssets
+            },
+            sleeping: {
+              enabled: updatedSleepingAssets.length > 0 && pet.lifeStates.sleeping.enabled,
+              assetIds: updatedSleepingAssets
+            },
+            workingAssetIds: updatedWorkingAssets
+          }
+        }
+
+        return {
+          ...latest,
+          pets: latest.pets.map((candidate) => (candidate.id === petId ? updatedPet : candidate))
+        }
+      })
+
+      return createPetSystemSnapshot(settings)
+    })
+  }
+
   updatePet(inputValue: unknown): Promise<PetSystemSnapshot> {
     return this.enqueue(async () => {
       const current = await this.settingsStore.load()

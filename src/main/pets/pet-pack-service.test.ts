@@ -177,6 +177,31 @@ describe('PetPackService', () => {
     await expect(readFile(join(userDataPath, 'pets', firstPetId, 'assets', asset.fileName)))
       .rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('deletes a single asset from a pet and removes it from slots and file system', async () => {
+    const { service, userDataPath } = await createHarness()
+    await service.createPet('豆豆')
+
+    const sourcePath1 = join(userDataPath, 'photo-1.png')
+    const sourcePath2 = join(userDataPath, 'photo-2.png')
+    await writeFile(sourcePath1, pngBytes)
+    await writeFile(sourcePath2, pngBytes)
+    const { imported } = await service.importAssets('pet-1', [sourcePath1, sourcePath2])
+
+    const snapshotAfterImport = await service.getSnapshot()
+    expect(snapshotAfterImport.pets[0]!.assets).toHaveLength(2)
+
+    const assetToDelete = imported[0]!
+    const remainingAsset = imported[1]!
+
+    const snapshotAfterDelete = await service.deleteAsset('pet-1', assetToDelete.id)
+    const pet = snapshotAfterDelete.pets[0]!
+
+    expect(pet.assets.map((a) => a.id)).toEqual([remainingAsset.id])
+    expect(pet.actionSlots.idle).not.toContain(assetToDelete.id)
+    await expect(readFile(join(userDataPath, 'pets', 'pet-1', 'assets', assetToDelete.fileName)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+  })
 })
 
 function validDecoder(): ImageDecoder {
