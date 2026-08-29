@@ -199,8 +199,22 @@ describe('PetPackService', () => {
 
     expect(pet.assets.map((a) => a.id)).toEqual([remainingAsset.id])
     expect(pet.actionSlots.idle).not.toContain(assetToDelete.id)
+    expect(pet.actionSlots.idle).toEqual([remainingAsset.id])
     await expect(readFile(join(userDataPath, 'pets', 'pet-1', 'assets', assetToDelete.fileName)))
       .rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('rejects deleting the last asset of an active pet', async () => {
+    const { service, userDataPath } = await createHarness()
+    await service.createPet('豆豆')
+
+    const sourcePath = join(userDataPath, 'photo.png')
+    await writeFile(sourcePath, pngBytes)
+    const { imported } = await service.importAssets('pet-1', [sourcePath])
+    await service.setActivePet('pet-1')
+
+    await expect(service.deleteAsset('pet-1', imported[0]!.id))
+      .rejects.toThrow('使用中的伙伴需至少保留一张照片')
   })
 })
 

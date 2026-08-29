@@ -252,6 +252,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const deleteAsset = (assetId: string): void => {
     if (!selectedPet) return;
+    if (selectedPet.id === snapshot?.activePetId && selectedPet.assets.length <= 1) {
+      setError("使用中的伙伴需至少保留一张照片。");
+      return;
+    }
     const targetAssetIndex = selectedPet.assets.findIndex((a) => a.id === assetId);
     const label = targetAssetIndex >= 0 ? `照片 ${targetAssetIndex + 1}` : "这张照片";
     if (!window.confirm(`确定要删除“${selectedPet.name}”的${label}吗？`)) return;
@@ -785,6 +789,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   assets={selectedPet.assets}
                   targetHeight={draft.targetHeight}
                   assetAdjustments={draft.assets}
+                  isActivePet={selectedPet.id === snapshot?.activePetId}
                   onImport={importAssets}
                   onDeleteAsset={deleteAsset}
                   isBusy={isBusy}

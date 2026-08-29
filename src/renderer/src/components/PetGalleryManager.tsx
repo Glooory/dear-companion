@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import type { AssetNormalization, HeadHotspot, PetAsset, PetAssetAdjustment } from '@shared/contracts'
 import { PetAssetEditor } from './PetAssetEditor'
-import { InfoTooltip } from './Tooltip'
+import { InfoTooltip, Tooltip } from './Tooltip'
 
 interface PetGalleryManagerProps {
   petId: string
   assets: readonly PetAsset[]
   targetHeight: number
   assetAdjustments: readonly PetAssetAdjustment[]
+  isActivePet?: boolean
   onImport(): void
   onDeleteAsset?(assetId: string): void
   onUpdateNormalization(assetId: string, normalization: AssetNormalization): void
@@ -20,6 +21,7 @@ export function PetGalleryManager({
   assets,
   targetHeight,
   assetAdjustments,
+  isActivePet,
   onImport,
   onDeleteAsset,
   onUpdateNormalization,
@@ -37,6 +39,9 @@ export function PetGalleryManager({
     ? assetAdjustments.find((adj) => adj.id === activeId)
     : null
 
+  const isOnlyActiveAsset = Boolean(isActivePet && assets.length <= 1)
+  const isDeleteDisabled = isBusy || isOnlyActiveAsset
+
   return (
     <section className="editor-section gallery-manager-section">
       <div className="gallery-header-row">
@@ -46,14 +51,19 @@ export function PetGalleryManager({
         </div>
         <div className="gallery-header-actions">
           {activeAsset && onDeleteAsset && (
-            <button
-              type="button"
-              className="danger-button compact-button"
-              disabled={isBusy}
-              onClick={() => onDeleteAsset(activeAsset.id)}
+            <Tooltip
+              content="使用中的伙伴需至少保留一张照片"
+              disabled={!isOnlyActiveAsset}
             >
-              删除照片
-            </button>
+              <button
+                type="button"
+                className="danger-button compact-button"
+                disabled={isDeleteDisabled}
+                onClick={() => onDeleteAsset(activeAsset.id)}
+              >
+                删除照片
+              </button>
+            </Tooltip>
           )}
           <button
             type="button"
@@ -119,7 +129,7 @@ export function PetGalleryManager({
                       draggable={false}
                       className="rail-thumb-img"
                     />
-                    {onDeleteAsset && (
+                    {onDeleteAsset && !isDeleteDisabled && (
                       <button
                         type="button"
                         className="rail-thumb-delete-btn"

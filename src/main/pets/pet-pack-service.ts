@@ -125,13 +125,20 @@ export class PetPackService {
         throw new Error(`Asset ${assetId} does not exist on pet ${petId}`)
       }
 
+      if (current.activePetId === petId && existing.assets.length <= 1) {
+        throw new Error('使用中的伙伴需至少保留一张照片')
+      }
+
       const assetPath = join(this.userDataPath, 'pets', petId, 'assets', targetAsset.fileName)
       await rm(assetPath, { force: true }).catch(() => undefined)
 
       const settings = await this.settingsStore.update((latest) => {
         const pet = requirePet(latest, petId)
         const updatedAssets = pet.assets.filter((asset) => asset.id !== assetId)
-        const updatedIdle = pet.actionSlots.idle.filter((id) => id !== assetId)
+        const remainingIdle = pet.actionSlots.idle.filter((id) => id !== assetId)
+        const updatedIdle = remainingIdle.length === 0 && updatedAssets.length > 0
+          ? [updatedAssets[0]!.id]
+          : remainingIdle
         const updatedResting = pet.actionSlots.resting.filter((id) => id !== assetId)
 
         const updatedDrowsyAssets = pet.lifeStates.drowsy.assetIds.filter((id) => id !== assetId)
