@@ -7,10 +7,9 @@
   "main": "./out/main/index.js",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "pnpm typecheck && electron-vite build",
+    "build": "npm run typecheck && electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint .",
@@ -18,8 +17,8 @@
     "test:watch": "vitest",
     "icons:generate": "node scripts/generate-icons.mjs",
     "release:validate-tag": "node scripts/validate-release-tag.mjs",
-    "package:dir": "pnpm build && electron-builder --dir",
-    "dist": "pnpm build && electron-builder --publish never"
+    "package:dir": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --publish never"
   },
   "dependencies": {
     "react": "^19.2.8",

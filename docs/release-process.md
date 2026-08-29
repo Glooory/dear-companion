@@ -41,9 +41,9 @@ Dear Companion 第一版发布 Windows x64、macOS Intel 和 macOS Apple Silicon
 ## 本地打包命令
 
 ```bash
-pnpm icons:generate
-pnpm package:dir
-pnpm dist
+npm run icons:generate
+npm run package:dir
+npm run dist
 ```
 
 本地只能构建当前宿主平台适合的产物。不要把本地 unpacked 应用、`release/` 目录、日志或用户数据提交到仓库。

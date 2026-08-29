@@ -3,29 +3,29 @@
 ## Prerequisites
 
 - Node.js 24
-- pnpm 10.33.0 (the repository pins this version through `packageManager`)
+- npm
 
 ## Commands
 
 Run these commands from the repository root:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm dev
-pnpm test
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm icons:generate
-pnpm release:validate-tag -- v0.1.0
-pnpm package:dir
-pnpm dist
+npm install
+npm run dev
+npm test
+npm run lint
+npm run typecheck
+npm run build
+npm run icons:generate
+npm run release:validate-tag -- v0.1.0
+npm run package:dir
+npm run dist
 ```
 
-`pnpm icons:generate` deterministically generates committed tray PNGs from
-`build/tray-icon.svg`. `pnpm package:dir` builds an unpacked current-platform
-application, while `pnpm dist` builds the current-platform installer. Neither
-command publishes a release. `pnpm release:validate-tag -- vX.Y.Z` requires an
+`npm run icons:generate` deterministically generates committed tray PNGs from
+`build/tray-icon.svg`. `npm run package:dir` builds an unpacked current-platform
+application, while `npm run dist` builds the current-platform installer. Neither
+command publishes a release. `npm run release:validate-tag -- vX.Y.Z` requires an
 exact match with `package.json`; `v0.1.0` is the first-release example.
 
 ## Architecture and scope

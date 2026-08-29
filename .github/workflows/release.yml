@@ -17,14 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm release:validate-tag -- "$RELEASE_TAG"
+      - run: node scripts/validate-release-tag.mjs "$RELEASE_TAG"
         env:
           RELEASE_TAG: ${{ github.ref_name }}
 
@@ -33,21 +29,18 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm icons:generate
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+          cache: npm
+      - run: npm ci
+      - run: npm run icons:generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - name: Build Windows x64 installer
-        run: pnpm exec electron-builder --win --x64 --publish never
+        run: npx electron-builder --win --x64 --publish never
       - name: Smoke packaged Windows executable
         shell: pwsh
         run: |
@@ -79,21 +72,18 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm icons:generate
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+          cache: npm
+      - run: npm ci
+      - run: npm run icons:generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - name: Build macOS Intel DMG
-        run: pnpm exec electron-builder --mac --x64 --publish never
+        run: npx electron-builder --mac --x64 --publish never
       - name: Smoke and verify macOS Intel executable
         shell: bash
         run: |
@@ -119,21 +109,18 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm icons:generate
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+          cache: npm
+      - run: npm ci
+      - run: npm run icons:generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - name: Build macOS Apple Silicon DMG
-        run: pnpm exec electron-builder --mac --arm64 --publish never
+        run: npx electron-builder --mac --arm64 --publish never
       - name: Smoke and verify macOS Apple Silicon executable
         shell: bash
         run: |

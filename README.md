@@ -43,28 +43,36 @@ Dear Companion 的生产版本完全离线：
 ### 环境要求
 
 - Node.js 24
-- pnpm 10.33.0
+- npm（Node.js 自带）
 
-仓库通过 `packageManager` 固定 pnpm 版本。安装依赖并启动开发环境：
+项目已默认配置国内镜像加速（`.npmrc`）。
+
+#### 方式一：Windows 小白一键启动（推荐）
+- 双击根目录下的 **`1-启动开发模式.bat`** 即可自动安装依赖并启动开发环境。
+- 双击根目录下的 **`2-打包生成安装包.bat`** 即可自动构建打包，完成后在 `release/` 目录获取安装程序。
+
+#### 方式二：命令行启动
+
+安装依赖并启动开发环境：
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm dev
+npm install
+npm run dev
 ```
 
 运行项目允许的自动化检查：
 
 ```bash
-pnpm test
-pnpm lint
-pnpm typecheck
-pnpm build
+npm test
+npm run lint
+npm run typecheck
+npm run build
 ```
 
 运行非视觉 Electron 启动冒烟：
 
 ```bash
-DEAR_COMPANION_BUILD_SMOKE=1 pnpm exec electron out/main/index.js
+DEAR_COMPANION_BUILD_SMOKE=1 npx electron out/main/index.js
 ```
 
 自动化测试仅覆盖必要的核心状态、计算、迁移、恢复和输入验证。UI、React 组件、快照、Playwright 与 E2E 测试不属于本仓库的测试范围；界面和操作系统行为由用户人工验收。
@@ -74,8 +82,8 @@ DEAR_COMPANION_BUILD_SMOKE=1 pnpm exec electron out/main/index.js
 构建当前平台的未打包应用或安装包：
 
 ```bash
-pnpm package:dir
-pnpm dist
+npm run package:dir
+npm run dist
 ```
 
 这两个命令都不会发布 Release。产物写入 `release/`，且不应提交到仓库。
