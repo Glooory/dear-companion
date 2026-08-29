@@ -1,10 +1,10 @@
 import type { ActionSlot, PetActionSlots, PetAsset } from '@shared/contracts'
 import { AssetChoice } from './AssetChoice'
 
-type ConfigurableActionSlot = Exclude<ActionSlot, 'petting'>
+type ConfigurableActionSlot = Exclude<ActionSlot, 'petting' | 'blink'>
 
 const CONFIGURABLE_ACTION_SLOTS = [
-  'idle', 'cute', 'angry', 'crying', 'resting', 'blink'
+  'idle', 'cute', 'angry', 'crying', 'resting'
 ] as const satisfies readonly ConfigurableActionSlot[]
 
 const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
@@ -12,8 +12,7 @@ const SLOT_LABELS: Record<ConfigurableActionSlot, string> = {
   cute: '卖萌',
   angry: '生气',
   crying: '不想休息',
-  resting: '休息时',
-  blink: '闭眼或眨眼'
+  resting: '休息时'
 }
 
 interface ActionSlotEditorProps {

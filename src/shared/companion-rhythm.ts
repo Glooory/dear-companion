@@ -74,13 +74,32 @@ export function nextAutoCuteDelay(pace: CompanionPace, random: () => number): nu
   return randomDuration(COMPANION_PACE_PROFILES[pace].autoCuteRangeMs, random)
 }
 
-export function createWaddleSteps(random: () => number): number[] {
-  const direction = finiteRandom(random) < 0.5 ? -1 : 1
-  return createSteps(direction, 20, 50, random)
+export function createWaddleSteps(random: () => number, initialDirection?: -1 | 1): number[] {
+  const direction = initialDirection ?? (finiteRandom(random) < 0.5 ? -1 : 1)
+  return createPacingSteps(direction, 12, 24, random)
 }
 
 export function createDirectedWaddleSteps(direction: -1 | 1, random: () => number): number[] {
   return createSteps(direction, 20, 40, random)
+}
+
+function createPacingSteps(
+  direction: -1 | 1,
+  minimum: number,
+  maximum: number,
+  random: () => number
+): number[] {
+  const distance = Math.round(minimum + (maximum - minimum) * finiteRandom(random))
+  const halfCount = 3
+  const baseStep = Math.floor(distance / halfCount)
+  const remainder = distance - baseStep * halfCount
+
+  const outward = Array.from({ length: halfCount }, (_, index) =>
+    direction * (baseStep + (index >= halfCount - remainder ? 1 : 0))
+  )
+  const inward = outward.map((step) => -step).reverse()
+
+  return [...outward, ...inward]
 }
 
 function createSteps(direction: -1 | 1, minimum: number, maximum: number, random: () => number): number[] {

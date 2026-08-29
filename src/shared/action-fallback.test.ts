@@ -32,17 +32,13 @@ describe('action fallback resolution', () => {
     })
   })
 
-  it('builds an open-closed-open blink sequence when a frame exists', () => {
-    expect(resolveAction({ actionSlots: slots({ blink: ['closed'] }) }, 'blink')).toEqual({
+  it('uses nod or breathing without simulating an eyelid or closed-eye frame', () => {
+    expect(resolveAction({ actionSlots: slots({ blink: ['closed'] }) }, 'blink', 0)).toMatchObject({
       slot: 'blink',
-      assetIds: ['idle-a', 'closed', 'idle-a'],
-      template: 'blink-sequence',
+      template: 'nod',
       overlays: [],
-      usedFallback: false
+      usedFallback: true
     })
-  })
-
-  it('uses nod or breathing without simulating an eyelid when blink is missing', () => {
     expect(resolveAction({ actionSlots: slots() }, 'blink', 0)).toMatchObject({ template: 'nod', overlays: [] })
     expect(resolveAction({ actionSlots: slots() }, 'blink', 1)).toMatchObject({ template: 'gentle-breathe', overlays: [] })
   })

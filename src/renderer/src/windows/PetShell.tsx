@@ -94,14 +94,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     actionCompletion.current = complete ?? null
     setActionState({ petId: activePet.id, action, phase: 'active' })
     setFrameIndex(0)
-    if (action.template === 'blink-sequence') {
-      actionTimers.current.push(
-        setTimeout(() => setFrameIndex(1), 110),
-        setTimeout(() => setFrameIndex(2), 230),
-        setTimeout(() => finishAction(complete), 380)
-      )
-      return
-    }
     actionTimers.current.push(setTimeout(() => {
       if (action.template === 'asset-swap' && action.assetIds[0] !== baseAsset?.id) {
         setActionState((current) => current?.petId === activePet.id && current.action === action
@@ -249,10 +241,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const performAmbient = useCallback((): void => {
     if (!activePet || !baseAsset) return
-    if (activePet.actionSlots.blink.length > 0 && Math.random() < 0.45) {
-      performAction('blink', () => undefined)
-      return
-    }
     if (lifeState === 'sleeping' || lifeState === 'working' || reducedMotion) {
       performCurrentPhotoAction('gentle-breathe', 1_600)
     } else if (lifeState === 'drowsy') {
@@ -261,7 +249,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       const templates: ActionTemplate[] = ['gentle-breathe', 'nod', 'sway']
       performCurrentPhotoAction(templates[Math.floor(Math.random() * templates.length)]!, 1_200)
     }
-  }, [activePet, baseAsset, lifeState, performAction, performCurrentPhotoAction, reducedMotion])
+  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, reducedMotion])
 
   const performPersonality = useCallback((): void => {
     if (Math.random() < 0.35) showDialogue('auto:cute', DIALOGUES.dailyCute)

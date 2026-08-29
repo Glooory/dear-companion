@@ -3,7 +3,6 @@ import type { ActionSlot, PetConfig } from './contracts'
 export type ActionTemplate =
   | 'still'
   | 'asset-swap'
-  | 'blink-sequence'
   | 'bounce'
   | 'sway'
   | 'waddle'
@@ -39,17 +38,22 @@ export function resolveAction(
     return { slot, assetIds: [idleAssetId], template: 'scale-nod', overlays: [], usedFallback: true }
   }
 
+  if (slot === 'blink') {
+    const fallback = FALLBACKS.blink!
+    const template = Array.isArray(fallback.template)
+      ? fallback.template[positiveModulo(randomIndex, fallback.template.length)]!
+      : fallback.template
+    return {
+      slot,
+      assetIds: [idleAssetId],
+      template,
+      overlays: fallback.overlays,
+      usedFallback: true
+    }
+  }
+
   const assignedAssetId = select(pet.actionSlots[slot], randomIndex)
   if (assignedAssetId) {
-    if (slot === 'blink') {
-      return {
-        slot,
-        assetIds: [idleAssetId, assignedAssetId, idleAssetId],
-        template: 'blink-sequence',
-        overlays: [],
-        usedFallback: false
-      }
-    }
     return {
       slot,
       assetIds: [assignedAssetId],

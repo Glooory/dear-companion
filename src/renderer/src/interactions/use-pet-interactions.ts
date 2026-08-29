@@ -59,7 +59,7 @@ export function usePetInteractions({
     )
   }, [])
 
-  const triggerAction = useCallback((slot: 'cute' | 'petting' | 'blink'): void => {
+  const triggerAction = useCallback((slot: 'cute' | 'petting'): void => {
     const next = transitionPetState(state, { type: 'action-start' })
     if (next === 'performingAction' && state !== 'performingAction') {
       setState(next)

@@ -1108,10 +1108,6 @@ input:focus-visible {
   animation: pet-nod 720ms ease-in-out both;
 }
 
-.action-blink-sequence .pet-image-frame.photo-idle {
-  animation: blink-frame-fade 70ms ease-out both;
-}
-
 .pet-shell[data-state='hidden'] *,
 .pet-shell:not([data-state]) * {
   animation-play-state: paused !important;
@@ -1166,11 +1162,6 @@ input:focus-visible {
 
 @keyframes frame-fade {
   from { opacity: .35; }
-  to { opacity: 1; }
-}
-
-@keyframes blink-frame-fade {
-  from { opacity: .72; }
   to { opacity: 1; }
 }
 

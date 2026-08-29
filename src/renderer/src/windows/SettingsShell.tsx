@@ -630,7 +630,7 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
       angry: [...pet.actionSlots.angry],
       crying: [...pet.actionSlots.crying],
       resting: [...pet.actionSlots.resting],
-      blink: [...pet.actionSlots.blink]
+      blink: []
     },
     actionTemplates: { ...pet.actionTemplates },
     lifeStates: {

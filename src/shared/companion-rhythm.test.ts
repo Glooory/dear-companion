@@ -14,9 +14,20 @@ describe('companion rhythm', () => {
     expect(nextAutoCuteDelay('lively', () => 1)).toBe(COMPANION_PACE_PROFILES.lively.autoCuteRangeMs[1])
   })
 
-  it('splits a small left or right walk into even movement steps', () => {
-    expect(createWaddleSteps(() => 0)).toEqual([-5, -5, -5, -5])
-    expect(createWaddleSteps(() => 1)).toEqual([8, 8, 8, 8, 9, 9])
+  it('creates back-and-forth waddle pacing steps that return to the starting position', () => {
+    const leftPacing = createWaddleSteps(() => 0)
+    expect(leftPacing).toEqual([-4, -4, -4, 4, 4, 4])
+    expect(leftPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0)
+
+    const rightPacing = createWaddleSteps(() => 1)
+    expect(rightPacing).toEqual([8, 8, 8, -8, -8, -8])
+    expect(rightPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0)
+
+    for (let r = 0; r <= 1; r += 0.1) {
+      const steps = createWaddleSteps(() => r)
+      expect(steps).toHaveLength(6)
+      expect(steps.reduce((sum, delta) => sum + delta, 0)).toBe(0)
+    }
   })
 
   it('creates shorter waddle steps in the requested pointer direction', () => {
