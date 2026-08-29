@@ -236,8 +236,8 @@ textarea:focus-visible {
   position: absolute;
   z-index: 1000;
   width: max-content;
-  max-width: 360px;
-  min-width: 120px;
+  max-width: 320px;
+  min-width: 100px;
   padding: 7px 11px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
@@ -258,11 +258,9 @@ textarea:focus-visible {
 @keyframes tooltip-fade {
   from {
     opacity: 0;
-    transform: translateY(2px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -278,8 +276,11 @@ textarea:focus-visible {
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-top-color: #22201e;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #22201e;
 }
 
 .tooltip-bottom {
@@ -294,8 +295,11 @@ textarea:focus-visible {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border: 4px solid transparent;
-  border-bottom-color: #22201e;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid #22201e;
 }
 
 .tooltip-right {
