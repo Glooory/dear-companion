@@ -8,6 +8,7 @@
 
 ## Technology and architecture
 
+- Use npm exclusively as the package manager (e.g., `npm run <script>`, `npm test`, `npm install`). Do not use `pnpm`, `yarn`, `bun`, or other package managers, and do not introduce alternative lockfiles (such as `pnpm-lock.yaml`, `yarn.lock`, or `bun.lockb`).
 - Use Electron, React, TypeScript, Vite, and electron-builder.
 - Keep application and business logic in TypeScript. Do not introduce Rust or another native language without an approved design change.
 - Keep Electron main-process modules focused: lifecycle, windows, tray, reminders, rest sessions, pet packs, settings, audio, and autostart should remain separate responsibilities.
