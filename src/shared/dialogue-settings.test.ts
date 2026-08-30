@@ -6,7 +6,6 @@ import {
 } from './dialogue-catalog'
 import {
   countVisibleCharacters,
-  EMPTY_PET_DIALOGUE_SETTINGS,
   parsePetDialogueSettings,
   resolveDialogueLines,
   restoreBuiltInLine,

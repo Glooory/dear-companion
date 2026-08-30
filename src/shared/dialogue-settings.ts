@@ -51,11 +51,7 @@ export const EMPTY_PET_DIALOGUE_SETTINGS: PetDialogueSettings = Object.freeze({
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
 export function countVisibleCharacters(text: string): number {
-  let count = 0
-  for (const _ of segmenter.segment(text)) {
-    count++
-  }
-  return count
+  return Array.from(segmenter.segment(text)).length
 }
 
 export function clonePetDialogueSettings(settings: PetDialogueSettings): PetDialogueSettings {
@@ -110,7 +106,6 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
     }
 
     const category = catKey as DialogueCategory
-    const triggerMeta = getDialogueTriggerMeta(category)
 
     if (!isRecord(catVal)) {
       issues.push({ path: `categories.${category}`, message: 'Invalid category settings' })
@@ -242,7 +237,7 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
 
   const issues = getDialogueValidationIssues(value)
   if (issues.length > 0) {
-    throw new Error(issues[0].message)
+    throw new Error(issues[0]!.message)
   }
 
   const address = (value.address as string).trim()

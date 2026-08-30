@@ -26,6 +26,7 @@ import { createPortal } from "react-dom";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
+import { DialogueSettingsEditor } from "../components/DialogueSettingsEditor";
 import { PetGalleryManager } from "../components/PetGalleryManager";
 import {
   ReminderEditor,
@@ -33,6 +34,10 @@ import {
 } from "../components/ReminderEditor";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
+import {
+  clonePetDialogueSettings,
+  getDialogueValidationIssues,
+} from "@shared/dialogue-settings";
 
 interface SettingsShellProps {
   api: ReleaseHardeningApi;
@@ -70,6 +75,30 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<
     "pets" | "rest" | "work" | "system"
   >("pets");
+  const [petEditorPage, setPetEditorPage] = useState<"details" | "dialogues">("details");
+  const [dialogueValidationAttempt, setDialogueValidationAttempt] = useState(0);
+
+  const selectedPet = useMemo(
+    () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
+    [snapshot, selectedPetId],
+  );
+
+  const dialogueSummary = useMemo(() => {
+    if (!draft || !selectedPet) return "当前使用内置对白";
+    const address = draft.dialogueSettings.address.trim();
+    let customCount = 0;
+    let overridesExist = false;
+    for (const cat of Object.values(draft.dialogueSettings.categories)) {
+      if (!cat) continue;
+      customCount += cat.customLines.length;
+      if (cat.builtInOverrides.length > 0) overridesExist = true;
+    }
+    const fragments: string[] = [];
+    if (address) fragments.push(`${selectedPet.name}称呼你为“${address}”`);
+    if (customCount > 0) fragments.push(`自定义 ${customCount} 句`);
+    if (overridesExist) fragments.push("已调整内置对白");
+    return fragments.length > 0 ? fragments.join(" · ") : "当前使用内置对白";
+  }, [draft, selectedPet]);
 
 
   useEffect(() => {
@@ -166,10 +195,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   useEffect(() => api.onPetRendererStatusChanged(setPetRendererStatus), [api]);
 
-  const selectedPet = useMemo(
-    () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
-    [selectedPetId, snapshot],
-  );
 
   const runMutation = async (operation: () => Promise<void>): Promise<void> => {
     if (isBusy) return;
@@ -201,6 +226,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setTargetHeightText(created ? String(created.targetHeight) : "");
       setNewPetName("");
       setIsCreatingPet(false);
+      setPetEditorPage("details");
     });
   };
 
@@ -240,6 +266,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setDraft(replacement ? petToUpdateInput(replacement) : null);
       setTargetHeightText(replacement ? String(replacement.targetHeight) : "");
       setImportReport(null);
+      setPetEditorPage("details");
       setSettings((current) =>
         current
           ? {
@@ -278,12 +305,19 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     setDraft(petToUpdateInput(pet));
     setTargetHeightText(String(pet.targetHeight));
     setImportReport(null);
+    setPetEditorPage("details");
   };
 
   const saveDraft = (): void => {
     if (!draft || !selectedPet) return;
     if (selectedPet.assets.length === 0) {
       setError("需先导入照片才可保存设置。");
+      return;
+    }
+    const issues = getDialogueValidationIssues(draft.dialogueSettings);
+    if (issues.length > 0) {
+      setPetEditorPage("dialogues");
+      setDialogueValidationAttempt((prev) => prev + 1);
       return;
     }
     const targetHeight = normalizeTargetHeight(targetHeightText);
@@ -698,8 +732,25 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
           <section className="pet-editor-panel">
             {draft && selectedPet ? (
-              <>
-                <div className="editor-heading-row">
+              petEditorPage === "dialogues" ? (
+                <DialogueSettingsEditor
+                  petName={selectedPet.name}
+                  settings={draft.dialogueSettings}
+                  bubblesEnabled={draft.interactionBubblesEnabled}
+                  drowsyEnabled={draft.lifeStates.drowsy.enabled}
+                  sleepingEnabled={draft.lifeStates.sleeping.enabled}
+                  validationAttempt={dialogueValidationAttempt}
+                  onChange={(dialogueSettings) =>
+                    setDraft({ ...draft, dialogueSettings })
+                  }
+                  onBack={() => setPetEditorPage("details")}
+                  onSave={saveDraft}
+                  isBusy={isBusy}
+                  saveSuccess={saveSuccess}
+                />
+              ) : (
+                <>
+                  <div className="editor-heading-row">
                   <div className="editor-title-wrap">
                     <div className="editor-title-line">
                       <h2>{selectedPet.name}</h2>
@@ -786,6 +837,22 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   />
                 </section>
 
+                <section className="editor-section">
+                  <div className="dialogue-summary-card">
+                    <div className="dialogue-summary-info">
+                      <div className="dialogue-summary-title">对白与称呼</div>
+                      <div className="dialogue-summary-copy">{dialogueSummary}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={() => setPetEditorPage("dialogues")}
+                    >
+                      编辑对白
+                    </button>
+                  </div>
+                </section>
+
                 <PetGalleryManager
                   petId={selectedPet.id}
                   assets={selectedPet.assets}
@@ -857,6 +924,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </Tooltip>
                 </div>
               </>
+            )
             ) : (
               <div className="empty-editor-state">
                 请选择或新建一个伙伴。
@@ -1160,6 +1228,7 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
     },
     companionPace: pet.companionPace,
     interactionBubblesEnabled: pet.interactionBubblesEnabled,
+    dialogueSettings: clonePetDialogueSettings(pet.dialogueSettings),
   };
 }
 
@@ -1174,6 +1243,7 @@ function mergeImportedAssetsIntoDraft(
   );
   return {
     ...current,
+    dialogueSettings: clonePetDialogueSettings(current.dialogueSettings),
     actionSlots:
       current.actionSlots.idle.length === 0 &&
       persisted.actionSlots.idle.length > 0

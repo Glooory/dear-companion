@@ -1,7 +1,5 @@
 import {
   type PetDialogueSettings,
-  EMPTY_PET_DIALOGUE_SETTINGS,
-  clonePetDialogueSettings,
   parsePetDialogueSettings
 } from './dialogue-settings'
 
@@ -904,14 +902,6 @@ function parseAudioSource(
     return { kind: 'imported', assetId }
   }
   throw new Error('Unknown audio source')
-}
-
-function createDefaultAudioSettings(): AudioSettingsV3 {
-  return {
-    reminderSource: { kind: 'builtin', id: 'gentle-chime' },
-    cryingSource: { kind: 'builtin', id: 'soft-whimper' },
-    assets: []
-  }
 }
 
 function cloneReminder(reminder: ReminderSchedule): ReminderSchedule {

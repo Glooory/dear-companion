@@ -2591,3 +2591,317 @@ textarea:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+.dialogue-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #ede8e1;
+  border-radius: 10px;
+  background: #faf8f5;
+}
+
+.dialogue-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogue-summary-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2d2a26;
+}
+
+.dialogue-summary-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6e6a64;
+}
+
+.dialogue-settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialogue-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.dialogue-settings-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #2d2a26;
+}
+
+.dialogue-settings-error-summary {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  outline: none;
+}
+
+.dialogue-settings-error-summary:focus {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+}
+
+.dialogue-settings-error-summary-title {
+  font-weight: 600;
+  font-size: 0.84rem;
+  margin-bottom: 6px;
+}
+
+.dialogue-settings-error-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogue-settings-error-list a {
+  color: #b91c1c;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dialogue-settings-notice {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f5f4f0;
+  border: 1px solid #e5e2da;
+  font-size: 0.8rem;
+  color: #55514b;
+}
+
+.dialogue-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialogue-settings-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #2d2a26;
+}
+
+.dialogue-settings-supporting-copy {
+  font-size: 0.78rem;
+  color: #6e6a64;
+  line-height: 1.4;
+}
+
+.dialogue-settings-address-input {
+  width: 100%;
+  max-width: 320px;
+  padding: 7px 10px;
+  border: 1px solid #dcd7cd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #ffffff;
+  color: #2d2a26;
+  box-sizing: border-box;
+}
+
+.dialogue-settings-scenes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialogue-settings-scene-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #faf8f5;
+  border: 1px solid #ede8e1;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 120ms ease;
+}
+
+.dialogue-settings-scene-row:hover {
+  background: #f2eee6;
+  border-color: #dcd7cd;
+}
+
+.dialogue-settings-scene-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #2d2a26;
+}
+
+.dialogue-settings-scene-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #6e6a64;
+}
+
+.dialogue-settings-scene-chevron {
+  font-size: 1.1rem;
+  color: #a39f97;
+  font-weight: 600;
+}
+
+.dialogue-settings-system-notice {
+  font-size: 0.78rem;
+  color: #8c877e;
+  margin-top: 4px;
+}
+
+.dialogue-settings-lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialogue-settings-line-row {
+  padding: 8px 12px;
+  border: 1px solid #ede8e1;
+  border-radius: 8px;
+  background: #faf8f5;
+}
+
+.dialogue-settings-line-row.has-error {
+  border-color: #f87171;
+  background: #fffbfb;
+}
+
+.dialogue-settings-line-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dialogue-settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+.dialogue-settings-toggle input {
+  cursor: pointer;
+}
+
+.dialogue-settings-toggle-label {
+  font-size: 0.75rem;
+  color: #55514b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dialogue-settings-input-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dialogue-settings-input {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1px solid #dcd7cd;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #ffffff;
+  color: #2d2a26;
+  box-sizing: border-box;
+}
+
+.dialogue-settings-preview {
+  font-size: 0.78rem;
+  padding: 2px 4px;
+}
+
+.dialogue-settings-preview-notice {
+  color: #8c877e;
+  font-style: italic;
+}
+
+.dialogue-settings-preview-text {
+  color: #3d7363;
+  font-weight: 500;
+}
+
+.dialogue-settings-inline-error {
+  font-size: 0.75rem;
+  color: #b91c1c;
+}
+
+.dialogue-settings-line-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+
+.dialogue-settings-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.dialogue-settings-badge.badge-builtin {
+  background: #f0ebe2;
+  color: #6e6a64;
+}
+
+.dialogue-settings-badge.badge-builtin.badge-modified {
+  background: #e6f0ec;
+  color: #24473d;
+}
+
+.dialogue-settings-badge.badge-custom {
+  background: #eff6f3;
+  color: #24473d;
+}
+
+.dialogue-settings-trigger-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.dialogue-settings-confirm-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff1f1;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.dialogue-settings-confirm-text {
+  font-size: 0.78rem;
+  color: #b91c1c;
+  flex: 1;
+}
