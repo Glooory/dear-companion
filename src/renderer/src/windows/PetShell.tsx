@@ -23,7 +23,6 @@ import { useBodyWaddleGesture } from '../interactions/use-body-waddle-gesture'
 import { useCompanionPresence } from '../interactions/use-companion-presence'
 import { usePettingGesture } from '../interactions/use-petting-gesture'
 import { useAudioPlayback } from '../audio/use-audio-playback'
-import { DIALOGUES } from '../dialogues/dialogue-library'
 import { useDialogue } from '../dialogues/use-dialogue'
 import { PhotoTransition } from '../components/PhotoTransition'
 
@@ -70,7 +69,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     [activePet]
   )
   const { dialogue, show: showDialogue, clear: clearDialogue } = useDialogue(
-    activePet?.interactionBubblesEnabled ?? true
+    activePet?.interactionBubblesEnabled ?? true,
+    activePet?.dialogueSettings,
+    activePet?.id
   )
   useAudioPlayback(api, pageVisible)
 
@@ -140,17 +141,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (lifeState === 'sleeping') {
       const stage = wakeSequence.current.registerClick(Date.now())
       if (stage === 'murmur') {
-        showDialogue('sleeping:murmur', DIALOGUES.sleepingMurmur)
+        showDialogue('sleeping:murmur')
         performCurrentPhotoAction('sway', 700)
       } else if (stage === 'stirring') {
-        showDialogue('sleeping:stirring', DIALOGUES.sleepingStirring)
+        showDialogue('sleeping:stirring')
         const drowsyId = activePet.lifeStates.drowsy.assetIds[0]
         performResolvedAction({
           slot: 'idle', assetIds: drowsyId ? [drowsyId] : [baseAsset.id],
           template: drowsyId ? 'asset-swap' : 'nod', overlays: [], usedFallback: !drowsyId
         }, 1_100)
       } else {
-        showDialogue('sleeping:awake', DIALOGUES.sleepingWake)
+        showDialogue('sleeping:awake')
         finishAction()
         void api.wakeCompanion().then(setCompanionSnapshot).catch(() => undefined)
       }
@@ -158,15 +159,14 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     }
     if (lifeState === 'daily-calm' || lifeState === 'daily-playful') {
       const dialogueKey = lifeState === 'daily-calm' ? 'daily:click' : 'playful:click'
-      const dialogueList = lifeState === 'daily-calm' ? DIALOGUES.dailyClick : DIALOGUES.playfulClick
-      showDialogue(dialogueKey, dialogueList)
+      showDialogue(dialogueKey)
       const variant = CLICK_ACTION_VARIANTS[Math.floor(Math.random() * CLICK_ACTION_VARIANTS.length)]!
       performCurrentPhotoAction(variant, variant === 'nod' ? 720 : 600)
     } else if (lifeState === 'drowsy') {
-      showDialogue('drowsy:click', DIALOGUES.drowsyClick)
+      showDialogue('drowsy:click')
       performCurrentPhotoAction('nod', 800)
     } else if (lifeState === 'working') {
-      showDialogue('working:click', DIALOGUES.workingClick)
+      showDialogue('working:click')
       performCurrentPhotoAction('nod', 650)
     }
   }, [activePet, api, baseAsset, finishAction, lifeState, performCurrentPhotoAction, performResolvedAction, runtimeActive, showDialogue])
@@ -175,17 +175,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (!activePet || !baseAsset || runtimeActive) return
     setHeartVisible(true)
     if (lifeState === 'sleeping') {
-      showDialogue('sleeping:touch', DIALOGUES.sleepingTouch)
+      showDialogue('sleeping:touch')
       performCurrentPhotoAction('gentle-breathe', 900)
     } else if (lifeState === 'daily-calm' || lifeState === 'daily-playful') {
-      showDialogue('daily:petting', DIALOGUES.dailyPetting)
+      showDialogue('daily:petting')
       const variant = PETTING_ACTION_VARIANTS[Math.floor(Math.random() * PETTING_ACTION_VARIANTS.length)]!
       performCurrentPhotoAction(variant, activePet.actionTemplates.pettingDurationMs)
     } else if (lifeState === 'drowsy') {
-      showDialogue('drowsy:petting', DIALOGUES.drowsyPetting)
+      showDialogue('drowsy:petting')
       performCurrentPhotoAction('scale-nod', 900)
     } else {
-      showDialogue('working:petting', DIALOGUES.workingPetting)
+      showDialogue('working:petting')
       performCurrentPhotoAction('scale-nod', 650)
     }
   }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue])
@@ -220,7 +220,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     visible: Boolean((snapshot?.petWindow.visible || runtimeActive) && pageVisible),
     angryVelocity: activePet?.actionTemplates.dragAngryVelocity ?? 1_200,
     onAngry: (finish) => {
-      showDialogue('angry', DIALOGUES.angry)
+      showDialogue('angry')
       performCurrentPhotoAction('fast-shake', activePet?.actionTemplates.angryDurationMs ?? 1_040)
       finish()
     },
@@ -256,7 +256,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, reducedMotion])
 
   const performPersonality = useCallback((): void => {
-    if (Math.random() < 0.35) showDialogue('auto:cute', DIALOGUES.dailyCute)
+    if (Math.random() < 0.35) showDialogue('auto:cute')
     if (activePet && activePet.actionSlots.idle.length > 1 && Math.random() < 0.35) {
       const nextIndex = (dailyIndex + 1) % activePet.actionSlots.idle.length
       const nextId = activePet.actionSlots.idle[nextIndex]!
@@ -290,7 +290,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (!activePet || !baseAsset || runtimeActive) return
     if (request.type === 'play-now') {
       if (lifeState !== 'daily-calm' && lifeState !== 'daily-playful') return
-      showDialogue('daily:click', DIALOGUES.dailyClick)
+      showDialogue('daily:click')
       performCurrentPhotoAction('bounce', 850)
       return
     }
@@ -340,19 +340,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   useEffect(() => {
     if (previousLifeState.current === lifeState) return
     previousLifeState.current = lifeState
-    if (lifeState === 'drowsy') showDialogue('state:drowsy', DIALOGUES.drowsyEnter)
-    else if (lifeState === 'sleeping') showDialogue('state:sleeping', DIALOGUES.sleepingEnter)
-    else if (lifeState === 'working') showDialogue('state:working', DIALOGUES.workingEnter)
-    else if (lifeState === 'daily-calm') showDialogue('state:daily', DIALOGUES.dailyEnter)
+    if (lifeState === 'drowsy') showDialogue('state:drowsy')
+    else if (lifeState === 'sleeping') showDialogue('state:sleeping')
+    else if (lifeState === 'working') showDialogue('state:working')
+    else if (lifeState === 'daily-calm') showDialogue('state:daily')
   }, [lifeState, showDialogue])
 
   useEffect(() => {
     const prev = previousRuntimeState.current
     previousRuntimeState.current = runtimeState
     if (runtimeState === 'crying') {
-      showDialogue('system:crying', DIALOGUES.crying, true)
+      showDialogue('system:crying', true)
     } else if (runtimeState === 'celebrating') {
-      showDialogue('system:completion', DIALOGUES.reminderCompletion, true)
+      showDialogue('system:completion', true)
     } else if (prev === 'crying' || prev === 'celebrating' || (prev !== null && runtimeState === null)) {
       clearDialogue()
     }

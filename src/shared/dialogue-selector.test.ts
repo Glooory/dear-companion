@@ -24,4 +24,13 @@ describe('DialogueSelector', () => {
     expect(selector.select({ category: 'x', lines: [], now: 0, random: () => 0 })).toBeNull()
     expect(selector.select({ category: 'x', lines: ['a'], now: Number.NaN, random: () => 0 })).toBeNull()
   })
+
+  it('resets cooldowns and recent lines on reset', () => {
+    const selector = new DialogueSelector()
+    const lines = ['a', 'b', 'c']
+    expect(selector.select({ category: 'daily:click', lines, now: 0, random: () => 0 })).toBe('a')
+    expect(selector.select({ category: 'daily:click', lines, now: 1_000, random: () => 0 })).toBeNull()
+    selector.reset()
+    expect(selector.select({ category: 'daily:click', lines, now: 1_000, random: () => 0 })).toBe('a')
+  })
 })
