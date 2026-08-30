@@ -113,15 +113,15 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
     }
 
     if (!Array.isArray(catVal.builtInOverrides)) {
-      issues.push({ path: `categories.${category}.builtInOverrides`, message: 'Invalid built-in overrides' })
+      issues.push({ path: `${category}`, message: 'Invalid built-in overrides' })
     } else if (catVal.builtInOverrides.length > MAX_BUILT_IN_OVERRIDES_PER_CATEGORY) {
-      issues.push({ path: `categories.${category}.builtInOverrides`, message: 'Too many built-in overrides' })
+      issues.push({ path: `${category}`, message: 'Too many built-in overrides' })
     }
 
     if (!Array.isArray(catVal.customLines)) {
-      issues.push({ path: `categories.${category}.customLines`, message: 'Invalid custom lines' })
+      issues.push({ path: `${category}`, message: 'Invalid custom lines' })
     } else if (catVal.customLines.length > MAX_CUSTOM_LINES_PER_CATEGORY) {
-      issues.push({ path: `categories.${category}.customLines`, message: '每个互动时机最多添加 20 条对白' })
+      issues.push({ path: `${category}`, message: '每个互动时机最多添加 20 条对白' })
     }
 
     const builtInOverrides = Array.isArray(catVal.builtInOverrides) ? catVal.builtInOverrides : []

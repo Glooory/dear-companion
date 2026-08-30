@@ -1,6 +1,7 @@
 import {
   type DialogueCategory,
   type DialogueGroupId,
+  DIALOGUE_CATEGORIES,
   DIALOGUE_GROUPS,
   getDialogueTriggerMeta
 } from '@shared/dialogue-catalog'
@@ -50,12 +51,26 @@ export function DialogueSettingsEditor({
 }: DialogueSettingsEditorProps): React.JSX.Element {
   const [view, setView] = useState<EditorView>({ type: 'home' })
   const [confirmingRestoreCategory, setConfirmingRestoreCategory] = useState(false)
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set())
   const errorSummaryRef = useRef<HTMLDivElement | null>(null)
   const lastFocusedInputRef = useRef<{
     category: DialogueCategory
     lineId: string
     inputEl: HTMLInputElement
   } | null>(null)
+
+  const markFieldTouched = (fieldKey: string): void => {
+    setTouchedFields((prev) => {
+      if (prev.has(fieldKey)) return prev
+      const next = new Set(prev)
+      next.add(fieldKey)
+      return next
+    })
+  }
+
+  const isFieldTouched = (fieldKey: string): boolean => {
+    return validationAttempt > 0 || touchedFields.has(fieldKey)
+  }
 
   const validationIssues = useMemo(
     () => getDialogueValidationIssues(settings),
@@ -97,22 +112,31 @@ export function DialogueSettingsEditor({
     if (isBuiltIn) {
       const existing = catSettings.builtInOverrides.find((o) => o.lineId === lineId)
       const nextOverrides = catSettings.builtInOverrides.filter((o) => o.lineId !== lineId)
-      nextOverrides.push({
-        lineId,
-        ...(existing?.automaticEnabled !== undefined
-          ? { automaticEnabled: existing.automaticEnabled }
-          : {}),
-        text
-      })
+      const defaultText = triggerMeta.builtIns.find((b) => b.id === lineId)?.text
+      const isCustomText = text !== defaultText
+      const isAutomaticDisabled = existing?.automaticEnabled === false
+
+      if (isCustomText || isAutomaticDisabled) {
+        nextOverrides.push({
+          lineId,
+          ...(isAutomaticDisabled ? { automaticEnabled: false } : {}),
+          ...(isCustomText ? { text } : {})
+        })
+      }
+
+      const nextCategories = { ...settings.categories }
+      if (nextOverrides.length === 0 && catSettings.customLines.length === 0) {
+        delete nextCategories[category]
+      } else {
+        nextCategories[category] = {
+          builtInOverrides: nextOverrides,
+          customLines: catSettings.customLines
+        }
+      }
+
       onChange({
         ...settings,
-        categories: {
-          ...settings.categories,
-          [category]: {
-            ...catSettings,
-            builtInOverrides: nextOverrides
-          }
-        }
+        categories: nextCategories
       })
     } else {
       const nextCustom = catSettings.customLines.map((line) =>
@@ -143,20 +167,30 @@ export function DialogueSettingsEditor({
     if (isBuiltIn) {
       const existing = catSettings.builtInOverrides.find((o) => o.lineId === lineId)
       const nextOverrides = catSettings.builtInOverrides.filter((o) => o.lineId !== lineId)
-      nextOverrides.push({
-        lineId,
-        ...(existing?.text !== undefined ? { text: existing.text } : {}),
-        automaticEnabled: enabled
-      })
+      const defaultText = triggerMeta.builtIns.find((b) => b.id === lineId)?.text
+      const hasTextOverride = existing?.text !== undefined && existing.text !== defaultText
+
+      if (!enabled || hasTextOverride) {
+        nextOverrides.push({
+          lineId,
+          ...(hasTextOverride ? { text: existing.text } : {}),
+          ...(!enabled ? { automaticEnabled: false } : {})
+        })
+      }
+
+      const nextCategories = { ...settings.categories }
+      if (nextOverrides.length === 0 && catSettings.customLines.length === 0) {
+        delete nextCategories[category]
+      } else {
+        nextCategories[category] = {
+          builtInOverrides: nextOverrides,
+          customLines: catSettings.customLines
+        }
+      }
+
       onChange({
         ...settings,
-        categories: {
-          ...settings.categories,
-          [category]: {
-            ...catSettings,
-            builtInOverrides: nextOverrides
-          }
-        }
+        categories: nextCategories
       })
     } else {
       const nextCustom = catSettings.customLines.map((line) =>
@@ -215,15 +249,18 @@ export function DialogueSettingsEditor({
     const catSettings = settings.categories[category]
     if (!catSettings) return
     const nextCustom = catSettings.customLines.filter((line) => line.id !== lineId)
+    const nextCategories = { ...settings.categories }
+    if (nextCustom.length === 0 && catSettings.builtInOverrides.length === 0) {
+      delete nextCategories[category]
+    } else {
+      nextCategories[category] = {
+        ...catSettings,
+        customLines: nextCustom
+      }
+    }
     onChange({
       ...settings,
-      categories: {
-        ...settings.categories,
-        [category]: {
-          ...catSettings,
-          customLines: nextCustom
-        }
-      }
+      categories: nextCategories
     })
   }
 
@@ -284,14 +321,25 @@ export function DialogueSettingsEditor({
       return
     }
 
-    const parts = issue.path.split(':')
-    const category = parts[0] as DialogueCategory
-    setView({ type: 'trigger', category })
-    setTimeout(() => {
-      const targetId = `dialogue-input-${issue.path}`
-      const el = document.getElementById(targetId)
-      el?.focus()
-    }, 50)
+    const category = DIALOGUE_CATEGORIES.find(
+      (cat) => issue.path === cat || issue.path.startsWith(`${cat}:`)
+    )
+
+    if (category) {
+      const lineId = issue.path.startsWith(`${category}:`)
+        ? issue.path.slice(category.length + 1)
+        : null
+      setView({ type: 'trigger', category })
+      setTimeout(() => {
+        if (lineId) {
+          const targetId = `dialogue-input-${category}-${lineId}`
+          document.getElementById(targetId)?.focus()
+        }
+      }, 50)
+      return
+    }
+
+    setView({ type: 'home' })
   }
 
   const renderErrorSummary = (): React.JSX.Element | null => {
@@ -359,11 +407,12 @@ export function DialogueSettingsEditor({
             className="dialogue-settings-address-input"
             value={settings.address}
             onChange={(e) => handleAddressChange(e.target.value)}
-            aria-invalid={Boolean(addressIssue)}
-            aria-describedby={addressIssue ? 'dialogue-error-address' : undefined}
+            onBlur={() => markFieldTouched('address')}
+            aria-invalid={Boolean(isFieldTouched('address') && addressIssue)}
+            aria-describedby={isFieldTouched('address') && addressIssue ? 'dialogue-error-address' : undefined}
             placeholder="例如：小葡萄"
           />
-          {addressIssue && (
+          {isFieldTouched('address') && addressIssue && (
             <div id="dialogue-error-address" className="dialogue-settings-inline-error" role="alert">
               {addressIssue}
             </div>
@@ -517,7 +566,8 @@ export function DialogueSettingsEditor({
       const currentText = override?.text !== undefined ? override.text : builtIn.text
       const automaticEnabled = override?.automaticEnabled !== false
       const isModified = override?.text !== undefined && override.text !== builtIn.text
-      const issue = issueMap.get(`${category}:${builtIn.id}`)
+      const rawIssue = issueMap.get(`${category}:${builtIn.id}`)
+      const issue = isFieldTouched(`${category}:${builtIn.id}`) ? rawIssue : undefined
 
       rows.push({
         id: builtIn.id,
@@ -532,7 +582,8 @@ export function DialogueSettingsEditor({
     }
 
     for (const custom of customLines) {
-      const issue = issueMap.get(`${category}:${custom.id}`)
+      const rawIssue = issueMap.get(`${category}:${custom.id}`)
+      const issue = isFieldTouched(`${category}:${custom.id}`) ? rawIssue : undefined
       rows.push({
         id: custom.id,
         category,
@@ -591,6 +642,7 @@ export function DialogueSettingsEditor({
                   inputEl
                 }
               }}
+              onBlur={() => markFieldTouched(`${category}:${row.id}`)}
             />
           ))}
         </div>

@@ -6,6 +6,7 @@ import {
 } from './dialogue-catalog'
 import {
   countVisibleCharacters,
+  getDialogueValidationIssues,
   parsePetDialogueSettings,
   resolveDialogueLines,
   restoreBuiltInLine,
@@ -146,6 +147,18 @@ describe('dialogue character counting and normalization', () => {
       automaticEnabled: true,
       text: `自定义句子${index}`
     }))
+    const issues = getDialogueValidationIssues({
+      address: '',
+      categories: {
+        'daily:click': {
+          builtInOverrides: [],
+          customLines
+        }
+      }
+    })
+    expect(issues[0]?.path).toBe('daily:click')
+    expect(issues[0]?.message).toBe('每个互动时机最多添加 20 条对白')
+
     expect(() =>
       parsePetDialogueSettings({
         address: '',

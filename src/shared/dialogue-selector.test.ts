@@ -18,10 +18,11 @@ describe('DialogueSelector', () => {
     expect(selector.select({ category: 'auto:cute', lines: ['a'], now: 60_000, random: () => 0 })).toBe('a')
   })
 
-  it('returns null for disabled, empty or invalid-time requests', () => {
+  it('returns null for disabled, empty or invalid-time requests without setting cooldown', () => {
     const selector = new DialogueSelector()
     expect(selector.select({ category: 'x', lines: ['a'], now: 0, random: () => 0, enabled: false })).toBeNull()
     expect(selector.select({ category: 'x', lines: [], now: 0, random: () => 0 })).toBeNull()
+    expect(selector.select({ category: 'x', lines: ['a'], now: 0, random: () => 0 })).toBe('a')
     expect(selector.select({ category: 'x', lines: ['a'], now: Number.NaN, random: () => 0 })).toBeNull()
   })
 

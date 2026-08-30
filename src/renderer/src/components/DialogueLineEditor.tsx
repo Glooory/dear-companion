@@ -21,6 +21,7 @@ export interface DialogueLineEditorProps {
   readonly onRestore?: () => void
   readonly onDelete?: () => void
   readonly onInputFocus?: (el: HTMLInputElement) => void
+  readonly onBlur?: () => void
 }
 
 export function DialogueLineEditor({
@@ -30,7 +31,8 @@ export function DialogueLineEditor({
   onToggleAutomatic,
   onRestore,
   onDelete,
-  onInputFocus
+  onInputFocus,
+  onBlur
 }: DialogueLineEditorProps): React.JSX.Element {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const inputId = `dialogue-input-${row.category}-${row.id}`
@@ -64,6 +66,7 @@ export function DialogueLineEditor({
                 onInputFocus(inputRef.current)
               }
             }}
+            onBlur={onBlur}
             aria-invalid={Boolean(row.issue)}
             aria-describedby={row.issue ? errorId : undefined}
             placeholder={row.source === 'builtin' ? row.defaultText : '输入对白内容'}
@@ -106,7 +109,7 @@ export function DialogueLineEditor({
               type="button"
               className="ghost-button compact-button"
               onClick={onRestore}
-              aria-label="恢复原句"
+              aria-label={`恢复原句：${row.defaultText ?? row.currentText}`}
             >
               恢复原句
             </button>
@@ -117,7 +120,7 @@ export function DialogueLineEditor({
               type="button"
               className="ghost-button compact-button danger"
               onClick={onDelete}
-              aria-label="删除"
+              aria-label={`删除对白：${row.currentText || '未命名对白'}`}
             >
               删除
             </button>
