@@ -1,0 +1,432 @@
+import {
+  type DialogueCategory,
+  DIALOGUE_CATEGORIES,
+  getDialogueTriggerMeta
+} from './dialogue-catalog'
+
+export const ADDRESS_PLACEHOLDER = '[称呼]'
+export const MAX_ADDRESS_LENGTH = 12
+export const MAX_DIALOGUE_LINE_LENGTH = 30
+export const MAX_CUSTOM_LINES_PER_CATEGORY = 20
+export const MAX_BUILT_IN_OVERRIDES_PER_CATEGORY = 64
+
+const IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/
+
+export function isSafeIdentifier(value: unknown): value is string {
+  return typeof value === 'string' && IDENTIFIER_PATTERN.test(value)
+}
+
+export interface BuiltInDialogueOverride {
+  readonly lineId: string
+  readonly automaticEnabled?: boolean
+  readonly text?: string
+}
+
+export interface CustomDialogueLine {
+  readonly id: string
+  readonly automaticEnabled: boolean
+  readonly text: string
+}
+
+export interface DialogueCategorySettings {
+  readonly builtInOverrides: readonly BuiltInDialogueOverride[]
+  readonly customLines: readonly CustomDialogueLine[]
+}
+
+export interface PetDialogueSettings {
+  readonly address: string
+  readonly categories: Readonly<Partial<Record<DialogueCategory, DialogueCategorySettings>>>
+}
+
+export interface DialogueValidationIssue {
+  readonly path: string
+  readonly message: string
+}
+
+export const EMPTY_PET_DIALOGUE_SETTINGS: PetDialogueSettings = Object.freeze({
+  address: '',
+  categories: Object.freeze({})
+})
+
+const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+export function countVisibleCharacters(text: string): number {
+  let count = 0
+  for (const _ of segmenter.segment(text)) {
+    count++
+  }
+  return count
+}
+
+export function clonePetDialogueSettings(settings: PetDialogueSettings): PetDialogueSettings {
+  const clonedCategories: Partial<Record<DialogueCategory, DialogueCategorySettings>> = {}
+  for (const [key, categorySettings] of Object.entries(settings.categories) as [
+    DialogueCategory,
+    DialogueCategorySettings | undefined
+  ][]) {
+    if (!categorySettings) continue
+    clonedCategories[key] = {
+      builtInOverrides: categorySettings.builtInOverrides.map((override) => ({ ...override })),
+      customLines: categorySettings.customLines.map((line) => ({ ...line }))
+    }
+  }
+  return {
+    address: settings.address,
+    categories: clonedCategories
+  }
+}
+
+export function getDialogueValidationIssues(value: unknown): readonly DialogueValidationIssue[] {
+  const issues: DialogueValidationIssue[] = []
+  if (!isRecord(value)) {
+    issues.push({ path: 'root', message: 'Invalid dialogue settings' })
+    return issues
+  }
+
+  if (typeof value.address !== 'string') {
+    issues.push({ path: 'address', message: '称呼必须是文本' })
+  } else {
+    if (/\r|\n/.test(value.address)) {
+      issues.push({ path: 'address', message: '称呼只能写一行' })
+    } else if (/\p{Cc}/u.test(value.address)) {
+      issues.push({ path: 'address', message: '称呼不能包含控制字符' })
+    } else {
+      const trimmedAddress = value.address.trim()
+      if (countVisibleCharacters(trimmedAddress) > MAX_ADDRESS_LENGTH) {
+        issues.push({ path: 'address', message: '称呼最多 12 个字' })
+      }
+    }
+  }
+
+  if (!isRecord(value.categories)) {
+    issues.push({ path: 'categories', message: 'Invalid dialogue categories' })
+    return issues
+  }
+
+  for (const [catKey, catVal] of Object.entries(value.categories)) {
+    if (!DIALOGUE_CATEGORIES.includes(catKey as DialogueCategory)) {
+      issues.push({ path: `categories.${catKey}`, message: `Unknown dialogue category: ${catKey}` })
+      continue
+    }
+
+    const category = catKey as DialogueCategory
+    const triggerMeta = getDialogueTriggerMeta(category)
+
+    if (!isRecord(catVal)) {
+      issues.push({ path: `categories.${category}`, message: 'Invalid category settings' })
+      continue
+    }
+
+    if (!Array.isArray(catVal.builtInOverrides)) {
+      issues.push({ path: `categories.${category}.builtInOverrides`, message: 'Invalid built-in overrides' })
+    } else if (catVal.builtInOverrides.length > MAX_BUILT_IN_OVERRIDES_PER_CATEGORY) {
+      issues.push({ path: `categories.${category}.builtInOverrides`, message: 'Too many built-in overrides' })
+    }
+
+    if (!Array.isArray(catVal.customLines)) {
+      issues.push({ path: `categories.${category}.customLines`, message: 'Invalid custom lines' })
+    } else if (catVal.customLines.length > MAX_CUSTOM_LINES_PER_CATEGORY) {
+      issues.push({ path: `categories.${category}.customLines`, message: '每个互动时机最多添加 20 条对白' })
+    }
+
+    const builtInOverrides = Array.isArray(catVal.builtInOverrides) ? catVal.builtInOverrides : []
+    const customLines = Array.isArray(catVal.customLines) ? catVal.customLines : []
+
+    const seenOverrideIds = new Set<string>()
+    const overrideTextMap = new Map<string, string>()
+
+    for (const override of builtInOverrides) {
+      if (!isRecord(override)) {
+        issues.push({ path: `${category}`, message: 'Invalid built-in override' })
+        continue
+      }
+      if (!isSafeIdentifier(override.lineId)) {
+        issues.push({ path: `${category}:${String(override.lineId)}`, message: 'Invalid dialogue identifier' })
+        continue
+      }
+      if (seenOverrideIds.has(override.lineId)) {
+        issues.push({ path: `${category}:${override.lineId}`, message: 'Duplicate built-in override line identifier' })
+      }
+      seenOverrideIds.add(override.lineId)
+
+      if (override.automaticEnabled !== undefined && typeof override.automaticEnabled !== 'boolean') {
+        issues.push({ path: `${category}:${override.lineId}`, message: 'Invalid automaticEnabled state' })
+      }
+
+      if (override.text !== undefined) {
+        if (typeof override.text !== 'string') {
+          issues.push({ path: `${category}:${override.lineId}`, message: '对白内容必须是文本' })
+        } else if (/\r|\n/.test(override.text)) {
+          issues.push({ path: `${category}:${override.lineId}`, message: '对白只能写一行' })
+        } else if (/\p{Cc}/u.test(override.text)) {
+          issues.push({ path: `${category}:${override.lineId}`, message: '对白不能包含控制字符' })
+        } else {
+          const trimmed = override.text.trim()
+          if (trimmed.length === 0) {
+            issues.push({ path: `${category}:${override.lineId}`, message: '对白内容不能为空' })
+          } else if (countVisibleCharacters(trimmed) > MAX_DIALOGUE_LINE_LENGTH) {
+            issues.push({ path: `${category}:${override.lineId}`, message: '对白最多 30 个字' })
+          } else {
+            overrideTextMap.set(override.lineId, trimmed)
+          }
+        }
+      }
+    }
+
+    const seenCustomIds = new Set<string>()
+    const customTexts: Array<{ id: string; text: string }> = []
+
+    for (const custom of customLines) {
+      if (!isRecord(custom)) {
+        issues.push({ path: `${category}`, message: 'Invalid custom dialogue line' })
+        continue
+      }
+      if (!isSafeIdentifier(custom.id)) {
+        issues.push({ path: `${category}:${String(custom.id)}`, message: 'Invalid dialogue identifier' })
+        continue
+      }
+      if (seenCustomIds.has(custom.id)) {
+        issues.push({ path: `${category}:${custom.id}`, message: 'Duplicate custom line identifier' })
+      }
+      seenCustomIds.add(custom.id)
+
+      if (typeof custom.automaticEnabled !== 'boolean') {
+        issues.push({ path: `${category}:${custom.id}`, message: 'Invalid automaticEnabled state' })
+      }
+
+      if (typeof custom.text !== 'string') {
+        issues.push({ path: `${category}:${custom.id}`, message: '对白内容必须是文本' })
+      } else if (/\r|\n/.test(custom.text)) {
+        issues.push({ path: `${category}:${custom.id}`, message: '对白只能写一行' })
+      } else if (/\p{Cc}/u.test(custom.text)) {
+        issues.push({ path: `${category}:${custom.id}`, message: '对白不能包含控制字符' })
+      } else {
+        const trimmed = custom.text.trim()
+        if (trimmed.length === 0) {
+          issues.push({ path: `${category}:${custom.id}`, message: '对白内容不能为空' })
+        } else if (countVisibleCharacters(trimmed) > MAX_DIALOGUE_LINE_LENGTH) {
+          issues.push({ path: `${category}:${custom.id}`, message: '对白最多 30 个字' })
+        } else {
+          customTexts.push({ id: custom.id, text: trimmed })
+        }
+      }
+    }
+
+    // Check duplicate templates within built-in overrides
+    const seenOverrideTexts = new Set<string>()
+    for (const [lineId, text] of overrideTextMap) {
+      if (seenOverrideTexts.has(text)) {
+        issues.push({ path: `${category}:${lineId}`, message: '对白内容不能重复' })
+      } else {
+        seenOverrideTexts.add(text)
+      }
+    }
+
+    // Check duplicate templates within custom lines
+    const seenCustomTexts = new Set<string>()
+    for (const custom of customTexts) {
+      if (seenCustomTexts.has(custom.text)) {
+        issues.push({ path: `${category}:${custom.id}`, message: '对白内容不能重复' })
+      } else {
+        seenCustomTexts.add(custom.text)
+      }
+    }
+  }
+
+  return issues
+}
+
+export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
+  if (!isRecord(value)) throw new Error('Invalid dialogue settings')
+  assertExactKeys(value, ['address', 'categories'], 'Invalid dialogue settings')
+
+  const issues = getDialogueValidationIssues(value)
+  if (issues.length > 0) {
+    throw new Error(issues[0].message)
+  }
+
+  const address = (value.address as string).trim()
+  const rawCategories = value.categories as Record<string, unknown>
+  const normalizedCategories: Partial<Record<DialogueCategory, DialogueCategorySettings>> = {}
+
+  for (const [key, catVal] of Object.entries(rawCategories)) {
+    const category = key as DialogueCategory
+    if (!isRecord(catVal)) continue
+    assertExactKeys(catVal, ['builtInOverrides', 'customLines'], 'Invalid category settings')
+
+    const rawOverrides = catVal.builtInOverrides as readonly unknown[]
+    const rawCustom = catVal.customLines as readonly unknown[]
+
+    const builtInOverrides: BuiltInDialogueOverride[] = []
+    for (const rawO of rawOverrides) {
+      if (!isRecord(rawO)) continue
+      const allowedKeys = ['lineId']
+      if ('automaticEnabled' in rawO) allowedKeys.push('automaticEnabled')
+      if ('text' in rawO) allowedKeys.push('text')
+      assertExactKeys(rawO, allowedKeys, 'Invalid built-in override')
+
+      const lineId = rawO.lineId as string
+      const override: BuiltInDialogueOverride = {
+        lineId,
+        ...(rawO.automaticEnabled !== undefined ? { automaticEnabled: rawO.automaticEnabled as boolean } : {}),
+        ...(rawO.text !== undefined ? { text: (rawO.text as string).trim() } : {})
+      }
+      builtInOverrides.push(override)
+    }
+
+    const customLines: CustomDialogueLine[] = []
+    for (const rawC of rawCustom) {
+      if (!isRecord(rawC)) continue
+      assertExactKeys(rawC, ['id', 'automaticEnabled', 'text'], 'Invalid custom dialogue line')
+      customLines.push({
+        id: rawC.id as string,
+        automaticEnabled: rawC.automaticEnabled as boolean,
+        text: (rawC.text as string).trim()
+      })
+    }
+
+    if (builtInOverrides.length > 0 || customLines.length > 0) {
+      normalizedCategories[category] = {
+        builtInOverrides: Object.freeze(builtInOverrides),
+        customLines: Object.freeze(customLines)
+      }
+    }
+  }
+
+  return {
+    address,
+    categories: Object.freeze(normalizedCategories)
+  }
+}
+
+export function resolveDialogueLines(
+  category: DialogueCategory,
+  settings: PetDialogueSettings | null | undefined
+): readonly string[] {
+  const meta = getDialogueTriggerMeta(category)
+  const catSettings = settings?.categories[category]
+  const address = settings?.address?.trim() ?? ''
+
+  const overridesByLineId = new Map(
+    (catSettings?.builtInOverrides ?? []).map((o) => [o.lineId, o])
+  )
+
+  const candidates: string[] = []
+
+  for (const builtIn of meta.builtIns) {
+    const override = overridesByLineId.get(builtIn.id)
+    if (override?.automaticEnabled === false) {
+      continue
+    }
+    const text = override?.text !== undefined ? override.text.trim() : builtIn.text
+    if (text.length > 0) {
+      candidates.push(text)
+    }
+  }
+
+  if (catSettings?.customLines) {
+    for (const custom of catSettings.customLines) {
+      if (custom.automaticEnabled) {
+        const text = custom.text.trim()
+        if (text.length > 0) {
+          candidates.push(text)
+        }
+      }
+    }
+  }
+
+  const replaced: string[] = []
+  for (const line of candidates) {
+    if (line.includes(ADDRESS_PLACEHOLDER)) {
+      if (address.length === 0) {
+        continue
+      }
+      replaced.push(line.replaceAll(ADDRESS_PLACEHOLDER, address))
+    } else {
+      replaced.push(line)
+    }
+  }
+
+  const result: string[] = []
+  const seen = new Set<string>()
+  for (const line of replaced) {
+    const trimmed = line.trim()
+    if (trimmed.length > 0 && !seen.has(trimmed)) {
+      seen.add(trimmed)
+      result.push(trimmed)
+    }
+  }
+
+  return Object.freeze(result)
+}
+
+export function restoreBuiltInLine(
+  settings: PetDialogueSettings,
+  category: DialogueCategory,
+  lineId: string
+): PetDialogueSettings {
+  const catSettings = settings.categories[category]
+  if (!catSettings) return settings
+
+  const nextOverrides = catSettings.builtInOverrides
+    .map((override) => {
+      if (override.lineId !== lineId) return override
+      if (override.automaticEnabled === false) {
+        return { lineId: override.lineId, automaticEnabled: false }
+      }
+      return null
+    })
+    .filter((override): override is BuiltInDialogueOverride => override !== null)
+
+  const nextCategories = { ...settings.categories }
+  if (nextOverrides.length === 0 && catSettings.customLines.length === 0) {
+    delete nextCategories[category]
+  } else {
+    nextCategories[category] = {
+      builtInOverrides: Object.freeze(nextOverrides),
+      customLines: catSettings.customLines
+    }
+  }
+
+  return {
+    address: settings.address,
+    categories: Object.freeze(nextCategories)
+  }
+}
+
+export function restoreBuiltInCategory(
+  settings: PetDialogueSettings,
+  category: DialogueCategory
+): PetDialogueSettings {
+  const catSettings = settings.categories[category]
+  if (!catSettings || catSettings.builtInOverrides.length === 0) {
+    return settings
+  }
+
+  const nextCategories = { ...settings.categories }
+  if (catSettings.customLines.length === 0) {
+    delete nextCategories[category]
+  } else {
+    nextCategories[category] = {
+      builtInOverrides: Object.freeze([]),
+      customLines: catSettings.customLines
+    }
+  }
+
+  return {
+    address: settings.address,
+    categories: Object.freeze(nextCategories)
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function assertExactKeys(value: Record<string, unknown>, keys: readonly string[], message: string): void {
+  const actual = Object.keys(value).sort()
+  const expected = [...keys].sort()
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(message)
+  }
+}

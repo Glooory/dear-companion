@@ -1,3 +1,10 @@
+import {
+  type PetDialogueSettings,
+  EMPTY_PET_DIALOGUE_SETTINGS,
+  clonePetDialogueSettings,
+  parsePetDialogueSettings
+} from './dialogue-settings'
+
 export type WindowKind = 'pet' | 'settings'
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -131,6 +138,7 @@ export interface PetConfig {
   lifeStates: PetLifeStates
   companionPace: CompanionPace
   interactionBubblesEnabled: boolean
+  dialogueSettings: PetDialogueSettings
 }
 
 export interface OptionalLifeAssets {
@@ -174,37 +182,8 @@ export interface CompanionSystemSnapshot {
   runtime: CompanionRuntimeSnapshot
 }
 
-export interface AppSettingsV1 {
-  schemaVersion: 1
-  activePetId: string | null
-  petWindow: PetWindowSettings
-  autostartEnabled: boolean
-  audio: { reminderEnabled: boolean; cryingEnabled: boolean }
-  reminders: readonly []
-}
-
-export interface AppSettingsV2 {
-  schemaVersion: 2
-  activePetId: string | null
-  petWindow: PetWindowSettings
-  autostartEnabled: boolean
-  audio: { reminderEnabled: boolean; cryingEnabled: boolean }
-  reminders: readonly []
-  pets: readonly LegacyPetConfig[]
-}
-
-export interface AppSettingsV3 {
-  schemaVersion: 3
-  activePetId: string | null
-  petWindow: PetWindowSettings
-  autostartEnabled: boolean
-  audio: AudioSettingsV3
-  reminders: readonly ReminderSchedule[]
-  pets: readonly LegacyPetConfig[]
-}
-
-export interface AppSettingsV4 {
-  schemaVersion: 4
+export interface AppSettingsV5 {
+  schemaVersion: 5
   activePetId: string | null
   petWindow: PetWindowSettings
   autostartEnabled: boolean
@@ -214,12 +193,7 @@ export interface AppSettingsV4 {
   pets: readonly PetConfig[]
 }
 
-export type AppSettings = AppSettingsV4
-
-export type LegacyPetAsset = Omit<PetAsset, 'headHotspot'>
-export interface LegacyPetConfig extends Omit<PetConfig, 'assets' | 'lifeStates' | 'companionPace' | 'interactionBubblesEnabled'> {
-  assets: readonly LegacyPetAsset[]
-}
+export type AppSettings = AppSettingsV5
 
 export interface ReminderOccurrence {
   occurrenceId: string
@@ -354,6 +328,7 @@ export interface PetUpdateInput {
   lifeStates: PetLifeStates
   companionPace: CompanionPace
   interactionBubblesEnabled: boolean
+  dialogueSettings: PetDialogueSettings
 }
 
 export type CreateWorkScheduleInput = Omit<WorkSchedule, 'id'>
@@ -478,7 +453,7 @@ export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
 })
 
 export const DEFAULT_APP_SETTINGS = Object.freeze({
-  schemaVersion: 4,
+  schemaVersion: 5,
   activePetId: null,
   petWindow: Object.freeze({
     x: null,
@@ -562,59 +537,8 @@ export function parsePetRendererStatus(value: unknown): PetRendererStatus {
 export function migrateAppSettings(value: unknown): SettingsMigrationResult {
   if (!isRecord(value)) throw new Error('Unsupported settings schema version')
 
-  if (value.schemaVersion === 1) {
-    const legacy = parseAppSettingsV1(value)
-    return {
-      migrated: true,
-      settings: {
-        schemaVersion: 4,
-        activePetId: null,
-        petWindow: legacy.petWindow,
-        autostartEnabled: legacy.autostartEnabled,
-        audio: createDefaultAudioSettings(),
-        reminders: [],
-        workSchedules: [],
-        pets: []
-      }
-    }
-  }
-
-  if (value.schemaVersion === 2) {
-    const legacy = parseAppSettingsV2(value)
-    return {
-      migrated: true,
-      settings: {
-        schemaVersion: 4,
-        activePetId: legacy.activePetId,
-        petWindow: legacy.petWindow,
-        autostartEnabled: legacy.autostartEnabled,
-        audio: createDefaultAudioSettings(),
-        reminders: [],
-        workSchedules: [],
-        pets: legacy.pets.map(migrateLegacyPet)
-      }
-    }
-  }
-
-  if (value.schemaVersion === 3) {
-    const legacy = parseAppSettingsV3(value)
-    return {
-      migrated: true,
-      settings: {
-        schemaVersion: 4,
-        activePetId: legacy.activePetId,
-        petWindow: legacy.petWindow,
-        autostartEnabled: legacy.autostartEnabled,
-        audio: legacy.audio,
-        reminders: legacy.reminders,
-        workSchedules: [],
-        pets: legacy.pets.map(migrateLegacyPet)
-      }
-    }
-  }
-
-  if (value.schemaVersion === 4) {
-    return { migrated: false, settings: parseAppSettingsV4(value) }
+  if (value.schemaVersion === 5) {
+    return { migrated: false, settings: parseAppSettingsV5(value) }
   }
 
   throw new Error('Unsupported settings schema version')
@@ -738,7 +662,7 @@ export function parsePetUpdateInput(
     value,
     [
       'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates',
-      'lifeStates', 'companionPace', 'interactionBubblesEnabled'
+      'lifeStates', 'companionPace', 'interactionBubblesEnabled', 'dialogueSettings'
     ],
     'Invalid pet update'
   )
@@ -776,7 +700,8 @@ export function parsePetUpdateInput(
     actionTemplates: parseActionTemplates(value.actionTemplates),
     lifeStates,
     companionPace: parseCompanionPace(value.companionPace),
-    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled)
+    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled),
+    dialogueSettings: parsePetDialogueSettings(value.dialogueSettings)
   }
 }
 
@@ -788,57 +713,11 @@ export function createPetSystemSnapshot(settings: AppSettings): PetSystemSnapsho
   }
 }
 
-function parseAppSettingsV1(value: Record<string, unknown>): AppSettingsV1 {
-  assertExactKeys(value, ['schemaVersion', 'activePetId', 'petWindow', 'autostartEnabled', 'audio', 'reminders'], 'Invalid schema v1 settings')
-  const base = parseFoundationFields(value)
-  return {
-    schemaVersion: 1,
-    activePetId: parseNullableIdentifier(value.activePetId, 'active pet identifier'),
-    ...base
-  }
-}
-
-function parseAppSettingsV2(value: Record<string, unknown>): AppSettingsV2 {
-  assertExactKeys(value, ['schemaVersion', 'activePetId', 'petWindow', 'autostartEnabled', 'audio', 'reminders', 'pets'], 'Invalid schema v2 settings')
-  const base = parseFoundationFields(value)
-  if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
-
-  const pets = value.pets.map(parseLegacyPetConfig)
-  assertUnique(pets.map((pet) => pet.id), 'Duplicate pet identifier')
-  const activePetId = parseNullableIdentifier(value.activePetId, 'active pet identifier')
-
-  if (activePetId !== null) {
-    const activePet = pets.find((pet) => pet.id === activePetId)
-    if (!activePet || activePet.actionSlots.idle.length === 0) {
-      throw new Error('Active pet must reference a configured idle asset')
-    }
-  }
-
-  return { schemaVersion: 2, activePetId, ...base, pets }
-}
-
-function parseAppSettingsV3(value: Record<string, unknown>): AppSettingsV3 {
-  assertExactKeys(value, [
-    'schemaVersion', 'activePetId', 'petWindow', 'autostartEnabled', 'audio', 'reminders', 'pets'
-  ], 'Invalid schema v3 settings')
-  const foundation = parseCommonFoundationFields(value)
-  if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
-  const pets = value.pets.map(parseLegacyPetConfig)
-  assertUnique(pets.map((pet) => pet.id), 'Duplicate pet identifier')
-  const activePetId = parseNullableIdentifier(value.activePetId, 'active pet identifier')
-  validateActivePet(activePetId, pets)
-  if (!Array.isArray(value.reminders)) throw new Error('Invalid reminder collection')
-  const reminders = value.reminders.map(parseReminderSchedule)
-  assertUnique(reminders.map((reminder) => reminder.id), 'Duplicate reminder identifier')
-  const audio = parseAudioSettings(value.audio)
-  return { schemaVersion: 3, activePetId, ...foundation, audio, reminders, pets }
-}
-
-function parseAppSettingsV4(value: Record<string, unknown>): AppSettingsV4 {
+function parseAppSettingsV5(value: Record<string, unknown>): AppSettingsV5 {
   assertExactKeys(value, [
     'schemaVersion', 'activePetId', 'petWindow', 'autostartEnabled', 'audio',
     'reminders', 'workSchedules', 'pets'
-  ], 'Invalid schema v4 settings')
+  ], 'Invalid schema v5 settings')
   const foundation = parseCommonFoundationFields(value)
   if (!Array.isArray(value.pets)) throw new Error('Invalid pet collection')
   const pets = value.pets.map(parsePetConfig)
@@ -853,65 +732,13 @@ function parseAppSettingsV4(value: Record<string, unknown>): AppSettingsV4 {
   assertUnique(workSchedules.map((schedule) => schedule.id), 'Duplicate work schedule identifier')
   const audio = parseAudioSettings(value.audio)
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     activePetId,
     ...foundation,
     audio,
     reminders,
     workSchedules,
     pets
-  }
-}
-
-function parseFoundationFields(value: Record<string, unknown>): Omit<
-  AppSettingsV1,
-  'schemaVersion' | 'activePetId'
-> {
-  const petWindow = value.petWindow
-  if (!isRecord(petWindow)) throw new Error('Invalid pet window settings')
-  assertExactKeys(petWindow, ['x', 'y', 'displayId', 'height', 'visible'], 'Invalid pet window settings')
-  if (
-    !isNullableFiniteNumber(petWindow.x) ||
-    !isNullableFiniteNumber(petWindow.y) ||
-    !isNullableString(petWindow.displayId) ||
-    !isFiniteNumberInRange(petWindow.height, 80, 260) ||
-    typeof petWindow.visible !== 'boolean'
-  ) {
-    throw new Error('Invalid pet window settings')
-  }
-
-  if (typeof value.autostartEnabled !== 'boolean') {
-    throw new Error('Invalid autostart setting')
-  }
-
-  const audio = value.audio
-  if (isRecord(audio)) assertExactKeys(audio, ['reminderEnabled', 'cryingEnabled'], 'Invalid audio settings')
-  if (
-    !isRecord(audio) ||
-    typeof audio.reminderEnabled !== 'boolean' ||
-    typeof audio.cryingEnabled !== 'boolean'
-  ) {
-    throw new Error('Invalid audio settings')
-  }
-
-  if (!Array.isArray(value.reminders) || value.reminders.length !== 0) {
-    throw new Error(`Unsupported reminder data in schema version ${String(value.schemaVersion)}`)
-  }
-
-  return {
-    petWindow: {
-      x: petWindow.x,
-      y: petWindow.y,
-      displayId: petWindow.displayId,
-      height: petWindow.height,
-      visible: petWindow.visible
-    },
-    autostartEnabled: value.autostartEnabled,
-    audio: {
-      reminderEnabled: audio.reminderEnabled,
-      cryingEnabled: audio.cryingEnabled
-    },
-    reminders: []
   }
 }
 
@@ -1134,7 +961,7 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
   if (!isRecord(value)) throw new Error(`Invalid pet at index ${index}`)
   assertExactKeys(value, [
     'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates',
-    'lifeStates', 'companionPace', 'interactionBubblesEnabled'
+    'lifeStates', 'companionPace', 'interactionBubblesEnabled', 'dialogueSettings'
   ], 'Invalid pet configuration')
   if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
   const name = parsePetName(value.name)
@@ -1162,48 +989,8 @@ function parsePetConfig(value: unknown, index: number): PetConfig {
     actionTemplates: parseActionTemplates(value.actionTemplates),
     lifeStates: parsePetLifeStates(value.lifeStates, assetIds),
     companionPace: parseCompanionPace(value.companionPace),
-    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled)
-  }
-}
-
-function parseLegacyPetConfig(value: unknown, index: number): LegacyPetConfig {
-  if (!isRecord(value)) throw new Error(`Invalid pet at index ${index}`)
-  assertExactKeys(value, [
-    'id', 'name', 'targetHeight', 'assets', 'actionSlots', 'actionTemplates'
-  ], 'Invalid pet configuration')
-  if (!isSafeIdentifier(value.id)) throw new Error('Invalid pet identifier')
-  const name = parsePetName(value.name)
-  if (name !== value.name) throw new Error('Invalid pet name')
-  if (!isFiniteNumberInRange(value.targetHeight, MIN_PET_TARGET_HEIGHT, MAX_PET_TARGET_HEIGHT)) {
-    throw new Error('Invalid pet target height')
-  }
-  if (!Array.isArray(value.assets)) throw new Error('Invalid pet asset collection')
-  const assets = value.assets.map(parseLegacyPetAsset)
-  assertUnique(assets.map((asset) => asset.id), 'Duplicate pet asset identifier')
-  assertUnique(assets.map((asset) => asset.fileName), 'Duplicate pet asset filename')
-  const assetIds = new Set(assets.map((asset) => asset.id))
-  if (assets.reduce((total, asset) => total + asset.byteSize, 0) > MAX_PET_PACK_BYTES) {
-    throw new Error('Pet pack exceeds 250 MB')
-  }
-  return {
-    id: value.id,
-    name,
-    targetHeight: value.targetHeight,
-    assets,
-    actionSlots: parseActionSlots(value.actionSlots, assetIds),
-    actionTemplates: parseActionTemplates(value.actionTemplates)
-  }
-}
-
-function migrateLegacyPet(pet: LegacyPetConfig): PetConfig {
-  return {
-    ...pet,
-    assets: pet.assets.map((asset) => ({ ...asset, headHotspot: null })),
-    actionSlots: cloneActionSlots(pet.actionSlots),
-    actionTemplates: { ...pet.actionTemplates },
-    lifeStates: cloneDefaultPetLifeStates(),
-    companionPace: 'natural',
-    interactionBubblesEnabled: true
+    interactionBubblesEnabled: parseInteractionBubblesEnabled(value.interactionBubblesEnabled),
+    dialogueSettings: parsePetDialogueSettings(value.dialogueSettings)
   }
 }
 
@@ -1246,14 +1033,6 @@ function parsePetAsset(value: unknown): PetAsset {
     normalization,
     headHotspot
   }
-}
-
-function parseLegacyPetAsset(value: unknown): LegacyPetAsset {
-  if (!isRecord(value)) throw new Error('Invalid pet asset')
-  assertExactKeys(value, [
-    'id', 'fileName', 'format', 'byteSize', 'width', 'height', 'alphaBounds', 'normalization'
-  ], 'Invalid pet asset')
-  return parsePetAsset({ ...value, headHotspot: null })
 }
 
 function parseAlphaBounds(value: unknown, imageWidth: number, imageHeight: number): AlphaBounds {
@@ -1420,20 +1199,6 @@ function parseNullableIdentifier(value: unknown, label: string): string | null {
 
 function assertUnique(values: readonly string[], message: string): void {
   if (new Set(values).size !== values.length) throw new Error(message)
-}
-
-function cloneActionSlots(slots: PetActionSlots): PetActionSlots {
-  return Object.fromEntries(
-    ACTION_SLOTS.map((slot) => [slot, [...slots[slot]]])
-  ) as unknown as PetActionSlots
-}
-
-function cloneDefaultPetLifeStates(): PetLifeStates {
-  return {
-    drowsy: { enabled: false, assetIds: [] },
-    sleeping: { enabled: false, assetIds: [] },
-    workingAssetIds: []
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

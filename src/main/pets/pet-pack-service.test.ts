@@ -43,7 +43,8 @@ describe('PetPackService', () => {
       actionTemplates: DEFAULT_ACTION_TEMPLATES,
       lifeStates: DEFAULT_PET_LIFE_STATES,
       companionPace: 'natural',
-      interactionBubblesEnabled: true
+      interactionBubblesEnabled: true,
+      dialogueSettings: { address: '', categories: {} }
     }])
     expect(snapshot.activePetId).toBeNull()
   })
@@ -126,7 +127,8 @@ describe('PetPackService', () => {
       actionTemplates: { ...DEFAULT_ACTION_TEMPLATES, angryDurationMs: 2_000 },
       lifeStates: { drowsy: { enabled: false, assetIds: [] }, sleeping: { enabled: false, assetIds: [] }, workingAssetIds: [] },
       companionPace: 'lively',
-      interactionBubblesEnabled: false
+      interactionBubblesEnabled: false,
+      dialogueSettings: { address: '小葡萄', categories: {} }
     }
 
     const updated = await service.updatePet(update)
@@ -166,7 +168,8 @@ describe('PetPackService', () => {
       actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
       lifeStates: { drowsy: { enabled: false, assetIds: [] }, sleeping: { enabled: false, assetIds: [] }, workingAssetIds: [] },
       companionPace: 'natural',
-      interactionBubblesEnabled: true
+      interactionBubblesEnabled: true,
+      dialogueSettings: { address: '', categories: {} }
     })
     await service.setActivePet(firstPetId)
 
@@ -215,6 +218,51 @@ describe('PetPackService', () => {
 
     await expect(service.deleteAsset('pet-1', imported[0]!.id))
       .rejects.toThrow('使用中的伙伴需至少保留一张照片')
+  })
+
+  it('updates dialogue settings for pet A without affecting pet B', async () => {
+    const { userDataPath, service } = await createHarness()
+    const first = await service.createPet('豆包')
+    const second = await service.createPet('年糕')
+    const firstPetId = first.pets[0]!.id
+    const secondPetId = second.pets.find((pet) => pet.id !== firstPetId)!.id
+
+    const sourcePath = join(userDataPath, 'source.png')
+    await writeFile(sourcePath, pngBytes)
+    const imported = await service.importAssets(firstPetId, [sourcePath])
+    const asset = imported.imported[0]!
+
+    await service.updatePet({
+      id: firstPetId,
+      name: '豆包',
+      targetHeight: 180,
+      assets: [{ id: asset.id, normalization: { ...asset.normalization }, headHotspot: null }],
+      actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
+      actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
+      lifeStates: { drowsy: { enabled: false, assetIds: [] }, sleeping: { enabled: false, assetIds: [] }, workingAssetIds: [] },
+      companionPace: 'natural',
+      interactionBubblesEnabled: true,
+      dialogueSettings: {
+        address: '小葡萄',
+        categories: {
+          'daily:click': {
+            builtInOverrides: [{ lineId: 'daily-click-here', text: '豆包在呢' }],
+            customLines: [{ id: 'custom-1', automaticEnabled: true, text: '专属句子' }]
+          }
+        }
+      }
+    })
+
+    const snapshot = await service.getSnapshot()
+    const petA = snapshot.pets.find((p) => p.id === firstPetId)!
+    const petB = snapshot.pets.find((p) => p.id === secondPetId)!
+
+    expect(petA.dialogueSettings.address).toBe('小葡萄')
+    expect(petA.dialogueSettings.categories['daily:click']?.builtInOverrides[0]?.text).toBe('豆包在呢')
+    expect(petA.dialogueSettings.categories['daily:click']?.customLines[0]?.text).toBe('专属句子')
+
+    expect(petB.dialogueSettings.address).toBe('')
+    expect(petB.dialogueSettings.categories).toEqual({})
   })
 })
 

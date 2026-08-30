@@ -24,7 +24,8 @@ function pet(): PetConfig {
       drowsy: { enabled: true, assetIds: ['drowsy'] },
       sleeping: { enabled: true, assetIds: ['sleeping'] }, workingAssetIds: []
     },
-    companionPace: 'natural', interactionBubblesEnabled: true
+    companionPace: 'natural', interactionBubblesEnabled: true,
+    dialogueSettings: { address: '', categories: {} }
   }
 }
 

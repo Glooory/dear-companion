@@ -18,21 +18,9 @@ import {
   parseHeadHotspot,
   parsePetUpdateInput,
   parseSettingsNavigationTarget,
-  type AppSettingsV1,
-  type AppSettingsV2,
-  type AppSettingsV3,
-  type LegacyPetConfig,
   type PetConfig
 } from './contracts'
-
-const legacySettings: AppSettingsV1 = {
-  schemaVersion: 1,
-  activePetId: 'legacy-pet',
-  petWindow: { x: 12, y: 34, displayId: '1', height: 210, visible: false },
-  autostartEnabled: false,
-  audio: { reminderEnabled: false, cryingEnabled: false },
-  reminders: []
-}
+import { resolveDialogueLines } from './dialogue-settings'
 
 function createPet(): PetConfig {
   return {
@@ -60,14 +48,15 @@ function createPet(): PetConfig {
       workingAssetIds: []
     },
     companionPace: 'natural',
-    interactionBubblesEnabled: true
+    interactionBubblesEnabled: true,
+    dialogueSettings: { address: '', categories: {} }
   }
 }
 
 describe('settings contracts', () => {
-  it('uses privacy-preserving schema v4 first-run defaults', () => {
+  it('uses privacy-preserving schema v5 first-run defaults', () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 4,
+      schemaVersion: 5,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
@@ -82,26 +71,14 @@ describe('settings contracts', () => {
     })
   })
 
-  it('migrates v1 in memory and clears an unverifiable active pet', () => {
-    expect(migrateAppSettings(legacySettings)).toEqual({
-      migrated: true,
-      settings: {
-        ...legacySettings,
-        schemaVersion: 4,
-        activePetId: null,
-        audio: {
-          reminderSource: { kind: 'builtin', id: 'gentle-chime' },
-          cryingSource: { kind: 'builtin', id: 'soft-whimper' },
-          assets: []
-        },
-        reminders: [],
-        workSchedules: [],
-        pets: []
-      }
-    })
+  it('rejects legacy schema versions instead of migrating pre-release data', () => {
+    expect(() => migrateAppSettings({ schemaVersion: 1 })).toThrow('Unsupported settings schema version')
+    expect(() => migrateAppSettings({ schemaVersion: 2 })).toThrow('Unsupported settings schema version')
+    expect(() => migrateAppSettings({ schemaVersion: 3 })).toThrow('Unsupported settings schema version')
+    expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow('Unsupported settings schema version')
   })
 
-  it('round-trips v4 into newly allocated nested values', () => {
+  it('round-trips v5 into newly allocated nested values', () => {
     const pet = createPet()
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] }
     const parsed = parseAppSettings(input)
@@ -111,6 +88,7 @@ describe('settings contracts', () => {
     expect(parsed.pets).not.toBe(input.pets)
     expect(parsed.pets[0]?.assets).not.toBe(pet.assets)
     expect(parsed.pets[0]?.actionSlots).not.toBe(pet.actionSlots)
+    expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings)
   })
 
   it('rejects a stale active pet or active pet without idle', () => {
@@ -172,7 +150,8 @@ describe('settings contracts', () => {
       actionTemplates: pet.actionTemplates,
       lifeStates: pet.lifeStates,
       companionPace: pet.companionPace,
-      interactionBubblesEnabled: pet.interactionBubblesEnabled
+      interactionBubblesEnabled: pet.interactionBubblesEnabled,
+      dialogueSettings: pet.dialogueSettings
     }
 
     expect(() => parsePetUpdateInput({ ...input, unexpected: true }, ['asset-1']))
@@ -198,56 +177,116 @@ describe('settings contracts', () => {
     })).toThrow('exceeds 250 MB')
   })
 
-  it('migrates v2 with every pet field and zero reminders', () => {
+  it('validates dialogueSettings in pet update and settings, and preserves safe stale line IDs', () => {
     const pet = createPet()
-    const legacyPet = toLegacyPet(pet)
-    const legacy: AppSettingsV2 = {
-      schemaVersion: 2,
-      activePetId: pet.id,
-      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow },
-      autostartEnabled: false,
-      audio: { reminderEnabled: true, cryingEnabled: true },
-      reminders: [],
-      pets: [legacyPet]
-    }
-    const result = migrateAppSettings(legacy)
-    expect(result.migrated).toBe(true)
-    expect(result.settings.pets[0]).toMatchObject({
-      ...legacyPet,
-      lifeStates: DEFAULT_PET_LIFE_STATES,
-      companionPace: 'natural',
-      interactionBubblesEnabled: true
-    })
-    expect(result.settings.reminders).toEqual([])
-    expect(result.settings.audio.assets).toEqual([])
-  })
-
-  it('migrates schema v3 pets and global settings to strict v4 defaults', () => {
-    const pet = createPet()
-    const legacy: AppSettingsV3 = {
-      schemaVersion: 3,
-      activePetId: pet.id,
-      petWindow: { ...DEFAULT_APP_SETTINGS.petWindow },
-      autostartEnabled: false,
-      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [] },
-      reminders: [],
-      pets: [toLegacyPet(pet)]
-    }
-    const result = migrateAppSettings(legacy)
-    expect(result).toMatchObject({
-      migrated: true,
-      settings: {
-        schemaVersion: 4,
-        activePetId: pet.id,
-        workSchedules: [],
-        pets: [{
-          lifeStates: DEFAULT_PET_LIFE_STATES,
-          companionPace: 'natural',
-          interactionBubblesEnabled: true
-        }]
+    const validUpdate = {
+      id: pet.id,
+      name: pet.name,
+      targetHeight: pet.targetHeight,
+      assets: pet.assets.map((asset) => ({
+        id: asset.id,
+        normalization: asset.normalization,
+        headHotspot: asset.headHotspot
+      })),
+      actionSlots: pet.actionSlots,
+      actionTemplates: pet.actionTemplates,
+      lifeStates: pet.lifeStates,
+      companionPace: pet.companionPace,
+      interactionBubblesEnabled: pet.interactionBubblesEnabled,
+      dialogueSettings: {
+        address: '小葡萄',
+        categories: {
+          'daily:click': {
+            builtInOverrides: [
+              { lineId: 'daily-click-here', text: '在呢！' }
+            ],
+            customLines: [
+              { id: 'custom-1', automaticEnabled: true, text: '自定义一句' }
+            ]
+          }
+        }
       }
-    })
-    expect(result.settings.pets[0]!.assets[0]!.headHotspot).toBeNull()
+    }
+
+    const parsedUpdate = parsePetUpdateInput(validUpdate, ['asset-1'])
+    expect(parsedUpdate.dialogueSettings.address).toBe('小葡萄')
+
+    // invalid category ID in update
+    expect(() => parsePetUpdateInput({
+      ...validUpdate,
+      dialogueSettings: {
+        address: '',
+        categories: { 'invalid-category': { builtInOverrides: [], customLines: [] } }
+      }
+    }, ['asset-1'])).toThrow('Unknown dialogue category')
+
+    // malformed built-in override
+    expect(() => parsePetUpdateInput({
+      ...validUpdate,
+      dialogueSettings: {
+        address: '',
+        categories: {
+          'daily:click': {
+            builtInOverrides: [{ lineId: 'daily-click-here', text: 123 as unknown as string }],
+            customLines: []
+          }
+        }
+      }
+    }, ['asset-1'])).toThrow('对白内容必须是文本')
+
+    // duplicate custom lines in update
+    expect(() => parsePetUpdateInput({
+      ...validUpdate,
+      dialogueSettings: {
+        address: '',
+        categories: {
+          'daily:click': {
+            builtInOverrides: [],
+            customLines: [
+              { id: 'c-1', automaticEnabled: true, text: '重复文字' },
+              { id: 'c-2', automaticEnabled: true, text: '重复文字' }
+            ]
+          }
+        }
+      }
+    }, ['asset-1'])).toThrow('对白内容不能重复')
+
+    // excessive custom lines in update
+    const excessiveLines = Array.from({ length: 21 }, (_, i) => ({
+      id: `c-${i}`,
+      automaticEnabled: true,
+      text: `句子${i}`
+    }))
+    expect(() => parsePetUpdateInput({
+      ...validUpdate,
+      dialogueSettings: {
+        address: '',
+        categories: {
+          'daily:click': { builtInOverrides: [], customLines: excessiveLines }
+        }
+      }
+    }, ['asset-1'])).toThrow('每个互动时机最多添加 20 条对白')
+
+    // safe stale built-in line ID round-trips in saved settings but never enters effective pool
+    const stalePet: PetConfig = {
+      ...pet,
+      dialogueSettings: {
+        address: '',
+        categories: {
+          'daily:click': {
+            builtInOverrides: [
+              { lineId: 'stale-built-in-line', text: '旧版文字' }
+            ],
+            customLines: []
+          }
+        }
+      }
+    }
+    const saved = parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [stalePet] })
+    expect(saved.pets[0]?.dialogueSettings.categories['daily:click']?.builtInOverrides[0]?.lineId)
+      .toBe('stale-built-in-line')
+    const effectiveLines = resolveDialogueLines('daily:click', saved.pets[0]?.dialogueSettings)
+    expect(effectiveLines).not.toContain('旧版文字')
   })
 
   it('validates reminder and audio ownership strictly', () => {
@@ -376,23 +415,3 @@ describe('settings contracts', () => {
     expect(() => parseHeadHotspot({ ...legacy, extra: 1 })).toThrow('Invalid head hotspot')
   })
 })
-
-function toLegacyPet(pet: PetConfig): LegacyPetConfig {
-  return {
-    id: pet.id,
-    name: pet.name,
-    targetHeight: pet.targetHeight,
-    assets: pet.assets.map((asset) => ({
-      id: asset.id,
-      fileName: asset.fileName,
-      format: asset.format,
-      byteSize: asset.byteSize,
-      width: asset.width,
-      height: asset.height,
-      alphaBounds: { ...asset.alphaBounds },
-      normalization: { ...asset.normalization }
-    })),
-    actionSlots: pet.actionSlots,
-    actionTemplates: pet.actionTemplates
-  }
-}

@@ -18,6 +18,10 @@ import {
   type PetConfig,
   type PetSystemSnapshot
 } from '../../shared/contracts'
+import {
+  EMPTY_PET_DIALOGUE_SETTINGS,
+  clonePetDialogueSettings
+} from '../../shared/dialogue-settings'
 import type { SettingsStore } from '../settings/settings-store'
 import type { ImageDecoder } from '../images/image-decoder'
 import {
@@ -57,7 +61,8 @@ export class PetPackService {
           actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
           lifeStates: cloneLifeStates(DEFAULT_PET_LIFE_STATES),
           companionPace: 'natural',
-          interactionBubblesEnabled: true
+          interactionBubblesEnabled: true,
+          dialogueSettings: clonePetDialogueSettings(EMPTY_PET_DIALOGUE_SETTINGS)
         }
         return { ...current, pets: [...current.pets, pet] }
       })
@@ -162,7 +167,8 @@ export class PetPackService {
               assetIds: updatedSleepingAssets
             },
             workingAssetIds: updatedWorkingAssets
-          }
+          },
+          dialogueSettings: clonePetDialogueSettings(pet.dialogueSettings)
         }
 
         return {
@@ -201,7 +207,8 @@ export class PetPackService {
           actionTemplates: { ...validated.actionTemplates },
           lifeStates: cloneLifeStates(validated.lifeStates),
           companionPace: validated.companionPace,
-          interactionBubblesEnabled: validated.interactionBubblesEnabled
+          interactionBubblesEnabled: validated.interactionBubblesEnabled,
+          dialogueSettings: clonePetDialogueSettings(validated.dialogueSettings)
         }
         return { ...latest, pets: latest.pets.map((candidate) => candidate.id === pet.id ? updatedPet : candidate) }
       })
