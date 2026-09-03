@@ -1,4 +1,5 @@
 import { ToastProvider } from "./components/Toast";
+import { BubbleShell } from "./windows/BubbleShell";
 import { PetShell } from "./windows/PetShell";
 import { SettingsShell } from "./windows/SettingsShell";
 
@@ -10,7 +11,13 @@ export function App(): React.JSX.Element {
 
   return (
     <ToastProvider>
-      {kind === "pet" ? <PetShell api={window.dearCompanion} /> : <SettingsShell api={window.dearCompanion} />}
+      {kind === "pet" ? (
+        <PetShell api={window.dearCompanion} />
+      ) : kind === "bubble" ? (
+        <BubbleShell api={window.dearCompanion} />
+      ) : (
+        <SettingsShell api={window.dearCompanion} />
+      )}
     </ToastProvider>
   );
 }

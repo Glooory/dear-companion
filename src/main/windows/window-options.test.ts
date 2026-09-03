@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createPetWindowOptions, createSettingsWindowOptions } from "./window-options";
+import { createBubbleWindowOptions, createPetWindowOptions, createSettingsWindowOptions } from "./window-options";
 
 describe("secure window options", () => {
   it("creates the transparent pet window with hardened renderer preferences", () => {
     const pet = createPetWindowOptions("/app/out/preload/index.js");
 
     expect(pet).toMatchObject({
-      width: 360,
-      height: 460,
+      width: 220,
+      height: 240,
       transparent: true,
       frame: false,
       resizable: false,
@@ -28,6 +28,32 @@ describe("secure window options", () => {
     });
     expect(pet.webPreferences?.allowRunningInsecureContent).not.toBe(true);
     expect(pet.webPreferences?.experimentalFeatures).not.toBe(true);
+  });
+
+  it("creates the bubble window with 320x140 size and hardened renderer preferences", () => {
+    const bubble = createBubbleWindowOptions("/app/out/preload/index.js");
+
+    expect(bubble).toMatchObject({
+      width: 320,
+      height: 140,
+      transparent: true,
+      frame: false,
+      resizable: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      show: false,
+      backgroundColor: "#00000000",
+      autoHideMenuBar: true,
+      focusable: true,
+    });
+    expect(bubble.webPreferences).toMatchObject({
+      preload: "/app/out/preload/index.js",
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      webviewTag: false,
+    });
   });
 
   it("creates the settings window with its default 1000x720 size, minimum size, and hardened preferences", () => {

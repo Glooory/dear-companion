@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
   AudioPlaybackRequest,
+  BubbleSystemSnapshot,
   CompanionSystemSnapshot,
   PetInteractionRequest,
   PetRendererStatus,
@@ -28,6 +29,8 @@ const api: ReleaseHardeningApi = {
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send(IPC_CHANNELS.setPetIgnoreMouseEvents, Boolean(ignore)),
   showPetContextMenu: () => ipcRenderer.send(IPC_CHANNELS.showPetContextMenu),
   previewCompanionPace: (pace) => ipcRenderer.invoke(IPC_CHANNELS.previewCompanionPace, pace),
+  getBubbleSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getBubbleSystemSnapshot),
+  setBubbleDialogue: (dialogue) => ipcRenderer.send(IPC_CHANNELS.setBubbleDialogue, dialogue),
   onPetSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: PetSystemSnapshot): void => {
       listener(snapshot);
@@ -39,6 +42,11 @@ const api: ReleaseHardeningApi = {
     const wrapped = (_event: Electron.IpcRendererEvent, request: PetInteractionRequest): void => listener(request);
     ipcRenderer.on(IPC_CHANNELS.petInteractionRequested, wrapped);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.petInteractionRequested, wrapped);
+  },
+  onBubbleSystemChanged: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: BubbleSystemSnapshot): void => listener(snapshot);
+    ipcRenderer.on(IPC_CHANNELS.bubbleSystemChanged, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.bubbleSystemChanged, wrapped);
   },
   getCompanionSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getCompanionSystemSnapshot),
   createWorkSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.createWorkSchedule, input),

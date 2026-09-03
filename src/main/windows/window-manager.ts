@@ -1,19 +1,23 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from "electron";
-import type {
-  AudioPlaybackRequest,
-  CompanionSystemSnapshot,
-  PetInteractionRequest,
-  PetRendererStatus,
-  PetSystemSnapshot,
-  RestSystemSnapshot,
-  SettingsNavigationTarget,
-  WindowKind,
+import {
+  resolvePetWindowSize,
+  type AudioPlaybackRequest,
+  type BubbleSystemSnapshot,
+  type CompanionSystemSnapshot,
+  type PetInteractionRequest,
+  type PetRendererStatus,
+  type PetSystemSnapshot,
+  type RestSystemSnapshot,
+  type SettingsNavigationTarget,
+  type WindowKind,
 } from "../../shared/contracts";
 import { IPC_CHANNELS } from "../../shared/ipc-channels";
 import { CrashRecoveryBudget } from "../app/crash-recovery";
 import type { SettingsStore } from "../settings/settings-store";
 import {
+  clampRectToWorkArea,
   moveRectWithinWorkArea,
+  resolveBubbleWindowBounds,
   resolvePetWindowBounds,
   resolveSettingsWindowBounds,
   type DisplaySnapshot,
@@ -22,7 +26,7 @@ import {
   type SettingsWindowBounds,
 } from "./display-placement";
 import { loadSettingsWindowState, saveSettingsWindowState } from "./settings-window-state";
-import { createPetWindowOptions, createSettingsWindowOptions } from "./window-options";
+import { createBubbleWindowOptions, createPetWindowOptions, createSettingsWindowOptions } from "./window-options";
 
 type WindowSettingsStore = Pick<SettingsStore, "load" | "update">;
 
@@ -37,10 +41,12 @@ interface WindowManagerOptions {
 export class WindowManager {
   private disposed = false;
   private petWindow: BrowserWindow | null = null;
+  private bubbleWindow: BrowserWindow | null = null;
   private settingsWindow: BrowserWindow | null = null;
   private petWindowReady = false;
   private petWindowPlaced = false;
   private petVisibilityRequested = false;
+  private bubbleWindowReady = false;
   private settingsWindowReady = false;
   private readonly crashRecoveryBudget = new CrashRecoveryBudget();
   private petRendererStatus: PetRendererStatus = { state: "healthy" };
@@ -53,6 +59,10 @@ export class WindowManager {
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>();
   private pendingSettingsTarget: SettingsNavigationTarget | null = null;
   private petIgnoreMouseEvents: boolean | null = null;
+  private bubbleIgnoreMouseEvents: boolean | null = null;
+  private bubbleDialogue: string | null = null;
+  private lastRestSnapshot: RestSystemSnapshot | null = null;
+  private currentPetTargetHeight = 180;
 
   constructor({ settingsStore, preloadPath, isPackaged, userDataPath }: WindowManagerOptions) {
     this.settingsStore = settingsStore;
@@ -134,6 +144,7 @@ export class WindowManager {
       if (this.petWindowReady && this.petVisibilityRequested) this.showPetWindow(petWindow);
 
       await petWindow.loadURL(this.rendererUrl("pet"));
+      void this.ensureBubbleWindow().catch(() => undefined);
     } catch (error) {
       this.discardFailedPetWindow(petWindow);
       throw error;
@@ -144,11 +155,164 @@ export class WindowManager {
     if (this.disposed) return;
     this.petVisibilityRequested = false;
     this.petWindow?.hide();
+    this.bubbleWindow?.hide();
   }
 
   private showPetWindow(petWindow: BrowserWindow): void {
     petWindow.setHasShadow(false);
     petWindow.show();
+    this.syncBubblePlacement();
+  }
+
+  private async ensureBubbleWindow(): Promise<void> {
+    if (this.disposed) return;
+    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) return;
+
+    const bubbleWindow = new BrowserWindow(createBubbleWindowOptions(this.preloadPath));
+    bubbleWindow.setHasShadow(false);
+    this.bubbleWindow = bubbleWindow;
+    this.bubbleWindowReady = false;
+    this.bubbleIgnoreMouseEvents = null;
+    this.secureWindow(bubbleWindow);
+
+    const onReady = (): void => {
+      if (this.bubbleWindow !== bubbleWindow || bubbleWindow.isDestroyed()) return;
+      this.bubbleWindowReady = true;
+      this.syncBubblePlacement();
+    };
+    bubbleWindow.once("ready-to-show", onReady);
+    this.addListenerDisposer(bubbleWindow, () => {
+      bubbleWindow.removeListener("ready-to-show", onReady);
+    });
+
+    const preventClose = (event: ElectronEvent): void => {
+      event.preventDefault();
+    };
+    bubbleWindow.on("close", preventClose);
+    this.addListenerDisposer(bubbleWindow, () => {
+      bubbleWindow.removeListener("close", preventClose);
+    });
+
+    const onClosed = (): void => {
+      if (this.bubbleWindow === bubbleWindow) {
+        this.bubbleWindow = null;
+        this.bubbleWindowReady = false;
+      }
+      this.releaseWindowListeners(bubbleWindow);
+    };
+    bubbleWindow.once("closed", onClosed);
+    this.addListenerDisposer(bubbleWindow, () => {
+      bubbleWindow.removeListener("closed", onClosed);
+    });
+
+    const handleRendererGone = (): void => {
+      if (this.disposed || this.bubbleWindow !== bubbleWindow) return;
+      this.bubbleWindow = null;
+      this.bubbleWindowReady = false;
+      this.releaseWindowListeners(bubbleWindow);
+      if (!bubbleWindow.isDestroyed()) bubbleWindow.destroy();
+      if (this.petVisibilityRequested) {
+        void this.ensureBubbleWindow().catch(() => undefined);
+      }
+    };
+    bubbleWindow.webContents.on("render-process-gone", handleRendererGone);
+    this.addListenerDisposer(bubbleWindow, () => {
+      if (!bubbleWindow.webContents.isDestroyed()) {
+        bubbleWindow.webContents.removeListener("render-process-gone", handleRendererGone);
+      }
+    });
+
+    try {
+      await bubbleWindow.loadURL(this.rendererUrl("bubble"));
+    } catch {
+      if (this.bubbleWindow === bubbleWindow) {
+        this.bubbleWindow = null;
+        this.bubbleWindowReady = false;
+      }
+      this.releaseWindowListeners(bubbleWindow);
+      if (!bubbleWindow.isDestroyed()) bubbleWindow.destroy();
+    }
+  }
+
+  syncBubblePlacement(): void {
+    if (this.disposed || !this.petWindow || this.petWindow.isDestroyed() || !this.petVisibilityRequested) {
+      if (this.bubbleWindow && !this.bubbleWindow.isDestroyed() && this.bubbleWindow.isVisible()) {
+        this.bubbleWindow.hide();
+      }
+      return;
+    }
+
+    const isRestActive = Boolean(this.lastRestSnapshot?.runtime.prompt || this.lastRestSnapshot?.runtime.session);
+    const shouldShow = Boolean(this.bubbleDialogue) || isRestActive;
+
+    if (!shouldShow) {
+      if (this.bubbleWindow && !this.bubbleWindow.isDestroyed() && this.bubbleWindow.isVisible()) {
+        this.bubbleWindow.hide();
+      }
+      return;
+    }
+
+    if (!this.bubbleWindow || this.bubbleWindow.isDestroyed()) {
+      void this.ensureBubbleWindow().catch(() => undefined);
+      return;
+    }
+
+    const petBounds = this.petWindow.getBounds();
+    const display = screen.getDisplayMatching(petBounds);
+    const bubbleBounds = resolveBubbleWindowBounds(petBounds, display.workArea);
+
+    this.bubbleWindow.setBounds({
+      x: bubbleBounds.x,
+      y: bubbleBounds.y,
+      width: bubbleBounds.width,
+      height: bubbleBounds.height,
+    });
+
+    const snapshot: BubbleSystemSnapshot = {
+      dialogue: this.bubbleDialogue,
+      placement: bubbleBounds.placement,
+      tailOffsetX: bubbleBounds.tailOffsetX,
+    };
+
+    if (!this.bubbleWindow.webContents.isDestroyed()) {
+      this.bubbleWindow.webContents.send(IPC_CHANNELS.bubbleSystemChanged, snapshot);
+    }
+
+    if (this.bubbleWindowReady && !this.bubbleWindow.isVisible()) {
+      this.bubbleWindow.setHasShadow(false);
+      this.bubbleWindow.showInactive();
+    }
+  }
+
+  setBubbleDialogue(dialogue: string | null): void {
+    if (this.disposed) return;
+    this.bubbleDialogue = dialogue;
+    this.syncBubblePlacement();
+  }
+
+  setBubbleIgnoreMouseEvents(ignore: boolean): void {
+    if (this.disposed) return;
+    const bubbleWindow = this.bubbleWindow;
+    if (!bubbleWindow || bubbleWindow.isDestroyed()) return;
+    const normalized = Boolean(ignore);
+    if (this.bubbleIgnoreMouseEvents === normalized) return;
+    this.bubbleIgnoreMouseEvents = normalized;
+    try {
+      bubbleWindow.setIgnoreMouseEvents(normalized, { forward: true });
+    } catch {
+      // Ignore errors during window destruction or invalid native handles
+    }
+  }
+
+  getBubbleSystemSnapshot(): BubbleSystemSnapshot {
+    const petBounds = this.petWindow && !this.petWindow.isDestroyed() ? this.petWindow.getBounds() : null;
+    const display = petBounds ? screen.getDisplayMatching(petBounds) : null;
+    const bubbleBounds = petBounds && display ? resolveBubbleWindowBounds(petBounds, display.workArea) : null;
+    return {
+      dialogue: this.bubbleDialogue,
+      placement: bubbleBounds?.placement ?? "top",
+      tailOffsetX: bubbleBounds?.tailOffsetX ?? 160,
+    };
   }
 
   async openSettings(target?: SettingsNavigationTarget): Promise<void> {
@@ -267,6 +431,9 @@ export class WindowManager {
     if (this.petWindow && !this.petWindow.isDestroyed() && this.petWindow.webContents.id === webContentsId) {
       return "pet";
     }
+    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed() && this.bubbleWindow.webContents.id === webContentsId) {
+      return "bubble";
+    }
     if (
       this.settingsWindow &&
       !this.settingsWindow.isDestroyed() &&
@@ -279,7 +446,7 @@ export class WindowManager {
 
   getOwnedWindow(webContentsId: number): BrowserWindow {
     const kind = this.getWindowKind(webContentsId);
-    const window = kind === "pet" ? this.petWindow : this.settingsWindow;
+    const window = kind === "pet" ? this.petWindow : kind === "bubble" ? this.bubbleWindow : this.settingsWindow;
     if (!window || window.isDestroyed()) throw new Error("Unrecognized renderer sender");
     return window;
   }
@@ -299,6 +466,7 @@ export class WindowManager {
     const [x, y] = petWindow.getPosition();
     if (x === undefined || y === undefined) return;
     petWindow.setPosition(Math.round(x + deltaX), Math.round(y + deltaY));
+    this.syncBubblePlacement();
   }
 
   nudgePetBy(deltaX: number, deltaY: number): void {
@@ -317,6 +485,7 @@ export class WindowManager {
     const display = screen.getDisplayMatching(bounds);
     const next = moveRectWithinWorkArea(bounds, display.workArea, deltaX, deltaY);
     petWindow.setPosition(Math.round(next.x), Math.round(next.y));
+    this.syncBubblePlacement();
   }
 
   setPetIgnoreMouseEvents(ignore: boolean): void {
@@ -334,14 +503,36 @@ export class WindowManager {
   }
 
   broadcastPetSystemChanged(snapshot: PetSystemSnapshot): void {
-    for (const window of [this.petWindow, this.settingsWindow]) {
+    for (const window of [this.petWindow, this.bubbleWindow, this.settingsWindow]) {
       if (!window || window.isDestroyed() || window.webContents.isDestroyed()) continue;
       window.webContents.send(IPC_CHANNELS.petSystemChanged, snapshot);
     }
+    this.adjustPetWindowSizeForActivePet(snapshot);
+  }
+
+  private adjustPetWindowSizeForActivePet(snapshot: PetSystemSnapshot): void {
+    const activePet = snapshot.pets.find((p) => p.id === snapshot.activePetId);
+    const targetHeight = activePet?.targetHeight ?? 180;
+    if (targetHeight === this.currentPetTargetHeight) return;
+    this.currentPetTargetHeight = targetHeight;
+    if (!this.petWindow || this.petWindow.isDestroyed()) return;
+    const newSize = resolvePetWindowSize(targetHeight);
+    const bounds = this.petWindow.getBounds();
+    if (bounds.width === newSize.width && bounds.height === newSize.height) return;
+    const newY = bounds.y + (bounds.height - newSize.height);
+    const display = screen.getDisplayMatching(bounds);
+    const nextBounds = clampRectToWorkArea(
+      { x: bounds.x, y: newY, width: newSize.width, height: newSize.height },
+      display.workArea
+    );
+    this.petWindow.setBounds(nextBounds);
+    this.syncBubblePlacement();
   }
 
   broadcastRestSystemChanged(snapshot: RestSystemSnapshot): void {
+    this.lastRestSnapshot = snapshot;
     this.broadcast(IPC_CHANNELS.restSystemChanged, snapshot);
+    this.syncBubblePlacement();
   }
 
   broadcastCompanionSystemChanged(snapshot: CompanionSystemSnapshot): void {
@@ -401,12 +592,14 @@ export class WindowManager {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    const ownedWindows = [this.petWindow, this.settingsWindow];
+    const ownedWindows = [this.petWindow, this.bubbleWindow, this.settingsWindow];
     this.petWindow = null;
+    this.bubbleWindow = null;
     this.settingsWindow = null;
     this.petWindowReady = false;
     this.petWindowPlaced = false;
     this.petVisibilityRequested = false;
+    this.bubbleWindowReady = false;
     this.settingsWindowReady = false;
 
     for (const window of ownedWindows) {
@@ -474,7 +667,7 @@ export class WindowManager {
   }
 
   private broadcast(channel: string, payload: unknown): void {
-    for (const window of [this.petWindow, this.settingsWindow]) {
+    for (const window of [this.petWindow, this.bubbleWindow, this.settingsWindow]) {
       if (!window || window.isDestroyed() || window.webContents.isDestroyed()) continue;
       window.webContents.send(channel, payload);
     }
@@ -484,17 +677,20 @@ export class WindowManager {
     const settings = await this.settingsStore.load();
     if (this.petWindow !== petWindow || petWindow.isDestroyed()) return false;
 
+    const activePet = settings.pets.find((p) => p.id === settings.activePetId);
+    const targetHeight = activePet?.targetHeight ?? 180;
+    this.currentPetTargetHeight = targetHeight;
+    const desiredSize = resolvePetWindowSize(targetHeight);
+
     const savedPoint = toSavedPoint(settings.petWindow.x, settings.petWindow.y);
-    const initialBounds = petWindow.getBounds();
-    const desiredSize = { width: initialBounds.width, height: initialBounds.height };
     petWindow.setBounds(
       resolvePetWindowBounds(this.displaySnapshots(), settings.petWindow.displayId, savedPoint, desiredSize)
     );
-    this.listenForPetPlacementChanges(petWindow, desiredSize);
+    this.listenForPetPlacementChanges(petWindow);
     return true;
   }
 
-  private listenForPetPlacementChanges(petWindow: BrowserWindow, desiredSize: Pick<Rect, "width" | "height">): void {
+  private listenForPetPlacementChanges(petWindow: BrowserWindow): void {
     let persistenceTimer: ReturnType<typeof setTimeout> | null = null;
     let disposed = false;
 
@@ -523,14 +719,17 @@ export class WindowManager {
     const schedulePersistence = (): void => {
       if (persistenceTimer) clearTimeout(persistenceTimer);
       persistenceTimer = setTimeout(persistBounds, 250);
+      this.syncBubblePlacement();
     };
 
     const reclamp = (): void => {
       if (disposed || this.petWindow !== petWindow || petWindow.isDestroyed()) return;
       const bounds = petWindow.getBounds();
+      const desiredSize = resolvePetWindowSize(this.currentPetTargetHeight);
       petWindow.setBounds(
         resolvePetWindowBounds(this.displaySnapshots(), null, { x: bounds.x, y: bounds.y }, desiredSize)
       );
+      this.syncBubblePlacement();
     };
 
     petWindow.on("moved", schedulePersistence);

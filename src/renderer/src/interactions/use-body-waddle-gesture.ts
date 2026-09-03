@@ -26,14 +26,12 @@ export function useBodyWaddleGesture({
   return useCallback(
     (event: PointerEvent<HTMLElement>, pettingCandidateActive: boolean): void => {
       if (!active || !asset) return;
-      const geometry = computeAssetGeometry(asset, targetHeight, {
-        width: PET_WINDOW_WIDTH,
-        height: PET_WINDOW_HEIGHT,
-      });
-      const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, {
-        width: PET_WINDOW_WIDTH,
-        height: PET_WINDOW_HEIGHT,
-      });
+      const viewport = {
+        width: window.innerWidth || PET_WINDOW_WIDTH,
+        height: window.innerHeight || PET_WINDOW_HEIGHT,
+      };
+      const geometry = computeAssetGeometry(asset, targetHeight, viewport);
+      const headEllipse = computeHeadHotspotGeometry(asset, targetHeight, viewport);
       const direction = gesture.current.register(
         {
           x: event.clientX,

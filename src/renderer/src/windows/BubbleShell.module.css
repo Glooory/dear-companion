@@ -1,0 +1,128 @@
+.shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  pointer-events: none;
+  background: transparent;
+}
+
+.dialogue {
+  position: absolute;
+  z-index: 7;
+  left: var(--dialogue-center-x, 50%);
+  transform: translateX(-50%);
+  width: fit-content;
+  max-width: 280px;
+  padding: 8px 14px;
+  border: 1px solid rgba(45, 42, 38, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
+  color: #2d2a26;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: center;
+  cursor: default;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  pointer-events: auto;
+  animation: bubbleIn 200ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.shell[data-placement="top"] .dialogue {
+  bottom: 8px;
+}
+
+.shell[data-placement="bottom"] .dialogue {
+  top: 8px;
+}
+
+.dialogue::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  left: var(--arrow-offset, 50%);
+  transform: translateX(-50%);
+}
+
+.shell[data-placement="top"] .dialogue::after {
+  bottom: -6px;
+  border-top: 6px solid rgba(255, 255, 255, 0.96);
+  border-bottom: none;
+}
+
+.shell[data-placement="bottom"] .dialogue::after {
+  top: -6px;
+  border-bottom: 6px solid rgba(255, 255, 255, 0.96);
+  border-top: none;
+}
+
+.restBubble {
+  position: absolute;
+  z-index: 8;
+  left: 10px;
+  right: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(61, 115, 99, 0.3);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 28px rgba(36, 71, 61, 0.16);
+  color: #24473d;
+  font-size: 12.5px;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.shell[data-placement="top"] .restBubble {
+  bottom: 8px;
+}
+
+.shell[data-placement="bottom"] .restBubble {
+  top: 8px;
+}
+
+.restBubble p {
+  margin: 0 0 8px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.restActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.restBubble button {
+  padding: 5px 9px;
+  border: 1px solid #b8cbc4;
+  border-radius: 8px;
+  background: #f4faf7;
+  color: #24473d;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.restBubble button:hover {
+  background: #e6f3ee;
+  border-color: #9cbdb1;
+}
+
+@keyframes bubbleIn {
+  from {
+    transform: translate(-50%, 4px) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 1;
+  }
+}

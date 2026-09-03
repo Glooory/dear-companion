@@ -1,6 +1,6 @@
 import { parsePetDialogueSettings, type PetDialogueSettings } from "./dialogue-settings";
 
-export type WindowKind = "pet" | "settings";
+export type WindowKind = "pet" | "settings" | "bubble";
 
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type CursorTolerance = "sensitive" | "standard" | "relaxed";
@@ -48,10 +48,27 @@ export const ACTION_SLOTS = ["idle", "resting"] as const;
 export type ActionSlot = (typeof ACTION_SLOTS)[number];
 export type PetAssetFormat = "png" | "webp";
 export const MAX_PET_PACK_BYTES = 250 * 1024 * 1024;
-export const PET_WINDOW_WIDTH = 360;
-export const PET_WINDOW_HEIGHT = 460;
+export const PET_WINDOW_WIDTH = 220;
+export const PET_WINDOW_HEIGHT = 240;
+export const BUBBLE_WINDOW_WIDTH = 320;
+export const BUBBLE_WINDOW_HEIGHT = 140;
 export const MIN_PET_TARGET_HEIGHT = 80;
 export const MAX_PET_TARGET_HEIGHT = 320;
+
+export function resolvePetWindowSize(targetHeight: number): { width: number; height: number } {
+  const clampedHeight = Math.max(MIN_PET_TARGET_HEIGHT, Math.min(MAX_PET_TARGET_HEIGHT, Math.round(targetHeight)));
+  const height = clampedHeight + 24;
+  const width = Math.max(120, Math.round(clampedHeight * 1.1) + 24);
+  return { width, height };
+}
+
+export type BubblePlacement = "top" | "bottom";
+
+export interface BubbleSystemSnapshot {
+  dialogue: string | null;
+  placement: BubblePlacement;
+  tailOffsetX: number;
+}
 
 export interface PetWindowSettings {
   x: number | null;
@@ -345,8 +362,11 @@ export interface PetSystemApi extends FoundationApi {
   setIgnoreMouseEvents(ignore: boolean): void;
   showPetContextMenu(): void;
   previewCompanionPace(pace: CompanionPace): Promise<void>;
+  getBubbleSystemSnapshot(): Promise<BubbleSystemSnapshot>;
+  setBubbleDialogue(dialogue: string | null): void;
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void;
   onPetInteractionRequested(listener: (request: PetInteractionRequest) => void): () => void;
+  onBubbleSystemChanged(listener: (snapshot: BubbleSystemSnapshot) => void): () => void;
 }
 
 export interface CompanionSystemApi extends PetSystemApi {

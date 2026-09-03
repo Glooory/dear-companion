@@ -3,6 +3,7 @@ import {
   chooseDisplay,
   clampRectToWorkArea,
   moveRectWithinWorkArea,
+  resolveBubbleWindowBounds,
   resolvePetWindowBounds,
   resolveSettingsWindowBounds,
   type DisplaySnapshot,
@@ -114,6 +115,74 @@ describe("display placement", () => {
         width: 1100,
         height: 750,
       });
+    });
+  });
+
+  describe("resolveBubbleWindowBounds", () => {
+    const workArea = { x: 0, y: 0, width: 1920, height: 1080 };
+    const bubbleSize = { width: 320, height: 140 };
+
+    it("places bubble above the pet when space allows (normal mid-screen)", () => {
+      // Pet at x=500, y=500, size 220x240
+      const petBounds = { x: 500, y: 500, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      expect(result.placement).toBe("top");
+      expect(result.y).toBe(500 - 140 - 8); // 352
+      // Pet center: 500 + 110 = 610. Bubble width 320 -> x = 610 - 160 = 450
+      expect(result.x).toBe(450);
+      expect(result.tailOffsetX).toBe(160); // Centered on bubble
+    });
+
+    it("flips bubble to bottom when pet is near screen top (贴顶场景)", () => {
+      // Pet at top edge: y=10
+      const petBounds = { x: 500, y: 10, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      expect(result.placement).toBe("bottom");
+      expect(result.y).toBe(10 + 240 + 8); // 258
+      expect(result.x).toBe(450);
+    });
+
+    it("keeps bubble above when pet is near screen bottom (贴底场景)", () => {
+      // Pet near bottom: y=800
+      const petBounds = { x: 500, y: 800, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      expect(result.placement).toBe("top");
+      expect(result.y).toBe(800 - 140 - 8); // 652
+    });
+
+    it("clamps bubble horizontally and shifts tail when pet is at left edge (贴左边缘)", () => {
+      // Pet at left edge: x=8, center=118
+      const petBounds = { x: 8, y: 500, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      // Ideal x = 118 - 160 = -42 -> clamped to workArea.x + margin = 8
+      expect(result.x).toBe(8);
+      // Tail points to pet center: 118 - 8 = 110 (clamped safely)
+      expect(result.tailOffsetX).toBe(110);
+    });
+
+    it("clamps bubble horizontally and shifts tail when pet is at right edge (贴右边缘)", () => {
+      // Pet at right edge: x = 1920 - 220 - 8 = 1692, center = 1802
+      const petBounds = { x: 1692, y: 500, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      // Bubble max x = 1920 - 8 - 320 = 1592
+      expect(result.x).toBe(1592);
+      // Tail points to pet center: 1802 - 1592 = 210
+      expect(result.tailOffsetX).toBe(210);
+    });
+
+    it("handles corner placement: top-left flips to bottom and clamps right", () => {
+      const petBounds = { x: 8, y: 8, width: 220, height: 240 };
+      const result = resolveBubbleWindowBounds(petBounds, workArea, bubbleSize, 8, 8);
+
+      expect(result.placement).toBe("bottom");
+      expect(result.y).toBe(8 + 240 + 8);
+      expect(result.x).toBe(8);
+      expect(result.tailOffsetX).toBe(110);
     });
   });
 });

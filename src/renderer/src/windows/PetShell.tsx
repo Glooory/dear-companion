@@ -2,19 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { clsx } from "clsx";
 import { resolveAction, type ActionTemplate, type ResolvedAction } from "@shared/action-fallback";
 import { createPeepApproachSteps, createPostureShiftSteps } from "@shared/companion-rhythm";
-import {
-  PET_WINDOW_HEIGHT,
-  PET_WINDOW_WIDTH,
-  type ActionSlot,
-  type CompanionLifeState,
-  type CompanionSystemSnapshot,
-  type PetAsset,
-  type PetConfig,
-  type PetSystemSnapshot,
-  type RestSystemApi,
-  type RestSystemSnapshot,
+import type {
+  ActionSlot,
+  CompanionLifeState,
+  CompanionSystemSnapshot,
+  PetAsset,
+  PetConfig,
+  PetSystemSnapshot,
+  RestSystemApi,
+  RestSystemSnapshot,
 } from "@shared/contracts";
-import { computeAssetGeometry } from "@shared/image-normalization";
 import { WakeSequence } from "@shared/wake-sequence";
 import { useAudioPlayback } from "../audio/use-audio-playback";
 import { PhotoTransition } from "../components/PhotoTransition";
@@ -36,7 +33,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null);
   const [companionSnapshot, setCompanionSnapshot] = useState<CompanionSystemSnapshot | null>(null);
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null);
-  const [displayNow, setDisplayNow] = useState(0);
   const [error, setError] = useState(false);
   const [actionState, setActionState] = useState<{
     petId: string;
@@ -448,15 +444,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [api]);
 
   useEffect(() => {
-    if (!pageVisible || !restSnapshot?.runtime.session || restSnapshot.runtime.session.state === "celebrating") return;
-    const refresh = (): void => setDisplayNow(Date.now());
-    const initialTimer = window.setTimeout(refresh, 0);
-    const timer = window.setInterval(refresh, 250);
-    return () => {
-      window.clearTimeout(initialTimer);
-      window.clearInterval(timer);
-    };
-  }, [pageVisible, restSnapshot?.runtime.session]);
+    api.setBubbleDialogue(dialogue);
+  }, [api, dialogue]);
+
+  useEffect(() => () => api.setBubbleDialogue(null), [api]);
 
   useEffect(() => {
     const handleVisibility = (): void => setPageVisible(document.visibilityState === "visible");
@@ -550,61 +541,15 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset;
   const template = resolvedAction?.template ?? (runtimeActive ? "gentle-breathe" : "still");
   const actorStyle = { "--pet-tilt-x": `${tilt.x}deg`, "--pet-tilt-y": `${tilt.y}deg` } as CSSProperties;
-  const petGeometry =
-    activePet && desiredAsset
-      ? computeAssetGeometry(desiredAsset, activePet.targetHeight, {
-          width: PET_WINDOW_WIDTH,
-          height: PET_WINDOW_HEIGHT,
-        })
-      : null;
-  const visibleImageTop =
-    petGeometry && desiredAsset ? petGeometry.top + desiredAsset.alphaBounds.y * petGeometry.scale : null;
-  const shellStyle =
-    visibleImageTop === null
-      ? undefined
-      : ({ "--pet-visible-top": `${Math.max(0, Math.min(PET_WINDOW_HEIGHT, visibleImageTop))}px` } as CSSProperties);
-  const prompt = restSnapshot?.runtime.prompt ?? null;
-  const session = restSnapshot?.runtime.session ?? null;
-  const remainingSeconds = session ? Math.max(0, Math.ceil((session.endsAt - displayNow) / 1_000)) : 0;
   const handlePhotoTransitionComplete = (): void => {
     if (!returningToBase) return;
     finishAction();
-  };
-
-  const startRest = (): void => {
-    if (prompt)
-      void api
-        .startPromptedRest(prompt.occurrenceId)
-        .then(setRestSnapshot)
-        .catch(() => undefined);
-  };
-  const snooze = (minutes: 5 | 10 | 15): void => {
-    if (prompt)
-      void api
-        .snoozePrompt(prompt.occurrenceId, minutes)
-        .then(setRestSnapshot)
-        .catch(() => undefined);
-  };
-  const skipRest = (): void => {
-    if (prompt)
-      void api
-        .skipPrompt(prompt.occurrenceId)
-        .then(setRestSnapshot)
-        .catch(() => undefined);
-  };
-  const endRest = (): void => {
-    void api
-      .endRestSession()
-      .then(setRestSnapshot)
-      .catch(() => undefined);
   };
 
   return (
     <main
       className={clsx(styles.shell, "pet-shell", `action-${template}`)}
       data-state={interactionState}
-      data-has-pet={visibleImageTop === null ? undefined : "true"}
-      style={shellStyle}
       {...interactionHandlers}
     >
       {activePet && desiredAsset && dailyFallbackAsset ? (
@@ -644,70 +589,49 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
               </svg>
             </span>
           )}
-          {dialogue && !runtimeActive && (
-            <span className={clsx(styles.dialogue, "pet-dialogue")} role="status" data-pet-interactive="true">
-              {dialogue}
-            </span>
-          )}
         </div>
       ) : (
         <div className={styles.emptyRuntime}>
-          <button
-            className={styles.emptyButton}
-            type="button"
-            data-pet-interactive="true"
-            onPointerDown={(event) => event.stopPropagation()}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={openSettings}
-          >
-            添加伙伴
-          </button>
-        </div>
-      )}
-      {prompt && (
-        <section
-          className={clsx(styles.restBubble, "rest-bubble")}
-          role="dialog"
-          aria-label="休息提醒"
-          data-pet-interactive="true"
-        >
-          <p>{prompt.message}</p>
-          <div className={styles.restActions}>
-            <button type="button" onClick={startRest}>
-              开始休息
-            </button>
-            {([5, 10, 15] as const).map((minutes) => (
-              <button type="button" key={minutes} onClick={() => snooze(minutes)}>
-                稍后 {minutes} 分钟
-              </button>
-            ))}
-            <button type="button" onClick={skipRest}>
-              跳过
+          <div className={styles.emptyCard} data-pet-interactive="true">
+            <div className={styles.emptySilhouette} aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="34"
+                height="34"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="8" r="4" />
+                <path d="M5.5 19.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 19.5" />
+              </svg>
+            </div>
+            <button
+              className={styles.emptyButton}
+              type="button"
+              data-pet-interactive="true"
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={openSettings}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <line x1="8" y1="3" x2="8" y2="13" />
+                <line x1="3" y1="8" x2="13" y2="8" />
+              </svg>
+              <span>添加伙伴</span>
             </button>
           </div>
-        </section>
-      )}
-      {session && (
-        <section
-          className={clsx(styles.restBubble, "rest-bubble", `rest-${session.state}`)}
-          role="status"
-          data-pet-interactive="true"
-        >
-          {session.state === "crying" ? (
-            <p>{dialogue ?? "还没休息够呢～"}</p>
-          ) : session.state === "celebrating" ? (
-            <p>{dialogue ?? "休息结束啦！"}</p>
-          ) : (
-            <p>
-              {session.message} · {formatCountdown(remainingSeconds)}
-            </p>
-          )}
-          {session.state !== "celebrating" && (
-            <button type="button" onClick={endRest}>
-              结束休息
-            </button>
-          )}
-        </section>
+        </div>
       )}
     </main>
   );
@@ -724,10 +648,4 @@ function resolveLifeAsset(pet: PetConfig, state: CompanionLifeState, dailyIndex:
   const index = ids === dailyIds && ids.length > 0 ? dailyIndex % ids.length : 0;
   const id = ids[index] ?? dailyIds[0];
   return pet.assets.find((asset) => asset.id === id) ?? pet.assets.find((asset) => asset.id === dailyIds[0]) ?? null;
-}
-
-function formatCountdown(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

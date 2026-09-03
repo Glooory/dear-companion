@@ -17,6 +17,7 @@ import {
   parseScreenEllipse,
   parseSettingsNavigationTarget,
   parseUpdateWorkScheduleInput,
+  resolvePetWindowSize,
   type PetConfig,
 } from "./contracts";
 import { resolveDialogueLines } from "./dialogue-settings";
@@ -53,6 +54,18 @@ function createPet(): PetConfig {
 }
 
 describe("settings contracts", () => {
+  it("resolves dynamic pet window size based on targetHeight within 80-320 range", () => {
+    // 80px (min): 80 + 24 = 104 height, width = max(120, round(80*1.1)+24) = 120
+    expect(resolvePetWindowSize(80)).toEqual({ width: 120, height: 104 });
+    // 180px (default): 180 + 24 = 204 height, width = round(180*1.1)+24 = 222
+    expect(resolvePetWindowSize(180)).toEqual({ width: 222, height: 204 });
+    // 320px (max): 320 + 24 = 344 height, width = round(320*1.1)+24 = 376
+    expect(resolvePetWindowSize(320)).toEqual({ width: 376, height: 344 });
+    // Clamping outside range:
+    expect(resolvePetWindowSize(50)).toEqual({ width: 120, height: 104 });
+    expect(resolvePetWindowSize(400)).toEqual({ width: 376, height: 344 });
+  });
+
   it("uses privacy-preserving schema v5 first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
       schemaVersion: 5,

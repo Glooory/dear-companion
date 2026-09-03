@@ -1,5 +1,5 @@
 import type { BrowserWindowConstructorOptions, WebPreferences } from "electron";
-import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from "../../shared/contracts";
+import { BUBBLE_WINDOW_HEIGHT, BUBBLE_WINDOW_WIDTH, PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from "../../shared/contracts";
 import type { SettingsWindowBounds } from "./display-placement";
 
 const secureWebPreferences = (preload: string): WebPreferences => ({
@@ -11,10 +11,31 @@ const secureWebPreferences = (preload: string): WebPreferences => ({
   webviewTag: false,
 });
 
-export function createPetWindowOptions(preloadPath: string): BrowserWindowConstructorOptions {
+export function createPetWindowOptions(
+  preloadPath: string,
+  initialSize?: { width?: number; height?: number }
+): BrowserWindowConstructorOptions {
   return {
-    width: PET_WINDOW_WIDTH,
-    height: PET_WINDOW_HEIGHT,
+    width: initialSize?.width ?? PET_WINDOW_WIDTH,
+    height: initialSize?.height ?? PET_WINDOW_HEIGHT,
+    transparent: true,
+    frame: false,
+    hasShadow: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: "#00000000",
+    autoHideMenuBar: true,
+    focusable: true,
+    webPreferences: secureWebPreferences(preloadPath),
+  };
+}
+
+export function createBubbleWindowOptions(preloadPath: string): BrowserWindowConstructorOptions {
+  return {
+    width: BUBBLE_WINDOW_WIDTH,
+    height: BUBBLE_WINDOW_HEIGHT,
     transparent: true,
     frame: false,
     hasShadow: false,

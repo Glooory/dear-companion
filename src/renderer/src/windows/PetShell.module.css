@@ -29,17 +29,86 @@
   pointer-events: none;
 }
 
-.emptyButton {
-  width: 132px;
-  height: 164px;
-  padding: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.9);
-  border-radius: 48% 48% 42% 42% / 42% 42% 56% 56%;
-  background: linear-gradient(145deg, #74a898, #3d7363);
-  box-shadow: 0 14px 32px rgba(36, 71, 61, 0.28);
-  color: white;
-  cursor: pointer;
+.emptyCard {
+  width: 156px;
+  height: 172px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(61, 115, 99, 0.16);
+  box-shadow:
+    0 12px 28px rgba(45, 42, 38, 0.1),
+    0 2px 6px rgba(45, 42, 38, 0.04);
   pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.emptyCard:hover {
+  box-shadow:
+    0 16px 36px rgba(45, 42, 38, 0.14),
+    0 4px 10px rgba(45, 42, 38, 0.06);
+}
+
+.emptySilhouette {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f2f7f5;
+  color: #74a898;
+  border: 1.5px dashed rgba(61, 115, 99, 0.32);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+.emptyCard:hover .emptySilhouette {
+  background: #e7f1ed;
+  color: #3d7363;
+  border-color: rgba(61, 115, 99, 0.5);
+}
+
+.emptyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: #3d7363;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(61, 115, 99, 0.28);
+  pointer-events: auto;
+  transition:
+    background-color 150ms ease,
+    transform 100ms ease,
+    box-shadow 150ms ease;
+}
+
+.emptyButton:hover {
+  background: #325f52;
+  box-shadow: 0 4px 12px rgba(61, 115, 99, 0.38);
+}
+
+.emptyButton:active {
+  transform: scale(0.96);
 }
 
 .tearsWrap {
@@ -57,104 +126,6 @@
   left: 58%;
   pointer-events: none;
   animation: heartRise 900ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
-}
-
-.dialogue {
-  position: absolute;
-  z-index: 7;
-  top: auto;
-  bottom: calc(460px - var(--pet-visible-top) + 10px);
-  left: 50%;
-  max-width: 290px;
-  max-height: max(0px, calc(var(--pet-visible-top) - 16px));
-  padding: 9px 13px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(45, 42, 38, 0.1);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
-  color: #2d2a26;
-  font-size: 13px;
-  font-weight: 500;
-  text-align: center;
-  cursor: default;
-  overflow-wrap: anywhere;
-  overflow: visible;
-  scrollbar-width: none;
-  animation: bubbleIn 200ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
-}
-
-.dialogue::-webkit-scrollbar {
-  display: none;
-}
-
-.dialogue::after {
-  content: "";
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 6px solid rgba(255, 255, 255, 0.96);
-}
-
-.restBubble {
-  position: absolute;
-  z-index: 8;
-  top: 8px;
-  left: 12px;
-  right: 12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(61, 115, 99, 0.3);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 28px rgba(36, 71, 61, 0.16);
-  color: #24473d;
-  font-size: 12.5px;
-  cursor: default;
-}
-
-.shell[data-has-pet="true"] .restBubble {
-  top: auto;
-  bottom: calc(460px - var(--pet-visible-top) + 10px);
-  max-height: max(0px, calc(var(--pet-visible-top) - 16px));
-  overflow: visible;
-  scrollbar-width: none;
-}
-
-.restBubble::-webkit-scrollbar {
-  display: none;
-}
-
-.restBubble p {
-  margin: 0 0 8px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.restActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.restBubble button {
-  padding: 5px 9px;
-  border: 1px solid #b8cbc4;
-  border-radius: 8px;
-  background: #f4faf7;
-  color: #24473d;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.8rem;
-}
-
-.restBubble button:hover {
-  background: #e6f3ee;
-  border-color: #9cbdb1;
 }
 
 .shell[data-state="crying"] .actor {
@@ -489,17 +460,6 @@
   to {
     transform: translateY(26px);
     opacity: 0;
-  }
-}
-
-@keyframes bubbleIn {
-  from {
-    transform: translate(-50%, 6px) scale(0.92);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0) scale(1);
-    opacity: 1;
   }
 }
 

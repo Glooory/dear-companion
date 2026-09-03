@@ -47,8 +47,8 @@ export function usePettingGesture({
       if (!active || !asset) return false;
       if (armed.current) return true;
       const ellipse = computeHeadHotspotGeometry(asset, targetHeight, {
-        width: PET_WINDOW_WIDTH,
-        height: PET_WINDOW_HEIGHT,
+        width: window.innerWidth || PET_WINDOW_WIDTH,
+        height: window.innerHeight || PET_WINDOW_HEIGHT,
       });
       if (!ellipse) return false;
       const normalized = Math.hypot(

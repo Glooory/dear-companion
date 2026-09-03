@@ -85,13 +85,12 @@ export function PhotoTransition({
     setOutgoing(null);
   };
 
-  const currentGeometry = computeAssetGeometry(current, targetHeight, {
-    width: PET_WINDOW_WIDTH,
-    height: PET_WINDOW_HEIGHT,
-  });
-  const outgoingGeometry = outgoing
-    ? computeAssetGeometry(outgoing, targetHeight, { width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
-    : null;
+  const viewport = {
+    width: window.innerWidth || PET_WINDOW_WIDTH,
+    height: window.innerHeight || PET_WINDOW_HEIGHT,
+  };
+  const currentGeometry = computeAssetGeometry(current, targetHeight, viewport);
+  const outgoingGeometry = outgoing ? computeAssetGeometry(outgoing, targetHeight, viewport) : null;
 
   return (
     <>

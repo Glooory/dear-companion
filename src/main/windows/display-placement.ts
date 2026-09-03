@@ -1,4 +1,10 @@
-import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from "../../shared/contracts";
+import {
+  BUBBLE_WINDOW_HEIGHT,
+  BUBBLE_WINDOW_WIDTH,
+  PET_WINDOW_HEIGHT,
+  PET_WINDOW_WIDTH,
+  type BubblePlacement,
+} from "../../shared/contracts";
 
 export interface Rect {
   x: number;
@@ -147,5 +153,77 @@ function clampAxis(
   return {
     position: clamp(position, minimumPosition, maximumPosition),
     size: clampedSize,
+  };
+}
+
+export interface BubbleWindowBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  placement: BubblePlacement;
+  tailOffsetX: number;
+}
+
+export function resolveBubbleWindowBounds(
+  petBounds: Rect,
+  workArea: Rect,
+  bubbleSize: Pick<Rect, "width" | "height"> = { width: BUBBLE_WINDOW_WIDTH, height: BUBBLE_WINDOW_HEIGHT },
+  gap = 8,
+  margin = 8
+): BubbleWindowBounds {
+  const petCenterX = petBounds.x + petBounds.width / 2;
+  const width = Math.min(bubbleSize.width, Math.max(1, workArea.width - margin * 2));
+  const height = Math.min(bubbleSize.height, Math.max(1, workArea.height - margin * 2));
+
+  // Horizontal placement: center on pet, clamped inside workArea
+  const idealX = Math.round(petCenterX - width / 2);
+  const minX = workArea.x + margin;
+  const maxX = workArea.x + workArea.width - margin - width;
+  const x = clamp(idealX, minX, maxX);
+
+  // Vertical placement: prefer top unless pet is too close to workArea top
+  const canFitTop = petBounds.y - height - gap >= workArea.y + margin;
+  const canFitBottom = petBounds.y + petBounds.height + gap + height <= workArea.y + workArea.height - margin;
+
+  let y: number;
+  let placement: BubblePlacement;
+
+  if (canFitTop) {
+    placement = "top";
+    y = Math.round(petBounds.y - height - gap);
+  } else if (canFitBottom) {
+    placement = "bottom";
+    y = Math.round(petBounds.y + petBounds.height + gap);
+  } else {
+    // Both sides are tight: choose the side with more remaining space
+    const topSpace = petBounds.y - workArea.y;
+    const bottomSpace = workArea.y + workArea.height - (petBounds.y + petBounds.height);
+    if (topSpace >= bottomSpace) {
+      placement = "top";
+      y = clamp(petBounds.y - height - gap, workArea.y + margin, workArea.y + workArea.height - margin - height);
+    } else {
+      placement = "bottom";
+      y = clamp(
+        petBounds.y + petBounds.height + gap,
+        workArea.y + margin,
+        workArea.y + workArea.height - margin - height
+      );
+    }
+  }
+
+  // Dynamic tail offset relative to bubble window left edge (keep safely within bubble corners)
+  const minTailOffset = Math.min(24, Math.floor(width / 4));
+  const maxTailOffset = Math.max(minTailOffset, width - minTailOffset);
+  const rawTailOffset = petCenterX - x;
+  const tailOffsetX = Math.round(clamp(rawTailOffset, minTailOffset, maxTailOffset));
+
+  return {
+    x,
+    y,
+    width,
+    height,
+    placement,
+    tailOffsetX,
   };
 }
