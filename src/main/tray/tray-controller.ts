@@ -11,7 +11,7 @@ import type { SettingsStore } from '../settings/settings-store'
 import type { WindowManager } from '../windows/window-manager'
 
 const traySvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="black"/><circle cx="6" cy="7" r="1" fill="white"/><circle cx="10" cy="7" r="1" fill="white"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="black" fill-rule="evenodd" d="M16 3.5C8.5 3.5 2.5 8.8 2.5 15.5C2.5 19 4.2 22.2 7 24.2L5.5 28.8C5.3 29.5 6 30.1 6.8 29.8L12.3 26.7C13.5 27.2 14.7 27.5 16 27.5C23.5 27.5 29.5 22.2 29.5 15.5C29.5 8.8 23.5 3.5 16 3.5ZM16 23.5C15.2 23.5 14.2 22.8 13.5 22C10.5 18.8 8 16.2 8 13.8C8 11.2 10 9.5 12.5 9.5C14.1 9.5 15.3 10.4 16 11.8C16.7 10.4 17.9 9.5 19.5 9.5C22 9.5 24 11.2 24 13.8C24 16.2 21.5 18.8 18.5 22C17.8 22.8 16.8 23.5 16 23.5Z"/></svg>'
 
 interface TrayControllerOptions {
   settingsStore: Pick<SettingsStore, 'update'>
