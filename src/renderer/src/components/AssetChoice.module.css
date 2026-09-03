@@ -1,0 +1,71 @@
+.choice {
+  display: grid;
+  grid-template-columns: auto 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1.5px solid #ede8e1;
+  border-radius: 9px;
+  background: #faf8f5;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.choice:hover {
+  border-color: #9cbdb1;
+  background: #f4efe8;
+}
+
+.selected {
+  border-color: #3d7363;
+  background: #eff6f3;
+  box-shadow: 0 1px 6px rgba(61, 115, 99, 0.08);
+}
+
+.input {
+  margin: 0;
+  accent-color: #3d7363;
+}
+
+.thumbnail {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e6e0d6;
+  border-radius: 7px;
+  background-color: #faf9f6;
+  background-image: radial-gradient(#dbd6ce 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.details {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.details strong,
+.details small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details strong {
+  color: #2d2a26;
+  font-size: 0.8rem;
+}
+
+.details small {
+  color: #78736b;
+  font-size: 0.68rem;
+}

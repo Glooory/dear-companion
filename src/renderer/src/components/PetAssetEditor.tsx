@@ -3,6 +3,7 @@ import { defaultHeadHotspot } from '@shared/head-hotspot'
 import { computeAssetGeometry } from '@shared/image-normalization'
 import { HeadHotspotEditor } from './HeadHotspotEditor'
 import { InfoTooltip } from './Tooltip'
+import styles from './PetAssetEditor.module.css'
 
 interface PetAssetEditorProps {
   petId: string
@@ -84,10 +85,10 @@ export function PetAssetEditor({
   }
 
   return (
-    <article className="asset-editor">
-      <div className="asset-preview" aria-label="照片调整预览">
+    <article className={styles.editor}>
+      <div className={styles.preview} aria-label="照片调整预览">
         <span
-          className="asset-baseline"
+          className={styles.baseline}
           role="slider"
           aria-label="地面线"
           aria-valuenow={normalization.baselineOffset}
@@ -113,13 +114,13 @@ export function PetAssetEditor({
           onChange={onHeadHotspotChange}
         />
       </div>
-      <div className="asset-editor-details">
+      <div className={styles.details}>
         <h3>照片 {asset.id.slice(0, 8)}</h3>
-        <p className="asset-metadata">
+        <p className={styles.metadata}>
           {asset.format.toUpperCase()} · 原图 {asset.width}×{asset.height} px · 画面主体 {asset.alphaBounds.width}×{asset.alphaBounds.height} px
         </p>
-        <div className="normalization-grid">
-          <div className="slider-field">
+        <div className={styles.normalizationGrid}>
+          <div className={styles.sliderField}>
             <div className="editor-heading-row" style={{ marginBottom: 4 }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#55514b' }}>缩放比例</span>
               <button
@@ -131,7 +132,7 @@ export function PetAssetEditor({
                 恢复 1.0×
               </button>
             </div>
-            <div className="slider-row">
+            <div className={styles.sliderRow}>
               <input
                 type="range"
                 min={0.5}
@@ -140,7 +141,7 @@ export function PetAssetEditor({
                 value={normalization.scale}
                 onChange={(event) => update('scale', Number(event.currentTarget.value))}
               />
-              <span className="slider-value">{normalization.scale.toFixed(2)}×</span>
+              <span className={styles.sliderValue}>{normalization.scale.toFixed(2)}×</span>
             </div>
           </div>
 
@@ -148,7 +149,7 @@ export function PetAssetEditor({
           <NumberControl label="地面线微调" value={normalization.baselineOffset} min={-256} max={256} step={1} onChange={(val) => update('baselineOffset', val)} />
         </div>
 
-        <div className="hotspot-toggle-row">
+        <div className={styles.hotspotToggleRow}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <label className="toggle-control" style={{ marginBottom: 0 }}>
               <input

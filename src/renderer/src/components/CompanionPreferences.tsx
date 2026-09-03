@@ -1,5 +1,7 @@
 import type { CompanionPace } from '@shared/contracts'
 import { InfoTooltip } from './Tooltip'
+import { clsx } from 'clsx'
+import styles from './CompanionPreferences.module.css'
 
 const PACE_OPTIONS = [
   {
@@ -30,16 +32,16 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
   onPreview(value: CompanionPace): void
 }): React.JSX.Element {
   return (
-    <div className="companion-preferences">
-      <fieldset className="pace-options">
-        <legend className="fieldset-legend-row">
+    <div className={styles.preferences}>
+      <fieldset className={styles.fieldset}>
+        <legend className={clsx('fieldset-legend-row', styles.legend)}>
           <span>陪伴节奏</span>
           <InfoTooltip text="调整伙伴在桌面的活动与走动频率。" />
         </legend>
-        <div className="pace-options-grid">
+        <div className={styles.grid}>
           {PACE_OPTIONS.map((option) => (
-            <div className={`pace-option${pace === option.value ? ' selected' : ''}`} key={option.value}>
-              <label className="pace-option-header">
+            <div className={clsx(styles.option, pace === option.value && styles.selected)} key={option.value}>
+              <label className={styles.header}>
                 <input
                   type="radio"
                   name="companion-pace"
@@ -47,8 +49,8 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
                   checked={pace === option.value}
                   onChange={() => onPaceChange(option.value)}
                 />
-                <div className="pace-option-meta">
-                  <div className="pace-option-title-row">
+                <div className={styles.meta}>
+                  <div className={styles.titleRow}>
                     <strong>{option.label}</strong>
                     <InfoTooltip text={option.description} />
                   </div>
@@ -57,7 +59,7 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
               </label>
               <button
                 type="button"
-                className="preview-button"
+                className={styles.previewButton}
                 onClick={() => onPreview(option.value)}
               >
                 试看动作
@@ -66,7 +68,7 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
           ))}
         </div>
       </fieldset>
-      <div className="bubbles-toggle-row">
+      <div className={styles.bubblesToggleRow}>
         <label className="toggle-control" style={{ marginBottom: 0 }}>
           <input
             type="checkbox"
@@ -80,4 +82,3 @@ export function CompanionPreferences({ pace, bubblesEnabled, onPaceChange, onBub
     </div>
   )
 }
-

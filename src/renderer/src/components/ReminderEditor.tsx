@@ -1,5 +1,6 @@
 import type { CreateReminderInput, CursorTolerance } from '@shared/contracts'
 import { WeekdayPicker } from './WeekdayPicker'
+import styles from './ReminderEditor.module.css'
 
 export interface ReminderDraft extends Omit<CreateReminderInput, 'hour' | 'minute'> {
   id?: string
@@ -23,10 +24,10 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
     value.message.trim().length >= 1 && value.message.trim().length <= 200
 
   return (
-    <div className="reminder-editor">
-      <div className="editor-section-card">
-        <h3 className="editor-section-title">时间与重复</h3>
-        <div className="reminder-fields">
+    <div className={styles.editor}>
+      <div className={styles.sectionCard}>
+        <h3 className={styles.sectionTitle}>时间与重复</h3>
+        <div className={styles.fields}>
           <label>
             <span>提醒时间</span>
             <input
@@ -84,9 +85,9 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
         />
       </div>
 
-      <div className="editor-section-card">
-        <h3 className="editor-section-title">提醒内容</h3>
-        <label className="message-field">
+      <div className={styles.sectionCard}>
+        <h3 className={styles.sectionTitle}>提醒内容</h3>
+        <label className={styles.messageField}>
           <span>提醒气泡文案</span>
           <textarea
             maxLength={200}
@@ -96,11 +97,11 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
         </label>
       </div>
 
-      <div className="editor-section-card">
-        <h3 className="editor-section-title">声音与启用状态</h3>
-        <div className="reminder-toggles-grid">
-          <label className="toggle-control-detailed">
-            <div className="toggle-main">
+      <div className={styles.sectionCard}>
+        <h3 className={styles.sectionTitle}>声音与启用状态</h3>
+        <div className={styles.togglesGrid}>
+          <label className={styles.toggleDetailed}>
+            <div className={styles.toggleMain}>
               <input
                 type="checkbox"
                 checked={value.enabled}
@@ -109,10 +110,10 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               />
               <strong>启用此条提醒</strong>
             </div>
-            <span className="toggle-subtext">是否在预定时间触发提醒</span>
+            <span className={styles.toggleSubtext}>是否在预定时间触发提醒</span>
           </label>
-          <label className="toggle-control-detailed">
-            <div className="toggle-main">
+          <label className={styles.toggleDetailed}>
+            <div className={styles.toggleMain}>
               <input
                 type="checkbox"
                 checked={value.sounds.reminder}
@@ -125,10 +126,10 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               />
               <strong>播放休息提示音</strong>
             </div>
-            <span className="toggle-subtext">到点弹出提醒气泡时发出提示音</span>
+            <span className={styles.toggleSubtext}>到点弹出提醒气泡时发出提示音</span>
           </label>
-          <label className="toggle-control-detailed">
-            <div className="toggle-main">
+          <label className={styles.toggleDetailed}>
+            <div className={styles.toggleMain}>
               <input
                 type="checkbox"
                 checked={value.sounds.crying}
@@ -141,7 +142,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               />
               <strong>督促继续休息时播放提示音</strong>
             </div>
-            <span className="toggle-subtext">休息期间检测到鼠标移动时发声督促</span>
+            <span className={styles.toggleSubtext}>休息期间检测到鼠标移动时发声督促</span>
           </label>
         </div>
       </div>

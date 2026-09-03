@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { CreateWorkScheduleInput, WorkSchedule } from '@shared/contracts'
 import { WeekdayPicker } from './WeekdayPicker'
 import { InfoTooltip } from './Tooltip'
+import styles from './WorkScheduleEditor.module.css'
 
 interface Draft extends CreateWorkScheduleInput { id?: string }
 const freshDraft = (): Draft => ({ enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, weekdays: [1, 2, 3, 4, 5] })
@@ -18,7 +19,7 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
   const invalidEqual = Boolean(draft && draft.startHour === draft.endHour && draft.startMinute === draft.endMinute)
   const valid = Boolean(draft && draft.weekdays.length > 0 && !invalidEqual)
   return (
-    <article className="settings-card work-schedule-card">
+    <article className={styles.card}>
       <div className="editor-heading-row">
         <div className="heading-with-tooltip">
           <h2>专注时段</h2>
@@ -28,13 +29,13 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
       </div>
 
       {draft ? (
-        <div className="work-schedule-editor">
-          <div className="work-time-fields">
+        <div className={styles.editor}>
+          <div className={styles.timeFields}>
             <TimeField label="开始" hour={draft.startHour} minute={draft.startMinute} onChange={(hour, minute) => setDraft({ ...draft, startHour: hour, startMinute: minute })} />
             <TimeField label="结束" hour={draft.endHour} minute={draft.endMinute} onChange={(hour, minute) => setDraft({ ...draft, endHour: hour, endMinute: minute })} />
           </div>
           <WeekdayPicker value={draft.weekdays} disabled={disabled} onChange={(weekdays) => setDraft({ ...draft, weekdays })} />
-          {invalidEqual && <p className="inline-status-error">开始和结束时间不能相同。</p>}
+          {invalidEqual && <p className={styles.statusError}>开始和结束时间不能相同。</p>}
           <label className="toggle-control">
             <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.currentTarget.checked })} />
             <span>启用此时段</span>
@@ -51,11 +52,11 @@ export function WorkScheduleEditor({ schedules, disabled, onCreate, onUpdate, on
           </div>
         </div>
       ) : (
-        <div className="work-schedule-list">
-          {schedules.length === 0 && <p className="empty-editor-state">暂无专注时段。设定后伙伴在此期间会保持安静。</p>}
+        <div className={styles.list}>
+          {schedules.length === 0 && <p className={styles.emptyState}>暂无专注时段。设定后伙伴在此期间会保持安静。</p>}
           {schedules.map((schedule) => (
-            <div className="work-schedule-row" key={schedule.id}>
-              <button type="button" className="reminder-summary" onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>
+            <div className={styles.row} key={schedule.id}>
+              <button type="button" className={styles.summaryButton} onClick={() => setDraft({ ...schedule, weekdays: [...schedule.weekdays] })}>
                 <strong>{formatTime(schedule.startHour, schedule.startMinute)}–{formatTime(schedule.endHour, schedule.endMinute)}</strong>
                 <span>{schedule.endHour * 60 + schedule.endMinute < schedule.startHour * 60 + schedule.startMinute ? '跨日 · ' : ''}每周 {schedule.weekdays.length} 天</span>
               </button>

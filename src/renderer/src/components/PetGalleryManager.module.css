@@ -1,0 +1,165 @@
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 20px;
+  border: 1.5px dashed #ded8cf;
+  border-radius: 16px;
+  background: #faf8f5;
+  text-align: center;
+}
+
+.emptyIllustration {
+  color: #9e978d;
+  margin-bottom: 8px;
+}
+
+.emptyText {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #38342f;
+}
+
+.workbench {
+  display: grid;
+  gap: 14px;
+}
+
+.assetRail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.railItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.thumbWrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 1.5px solid #ded8cf;
+  border-radius: 12px;
+  background-color: #ffffff;
+  background-image: radial-gradient(#ebe6df 1px, transparent 1px);
+  background-size: 8px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 120ms ease;
+}
+
+.railItem:hover .thumbWrap {
+  border-color: #3d7363;
+}
+
+.railItem.isActive .thumbWrap {
+  border-color: #3d7363;
+  box-shadow: 0 0 0 3px rgba(61, 115, 99, 0.22);
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.itemLabel {
+  font-size: 0.75rem;
+  color: #635f58;
+  font-weight: 500;
+}
+
+.railAdd {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 64px;
+  height: 64px;
+  border: 1.5px dashed #c9c2b7;
+  border-radius: 12px;
+  background: transparent;
+  color: #706a61;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  margin-bottom: 21px;
+}
+
+.railAdd:hover {
+  border-color: #3d7363;
+  color: #3d7363;
+  background: #f7faf8;
+}
+
+.stage {
+  min-width: 0;
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid #d4cdc2;
+  background: rgba(255, 255, 255, 0.95);
+  color: #6e675d;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.railItem:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: #c9342e;
+  border-color: #c9342e;
+  color: #ffffff;
+}

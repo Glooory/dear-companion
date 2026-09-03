@@ -33,10 +33,9 @@ import {
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
 import { useToast } from "../components/Toast";
-import {
-  clonePetDialogueSettings,
-  getDialogueValidationIssues,
-} from "@shared/dialogue-settings";
+import { clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
+import { clsx } from "clsx";
+import styles from "./SettingsShell.module.css";
 
 interface SettingsShellProps {
   api: ReleaseHardeningApi;
@@ -606,22 +605,22 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   return (
     <main
-      className="settings-shell pet-settings-shell"
+      className={styles.shell}
       aria-busy={
         isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot
       }
     >
-      <header className="settings-topbar">
-        <div className="settings-brand">
-          <span className="brand-logo-mark" aria-hidden="true">✦</span>
-          <span className="brand-title">Dear Companion</span>
-          <span className="brand-badge">本地离线</span>
+      <header className={styles.topbar}>
+        <div className={styles.brand}>
+          <span className={styles.brandMark} aria-hidden="true">✦</span>
+          <span className={styles.brandTitle}>Dear Companion</span>
+          <span className={styles.brandBadge}>本地离线</span>
         </div>
 
-        <nav className="settings-nav" aria-label="设置分类">
+        <nav className={styles.nav} aria-label="设置分类">
           <button
             type="button"
-            className={`settings-nav-button ${activeTab === "pets" ? "active" : ""}`}
+            className={clsx(styles.navButton, activeTab === "pets" && styles.active)}
             onClick={() => setActiveTab("pets")}
           >
             <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -635,7 +634,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           </button>
           <button
             type="button"
-            className={`settings-nav-button ${activeTab === "rest" ? "active" : ""}`}
+            className={clsx(styles.navButton, activeTab === "rest" && styles.active)}
             onClick={() => setActiveTab("rest")}
           >
             <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -646,7 +645,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           </button>
           <button
             type="button"
-            className={`settings-nav-button ${activeTab === "work" ? "active" : ""}`}
+            className={clsx(styles.navButton, activeTab === "work" && styles.active)}
             onClick={() => setActiveTab("work")}
           >
             <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -658,7 +657,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           </button>
           <button
             type="button"
-            className={`settings-nav-button ${activeTab === "system" ? "active" : ""}`}
+            className={clsx(styles.navButton, activeTab === "system" && styles.active)}
             onClick={() => setActiveTab("system")}
           >
             <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -686,18 +685,18 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       {activeTab === "pets" && settings && snapshot && (
-        <div className="settings-tab-content pet-settings-layout">
-          <aside className="pet-list-panel" aria-label="伙伴列表">
-            <div className="panel-header-row">
+        <div className={clsx(styles.tabContent, styles.layout)}>
+          <aside className={styles.listPanel} aria-label="伙伴列表">
+            <div className={styles.panelHeader}>
               <h2>伙伴列表</h2>
-              <span className="count-pill">{snapshot.pets.length}</span>
+              <span className={styles.countPill}>{snapshot.pets.length}</span>
             </div>
 
-            <div className="pet-list">
+            <div className={styles.petList}>
               {snapshot.pets.map((pet) => (
                 <div
                   key={pet.id}
-                  className={`pet-list-item ${pet.id === selectedPetId ? "selected" : ""}`}
+                  className={clsx(styles.petListItem, pet.id === selectedPetId && styles.selected)}
                   role="button"
                   tabIndex={0}
                   onClick={() => selectPet(pet)}
@@ -707,14 +706,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     }
                   }}
                 >
-                  <span className="pet-list-item-name">{pet.name}</span>
-                  <div className="pet-list-item-actions">
+                  <span className={styles.petName}>{pet.name}</span>
+                  <div className={styles.petItemActions}>
                     {pet.id === snapshot.activePetId ? (
-                      <span className="pet-active-badge">使用中</span>
+                      <span className={styles.petActiveBadge}>使用中</span>
                     ) : (
                       <button
                         type="button"
-                        className="pet-quick-switch-button"
+                        className={styles.quickSwitchBtn}
                         disabled={isBusy || pet.actionSlots.idle.length === 0}
                         title={
                           pet.actionSlots.idle.length === 0
@@ -740,7 +739,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             </div>
 
             {isCreatingPet ? (
-              <div className="new-pet-form">
+              <div className={styles.newPetForm}>
                 <input
                   autoFocus
                   value={newPetName}
@@ -755,7 +754,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     }
                   }}
                 />
-                <div className="new-pet-form-actions">
+                <div className={styles.newPetActions}>
                   <button
                     type="button"
                     className="secondary-button"
@@ -779,7 +778,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             ) : (
               <button
                 type="button"
-                className="add-pet-trigger"
+                className={styles.addPetTrigger}
                 disabled={isBusy}
                 onClick={() => setIsCreatingPet(true)}
               >
@@ -792,7 +791,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             )}
           </aside>
 
-          <section className="pet-editor-panel">
+          <section className={styles.editorPanel}>
             {draft && selectedPet ? (
               petEditorPage === "dialogues" ? (
                 <DialogueSettingsEditor
@@ -813,17 +812,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               ) : (
                 <>
                   <div className="editor-heading-row">
-                  <div className="editor-title-wrap">
-                    <div className="editor-title-line">
+                  <div className={styles.titleWrap}>
+                    <div className={styles.titleLine}>
                       <h2>{selectedPet.name}</h2>
                       {snapshot.activePetId === selectedPet.id && (
-                        <span className="pet-active-badge">当前使用</span>
+                        <span className={styles.petActiveBadge}>当前使用</span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="pet-basic-fields">
+                <div className={styles.basicFields}>
                   <label>
                     <span className="field-label-row">
                       <span>伙伴名称</span>
@@ -841,7 +840,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       <span>显示高度</span>
                       <InfoTooltip text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`} />
                     </span>
-                    <div className="unit-input-wrap">
+                    <div className={styles.unitWrap}>
                       <input
                         type="number"
                         min={MIN_PET_TARGET_HEIGHT}
@@ -863,12 +862,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                           setDraft({ ...draft, targetHeight: value });
                         }}
                       />
-                      <span className="unit-suffix">px</span>
+                      <span className={styles.unitSuffix}>px</span>
                     </div>
                   </label>
                 </div>
 
-                <section className="editor-section companion-section">
+                <section className="editor-section">
                   <CompanionPreferences
                     pace={draft.companionPace}
                     bubblesEnabled={draft.interactionBubblesEnabled}
@@ -887,10 +886,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </section>
 
                 <section className="editor-section">
-                  <div className="dialogue-summary-card">
-                    <div className="dialogue-summary-info">
-                      <div className="dialogue-summary-title">对白与称呼</div>
-                      <div className="dialogue-summary-copy">{dialogueSummary}</div>
+                  <div className={styles.dialogueSummaryCard}>
+                    <div className={styles.dialogueSummaryInfo}>
+                      <div className={styles.dialogueSummaryTitle}>对白与称呼</div>
+                      <div className={styles.dialogueSummaryCopy}>{dialogueSummary}</div>
                     </div>
                     <button
                       type="button"
@@ -964,7 +963,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   >
                     <button
                       type="button"
-                      className={`primary-button ${saveSuccess ? "saved" : ""}`}
+                      className={clsx("primary-button", saveSuccess && "saved")}
                       disabled={isBusy || selectedPet.assets.length === 0}
                       onClick={saveDraft}
                     >
@@ -975,7 +974,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               </>
             )
             ) : (
-              <div className="empty-editor-state">
+              <div className={styles.emptyState}>
                 请选择或新建一个伙伴。
               </div>
             )}
@@ -984,8 +983,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       {activeTab === "rest" && settings && restSnapshot && (
-        <section className="settings-tab-content settings-sections">
-          <article className="settings-card">
+        <section className={clsx(styles.tabContent, styles.sections)}>
+          <article className={styles.card}>
             <div className="editor-heading-row">
               <div className="heading-with-tooltip">
                 <h2>休息提醒</h2>
@@ -1001,7 +1000,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               </button>
             </div>
             {restSnapshot.runtime.serviceStatus === "error" && (
-              <div className="service-error" role="alert">
+              <div className={styles.serviceError} role="alert">
                 <span>
                   {restSnapshot.runtime.serviceError?.message ??
                     "休息提醒暂时不可用。"}
@@ -1018,9 +1017,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 </button>
               </div>
             )}
-            <div className="reminder-list">
+            <div className={styles.reminderList}>
               {restSnapshot.reminders.length === 0 ? (
-                <p className="empty-editor-state">
+                <p className={styles.emptyState}>
                   暂无休息提醒。
                 </p>
               ) : (
@@ -1028,11 +1027,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   const soundBadge = formatSoundBadge(reminder.sounds);
                   return (
                     <div
-                      className={`reminder-row ${reminder.enabled ? "" : "reminder-disabled"}`}
+                      className={clsx(styles.reminderRow, !reminder.enabled && styles.reminderDisabled)}
                       key={reminder.id}
                     >
                       <div
-                        className="reminder-content"
+                        className={styles.reminderContent}
                         role="button"
                         tabIndex={0}
                         onClick={() => editReminder(reminder)}
@@ -1043,26 +1042,26 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                           }
                         }}
                       >
-                        <div className="reminder-primary-row">
-                          <strong className="reminder-time">
+                        <div className={styles.reminderPrimaryRow}>
+                          <strong className={styles.reminderTime}>
                             {String(reminder.hour).padStart(2, "0")}:
                             {String(reminder.minute).padStart(2, "0")}
                           </strong>
-                          <span className="reminder-message">{reminder.message}</span>
+                          <span className={styles.reminderMessage}>{reminder.message}</span>
                         </div>
-                        <div className="reminder-badges">
-                          <span className="reminder-badge">{formatReminderWeekdays(reminder.weekdays)}</span>
-                          <span className="reminder-badge">{reminder.restDurationMinutes} 分钟休息</span>
-                          <span className={`reminder-badge ${soundBadge.enabled ? "badge-sound-on" : "badge-sound-off"}`}>
+                        <div className={styles.reminderBadges}>
+                          <span className={styles.reminderBadge}>{formatReminderWeekdays(reminder.weekdays)}</span>
+                          <span className={styles.reminderBadge}>{reminder.restDurationMinutes} 分钟休息</span>
+                          <span className={clsx(styles.reminderBadge, soundBadge.enabled ? styles.badgeSoundOn : styles.badgeSoundOff)}>
                             {soundBadge.label}
                           </span>
-                          <span className="reminder-badge">{formatTolerance(reminder.cursorTolerance)}</span>
+                          <span className={styles.reminderBadge}>{formatTolerance(reminder.cursorTolerance)}</span>
                         </div>
                       </div>
-                      <div className="reminder-actions">
+                      <div className={styles.reminderActions}>
                         <button
                           type="button"
-                          className="reminder-edit-button"
+                          className={styles.reminderEditBtn}
                           onClick={() => editReminder(reminder)}
                           title="编辑此条提醒"
                         >
@@ -1096,7 +1095,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           {reminderDraft &&
             createPortal(
               <div
-                className="modal-backdrop"
+                className={styles.modalBackdrop}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="reminder-modal-title"
@@ -1104,8 +1103,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   if (event.target === event.currentTarget) setReminderDraft(null);
                 }}
               >
-                <div className="modal-card">
-                  <div className="modal-header">
+                <div className={styles.modalCard}>
+                  <div className={styles.modalHeader}>
                     <h3 id="reminder-modal-title">
                       {reminderDraft.id
                         ? `编辑休息提醒 · ${String(reminderDraft.hour ?? 0).padStart(2, "0")}:${String(reminderDraft.minute ?? 0).padStart(2, "0")}`
@@ -1113,7 +1112,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     </h3>
                     <button
                       type="button"
-                      className="modal-close-button"
+                      className={styles.modalCloseBtn}
                       onClick={() => setReminderDraft(null)}
                       aria-label="关闭"
                     >
@@ -1136,7 +1135,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       {activeTab === "work" && companionSnapshot && (
-        <section className="settings-tab-content settings-sections">
+        <section className={clsx(styles.tabContent, styles.sections)}>
           <WorkScheduleEditor
             schedules={companionSnapshot.workSchedules}
             disabled={isBusy}
@@ -1149,8 +1148,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       {activeTab === "system" && settings && (
-        <section className="settings-tab-content settings-sections">
-          <article className="settings-card">
+        <section className={clsx(styles.tabContent, styles.sections)}>
+          <article className={styles.card}>
             <div className="settings-row-between">
               <div>
                 <div className="heading-with-tooltip">
@@ -1170,7 +1169,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               </label>
             </div>
           </article>
-          <article className="settings-card">
+          <article className={styles.card}>
             <div className="settings-row-between">
               <div>
                 <div className="heading-with-tooltip">
@@ -1198,7 +1197,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               )}
             </div>
             {autostartStatus?.errorCode && (
-              <p className="inline-status-error" role="status">
+              <p className={styles.inlineStatusError} role="status">
                 自启动设置失败（
                 {autostartErrorMessage(autostartStatus.errorCode)}
                 ）。原设置保持不变。
@@ -1206,7 +1205,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             )}
           </article>
           {petRendererStatus?.state === "safe-mode" && (
-            <article className="settings-card recovery-card">
+            <article className={clsx(styles.card, styles.recoveryCard)}>
               <h2>伙伴窗口恢复</h2>
               <p className="supporting-copy">
                 受屏幕分辨率或系统渲染影响暂时停用，设置与提醒仍正常运行。
@@ -1224,7 +1223,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </section>
       )}
 
-      <footer className="settings-footer">
+      <footer className={styles.footer}>
         <span>全本地离线运行 · 数据安全保存在此设备</span>
       </footer>
     </main>

@@ -1,6 +1,8 @@
 import { type DialogueCategory } from '@shared/dialogue-catalog'
 import { ADDRESS_PLACEHOLDER } from '@shared/dialogue-settings'
 import React, { useRef } from 'react'
+import { clsx } from 'clsx'
+import styles from './DialogueLineEditor.module.css'
 
 export interface DialogueLineRowModel {
   readonly id: string
@@ -40,25 +42,31 @@ export function DialogueLineEditor({
   const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER)
   const trimmedAddress = address.trim()
 
+  const badgeClass = clsx(
+    styles.badge,
+    row.source === 'builtin' ? styles.badgeBuiltin : styles.badgeCustom,
+    row.isModified && styles.badgeModified
+  )
+
   return (
-    <div className={`dialogue-settings-line-row ${row.issue ? 'has-error' : ''}`}>
-      <div className="dialogue-settings-line-main">
-        <label className="dialogue-settings-toggle">
+    <div className={clsx(styles.row, row.issue && styles.hasError)}>
+      <div className={styles.main}>
+        <label className={styles.toggle}>
           <input
             type="checkbox"
             checked={row.automaticEnabled}
             onChange={(e) => onToggleAutomatic(e.target.checked)}
             aria-label="自动使用"
           />
-          <span className="dialogue-settings-toggle-label">自动使用</span>
+          <span className={styles.toggleLabel}>自动使用</span>
         </label>
 
-        <div className="dialogue-settings-input-wrapper">
+        <div className={styles.inputWrapper}>
           <input
             ref={inputRef}
             id={inputId}
             type="text"
-            className="dialogue-settings-input"
+            className={styles.input}
             value={row.currentText}
             onChange={(e) => onTextChange(e.target.value)}
             onFocus={() => {
@@ -73,13 +81,13 @@ export function DialogueLineEditor({
           />
 
           {hasPlaceholder && (
-            <div className="dialogue-settings-preview">
+            <div className={styles.preview}>
               {trimmedAddress.length === 0 ? (
-                <span className="dialogue-settings-preview-notice">
+                <span className={styles.previewNotice}>
                   设置称呼后，这句才会自动使用
                 </span>
               ) : (
-                <span className="dialogue-settings-preview-text">
+                <span className={styles.previewText}>
                   预览：{row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}
                 </span>
               )}
@@ -87,16 +95,14 @@ export function DialogueLineEditor({
           )}
 
           {row.issue && (
-            <div id={errorId} className="dialogue-settings-inline-error" role="alert">
+            <div id={errorId} className={styles.inlineError} role="alert">
               {row.issue}
             </div>
           )}
         </div>
 
-        <div className="dialogue-settings-line-meta">
-          <span
-            className={`dialogue-settings-badge ${row.source === 'builtin' ? 'badge-builtin' : 'badge-custom'} ${row.isModified ? 'badge-modified' : ''}`}
-          >
+        <div className={styles.meta}>
+          <span className={badgeClass}>
             {row.source === 'builtin'
               ? row.isModified
                 ? '内置 · 已修改'

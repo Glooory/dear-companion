@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { PetActionSlots, PetAsset, PetLifeStates } from '@shared/contracts'
 import { InfoTooltip } from './Tooltip'
+import { clsx } from 'clsx'
+import styles from './CompanionBehaviorEditor.module.css'
 
 interface CompanionBehaviorEditorProps {
   petId: string
@@ -140,36 +142,36 @@ export function CompanionBehaviorEditor({
   }
 
   return (
-    <div className="behavior-grid">
+    <div className={styles.grid}>
       {BEHAVIOR_CONFIGS.map((config) => {
         const selectedIds = getSelectedIds(config.key)
         const selectedAssets = assets.filter((asset) => selectedIds.includes(asset.id))
         const isPicking = activePickingKey === config.key
 
         return (
-          <fieldset key={config.key} className="slot-card behavior-card">
+          <fieldset key={config.key} className={styles.card}>
             <legend className="fieldset-legend-row">
               <span>{config.title}</span>
               <InfoTooltip text={config.hint} />
             </legend>
 
             {selectedAssets.length > 0 && (
-              <div className="slot-selected-stage">
-                <div className="slot-chips-wrap">
+              <div className={styles.selectedStage}>
+                <div className={styles.chipsWrap}>
                   {selectedAssets.map((asset) => {
                     const assetIndex = assets.findIndex((a) => a.id === asset.id) + 1
                     return (
-                      <div key={asset.id} className="slot-asset-tile">
+                      <div key={asset.id} className={styles.assetTile}>
                         <img
                           src={petAssetUrl(petId, asset.id)}
                           alt=""
-                          className="slot-tile-img"
+                          className={styles.tileImg}
                           draggable={false}
                         />
-                        <span className="slot-tile-caption">照片 {assetIndex}</span>
+                        <span className={styles.tileCaption}>照片 {assetIndex}</span>
                         <button
                           type="button"
-                          className="slot-tile-remove-btn"
+                          className={styles.tileRemoveBtn}
                           title="从该情境中移除"
                           onClick={() => removeAsset(config.key, asset.id)}
                         >
@@ -183,10 +185,10 @@ export function CompanionBehaviorEditor({
             )}
 
             {assets.length > 0 && (
-              <div className="slot-action-bar">
+              <div className={styles.actionBar}>
                 <button
                   type="button"
-                  className={`slot-action-btn ${isPicking ? 'is-active' : ''}`}
+                  className={clsx(styles.actionBtn, isPicking && styles.isActive)}
                   onClick={() => setActivePickingKey(isPicking ? null : config.key)}
                   title={isPicking ? '收起选图' : '选择照片'}
                 >
@@ -206,27 +208,27 @@ export function CompanionBehaviorEditor({
             )}
 
             {isPicking && assets.length > 0 && (
-              <div className="slot-picker-popover" role="listbox" aria-label={`选择${config.title}照片`}>
-                <div className="picker-popover-grid">
+              <div className={styles.pickerPopover} role="listbox" aria-label={`选择${config.title}照片`}>
+                <div className={styles.popoverGrid}>
                   {assets.map((asset, index) => {
                     const isSelected = selectedIds.includes(asset.id)
                     return (
                       <button
                         key={asset.id}
                         type="button"
-                        className={`picker-popover-item ${isSelected ? 'is-selected' : ''}`}
+                        className={clsx(styles.popoverItem, isSelected && styles.isSelected)}
                         onClick={() => toggleAsset(config.key, asset.id)}
                       >
-                        <div className="picker-thumb-box">
+                        <div className={styles.thumbBox}>
                           <img
                             src={petAssetUrl(petId, asset.id)}
                             alt=""
                             draggable={false}
-                            className="picker-thumb-img"
+                            className={styles.thumbImg}
                           />
-                          <span className="picker-item-caption">照片 {index + 1}</span>
+                          <span className={styles.itemCaption}>照片 {index + 1}</span>
                           {isSelected && (
-                            <span className="picker-check-badge">✓</span>
+                            <span className={styles.checkBadge}>✓</span>
                           )}
                         </div>
                       </button>

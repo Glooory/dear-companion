@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { AssetNormalization, HeadHotspot, PetAsset, PetAssetAdjustment } from '@shared/contracts'
 import { PetAssetEditor } from './PetAssetEditor'
 import { InfoTooltip, Tooltip } from './Tooltip'
+import { clsx } from 'clsx'
+import styles from './PetGalleryManager.module.css'
 
 interface PetGalleryManagerProps {
   petId: string
@@ -43,13 +45,13 @@ export function PetGalleryManager({
   const isDeleteDisabled = isBusy || isOnlyActiveAsset
 
   return (
-    <section className="editor-section gallery-manager-section">
-      <div className="gallery-header-row">
+    <section className={`editor-section ${styles.section}`}>
+      <div className={styles.headerRow}>
         <div className="heading-with-tooltip">
           <h2>照片与姿态标定</h2>
           <InfoTooltip text="调整照片缩放比例与地面线。" />
         </div>
-        <div className="gallery-header-actions">
+        <div className={styles.headerActions}>
           {activeAsset && onDeleteAsset && (
             <Tooltip
               content="使用中的伙伴需至少保留一张照片"
@@ -82,15 +84,15 @@ export function PetGalleryManager({
       </div>
 
       {assets.length === 0 ? (
-        <div className="gallery-empty-state">
-          <div className="gallery-empty-illustration" aria-hidden="true">
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIllustration} aria-hidden="true">
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="3" y="3" width="18" height="18" rx="4" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <path d="M21 15l-5-5L5 21" />
             </svg>
           </div>
-          <p className="gallery-empty-text">还没有导入照片</p>
+          <p className={styles.emptyText}>还没有导入照片</p>
           <span className="supporting-copy">导入一张透明背景的 PNG 或 WebP 照片即可开始陪伴</span>
           <button
             type="button"
@@ -103,8 +105,8 @@ export function PetGalleryManager({
           </button>
         </div>
       ) : (
-        <div className="gallery-workbench">
-          <div className="gallery-asset-rail" role="tablist" aria-label="伙伴照片选择">
+        <div className={styles.workbench}>
+          <div className={styles.assetRail} role="tablist" aria-label="伙伴照片选择">
             {assets.map((asset, index) => {
               const isActive = asset.id === activeId
               return (
@@ -113,7 +115,7 @@ export function PetGalleryManager({
                   role="tab"
                   tabIndex={0}
                   aria-selected={isActive}
-                  className={`gallery-rail-item ${isActive ? 'is-active' : ''}`}
+                  className={clsx(styles.railItem, isActive && styles.isActive)}
                   onClick={() => setSelectedAssetId(asset.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -122,17 +124,17 @@ export function PetGalleryManager({
                     }
                   }}
                 >
-                  <div className="rail-thumb-wrap">
+                  <div className={styles.thumbWrap}>
                     <img
                       src={petAssetUrl(petId, asset.id)}
                       alt=""
                       draggable={false}
-                      className="rail-thumb-img"
+                      className={styles.thumbImg}
                     />
                     {onDeleteAsset && !isDeleteDisabled && (
                       <button
                         type="button"
-                        className="rail-thumb-delete-btn"
+                        className={styles.deleteBtn}
                         title={`删除照片 ${index + 1}`}
                         onClick={(event) => {
                           event.stopPropagation()
@@ -143,7 +145,7 @@ export function PetGalleryManager({
                       </button>
                     )}
                   </div>
-                  <span className="rail-item-label">
+                  <span className={styles.itemLabel}>
                     照片 {index + 1}
                   </span>
                 </div>
@@ -151,7 +153,7 @@ export function PetGalleryManager({
             })}
             <button
               type="button"
-              className="gallery-rail-add"
+              className={styles.railAdd}
               disabled={isBusy}
               onClick={onImport}
               title="导入新照片"
@@ -164,7 +166,7 @@ export function PetGalleryManager({
             </button>
           </div>
 
-          <div className="gallery-stage">
+          <div className={styles.stage}>
             {activeAsset && activeAdjustment ? (
               <PetAssetEditor
                 key={activeAsset.id}

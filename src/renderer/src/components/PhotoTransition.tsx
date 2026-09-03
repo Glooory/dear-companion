@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { clsx } from 'clsx'
 import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type PetAsset } from '@shared/contracts'
 import { computeAssetGeometry } from '@shared/image-normalization'
+import styles from './PhotoTransition.module.css'
 
 export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onTransitionComplete }: {
   petId: string
@@ -84,7 +86,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
     <>
       {outgoing && outgoingGeometry && (
         <span
-          className="pet-image-frame photo-cross-outgoing"
+          className={clsx(styles.frame, styles.crossOutgoing, 'pet-image-frame')}
           style={{
             left: outgoingGeometry.left,
             top: outgoingGeometry.top,
@@ -95,7 +97,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
           aria-hidden="true"
         >
           <img
-            className="pet-image"
+            className={styles.image}
             draggable={false}
             src={petAssetUrl(petId, outgoing.id)}
             alt=""
@@ -103,7 +105,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
         </span>
       )}
       <span
-        className={`pet-image-frame ${outgoing ? 'photo-cross-incoming' : 'photo-idle'}`}
+        className={clsx(styles.frame, outgoing ? styles.crossIncoming : 'photo-idle', 'pet-image-frame')}
         style={{
           left: currentGeometry.left,
           top: currentGeometry.top,
@@ -113,7 +115,7 @@ export function PhotoTransition({ petId, asset, fallbackAsset, targetHeight, onT
         }}
       >
         <img
-          className="pet-image"
+          className={styles.image}
           draggable={false}
           src={petAssetUrl(petId, current.id)}
           alt=""

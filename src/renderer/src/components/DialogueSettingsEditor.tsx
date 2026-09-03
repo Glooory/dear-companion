@@ -16,6 +16,7 @@ import {
 } from '@shared/dialogue-settings'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { DialogueLineEditor, type DialogueLineRowModel } from './DialogueLineEditor'
+import styles from './DialogueSettingsEditor.module.css'
 
 export interface DialogueSettingsEditorProps {
   petName: string
@@ -348,12 +349,12 @@ export function DialogueSettingsEditor({
       <div
         ref={errorSummaryRef}
         tabIndex={-1}
-        className="dialogue-settings-error-summary"
+        className={styles.errorSummary}
         role="alert"
         aria-label="输入错误摘要"
       >
-        <div className="dialogue-settings-error-summary-title">保存前请检查以下内容：</div>
-        <ul className="dialogue-settings-error-list">
+        <div className={styles.errorSummaryTitle}>保存前请检查以下内容：</div>
+        <ul className={styles.errorList}>
           {validationIssues.map((issue, index) => (
             <li key={`${issue.path}-${index}`}>
               <a
@@ -375,8 +376,8 @@ export function DialogueSettingsEditor({
   const renderHome = (): React.JSX.Element => {
     const addressIssue = issueMap.get('address')
     return (
-      <div className="dialogue-settings-view">
-        <header className="dialogue-settings-header">
+      <div className={styles.view}>
+        <header className={styles.header}>
           <button type="button" className="ghost-button back-button" onClick={onBack}>
             ‹ 返回伙伴设置
           </button>
@@ -386,25 +387,25 @@ export function DialogueSettingsEditor({
         {renderErrorSummary()}
 
         {!bubblesEnabled && (
-          <div className="dialogue-settings-notice" role="status">
+          <div className={styles.notice} role="status">
             日常对话气泡已关闭；设置会保留，重新开启后生效。
           </div>
         )}
 
-        <section className="dialogue-settings-section">
+        <section className={styles.section}>
           <label
             htmlFor="dialogue-input-address"
-            className="dialogue-settings-label"
+            className={styles.label}
           >
             对你的称呼
           </label>
-          <div className="dialogue-settings-supporting-copy">
+          <div className={styles.supportingCopy}>
             在对白中插入“称呼”时使用；可以留空。最多 12 个字。
           </div>
           <input
             id="dialogue-input-address"
             type="text"
-            className="dialogue-settings-address-input"
+            className={styles.addressInput}
             value={settings.address}
             onChange={(e) => handleAddressChange(e.target.value)}
             onBlur={() => markFieldTouched('address')}
@@ -413,14 +414,14 @@ export function DialogueSettingsEditor({
             placeholder="例如：小葡萄"
           />
           {isFieldTouched('address') && addressIssue && (
-            <div id="dialogue-error-address" className="dialogue-settings-inline-error" role="alert">
+            <div id="dialogue-error-address" className={styles.inlineError} role="alert">
               {addressIssue}
             </div>
           )}
         </section>
 
-        <section className="dialogue-settings-section">
-          <div className="dialogue-settings-scenes-list">
+        <section className={styles.section}>
+          <div className={styles.scenesList}>
             {DIALOGUE_GROUPS.map((group) => {
               const triggerCount = group.triggers.length
               let customCount = 0
@@ -444,13 +445,13 @@ export function DialogueSettingsEditor({
                 <button
                   key={group.id}
                   type="button"
-                  className="dialogue-settings-scene-row"
+                  className={styles.sceneRow}
                   onClick={() => setView({ type: 'group', groupId: group.id })}
                 >
-                  <div className="dialogue-settings-scene-name">{group.label}</div>
-                  <div className="dialogue-settings-scene-meta">
+                  <div className={styles.sceneName}>{group.label}</div>
+                  <div className={styles.sceneMeta}>
                     <span>{triggerCount} 个时机 · {detail}</span>
-                    <span className="dialogue-settings-scene-chevron">›</span>
+                    <span className={styles.sceneChevron}>›</span>
                   </div>
                 </button>
               )
@@ -458,7 +459,7 @@ export function DialogueSettingsEditor({
           </div>
         </section>
 
-        <div className="dialogue-settings-system-notice">
+        <div className={styles.systemNotice}>
           休息提醒、倒计时和状态提示由程序管理。
         </div>
 
@@ -485,8 +486,8 @@ export function DialogueSettingsEditor({
     const isSceneDisabled = isDrowsyDisabled || isSleepingDisabled
 
     return (
-      <div className="dialogue-settings-view">
-        <header className="dialogue-settings-header">
+      <div className={styles.view}>
+        <header className={styles.header}>
           <button
             type="button"
             className="ghost-button back-button"
@@ -500,13 +501,13 @@ export function DialogueSettingsEditor({
         {renderErrorSummary()}
 
         {isSceneDisabled && (
-          <div className="dialogue-settings-notice" role="status">
+          <div className={styles.notice} role="status">
             这个场景尚未启用，设置会保留。
           </div>
         )}
 
-        <section className="dialogue-settings-section">
-          <div className="dialogue-settings-scenes-list">
+        <section className={styles.section}>
+          <div className={styles.scenesList}>
             {groupMeta.triggers.map((trigger) => {
               const catSettings = settings.categories[trigger.id]
               const customCount = catSettings?.customLines.length ?? 0
@@ -522,13 +523,13 @@ export function DialogueSettingsEditor({
                 <button
                   key={trigger.id}
                   type="button"
-                  className="dialogue-settings-scene-row"
+                  className={styles.sceneRow}
                   onClick={() => setView({ type: 'trigger', category: trigger.id })}
                 >
-                  <div className="dialogue-settings-scene-name">{trigger.label}</div>
-                  <div className="dialogue-settings-scene-meta">
+                  <div className={styles.sceneName}>{trigger.label}</div>
+                  <div className={styles.sceneMeta}>
                     <span>{detail}</span>
-                    <span className="dialogue-settings-scene-chevron">›</span>
+                    <span className={styles.sceneChevron}>›</span>
                   </div>
                 </button>
               )
@@ -598,8 +599,8 @@ export function DialogueSettingsEditor({
     const canAddMore = customLines.length < MAX_CUSTOM_LINES_PER_CATEGORY
 
     return (
-      <div className="dialogue-settings-view">
-        <header className="dialogue-settings-header">
+      <div className={styles.view}>
+        <header className={styles.header}>
           <button
             type="button"
             className="ghost-button back-button"
@@ -616,16 +617,16 @@ export function DialogueSettingsEditor({
         {renderErrorSummary()}
 
         {triggerLevelIssue && (
-          <div className="dialogue-settings-inline-error" role="alert">
+          <div className={styles.inlineError} role="alert">
             {triggerLevelIssue}
           </div>
         )}
 
-        <div className="dialogue-settings-supporting-copy">
+        <div className={styles.supportingCopy}>
           建议 4–12 个字，最多 30 个字。可自由停用或恢复内置对白。
         </div>
 
-        <div className="dialogue-settings-lines-list">
+        <div className={styles.linesList}>
           {rows.map((row) => (
             <DialogueLineEditor
               key={`${row.source}-${row.id}`}
@@ -647,7 +648,7 @@ export function DialogueSettingsEditor({
           ))}
         </div>
 
-        <div className="dialogue-settings-trigger-actions">
+        <div className={styles.triggerActions}>
           <button
             type="button"
             className="ghost-button compact-button"
@@ -674,8 +675,8 @@ export function DialogueSettingsEditor({
               恢复内置对白
             </button>
           ) : (
-            <div className="dialogue-settings-confirm-box">
-              <span className="dialogue-settings-confirm-text">
+            <div className={styles.confirmBox}>
+              <span className={styles.confirmText}>
                 内置对白将恢复原文并重新启用，你添加的对白不会改变。
               </span>
               <button

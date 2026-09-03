@@ -7,6 +7,8 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { clsx } from "clsx";
+import styles from "./Toast.module.css";
 
 export type ToastType = "info" | "success" | "warning" | "error";
 
@@ -166,19 +168,19 @@ function ToastElement({
 
   return (
     <div
-      className={`toast-item toast-item--${toast.type}`}
+      className={clsx(styles.item, styles[toast.type])}
       role={role}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="toast-icon">
+      <div className={styles.icon}>
         <ToastIcon type={toast.type} />
       </div>
-      <div className="toast-body">
-        {toast.title && <div className="toast-title">{toast.title}</div>}
-        <div className="toast-message">{toast.message}</div>
+      <div className={styles.body}>
+        {toast.title && <div className={styles.title}>{toast.title}</div>}
+        <div className={styles.message}>{toast.message}</div>
         {toast.details && toast.details.length > 0 && (
-          <ul className="toast-details">
+          <ul className={styles.details}>
             {toast.details.map((detail, idx) => (
               <li key={idx}>{detail}</li>
             ))}
@@ -187,7 +189,7 @@ function ToastElement({
       </div>
       <button
         type="button"
-        className="toast-close"
+        className={styles.close}
         aria-label="关闭提示"
         onClick={() => onDismiss(toast.id)}
       >
@@ -289,7 +291,7 @@ export function ToastProvider({
       {children}
       {toasts.length > 0 && (
         <div
-          className="toast-container"
+          className={styles.container}
           aria-live="polite"
           aria-atomic="false"
         >

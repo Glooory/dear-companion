@@ -25,6 +25,8 @@ import { usePettingGesture } from '../interactions/use-petting-gesture'
 import { useAudioPlayback } from '../audio/use-audio-playback'
 import { useDialogue } from '../dialogues/use-dialogue'
 import { PhotoTransition } from '../components/PhotoTransition'
+import { clsx } from 'clsx'
+import styles from './PetShell.module.css'
 
 const CLICK_ACTION_VARIANTS: readonly ActionTemplate[] = ['bounce', 'curious-tilt', 'wiggle', 'nod']
 const PETTING_ACTION_VARIANTS: readonly ActionTemplate[] = ['petting-sink', 'nuzzle', 'purr-swell']
@@ -379,7 +381,15 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     void api.openSettings().catch(() => undefined)
   }
 
-  if (error) return <main className="pet-shell pet-empty-shell"><button className="pet-settings-button" type="button" onClick={openSettings}>打开设置</button></main>
+  if (error) {
+    return (
+      <main className={clsx(styles.shell, styles.emptyRuntime)}>
+        <button className={styles.emptyButton} type="button" onClick={openSettings}>
+          打开设置
+        </button>
+      </main>
+    )
+  }
 
   const runtimeSlot: ActionSlot | null = runtimeState === 'resting' || runtimeState === 'celebrating' || runtimeState === 'crying'
     ? 'resting' : null
@@ -419,14 +429,14 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   return (
     <main
-      className={`pet-shell action-${template}`}
+      className={clsx(styles.shell, 'pet-shell', `action-${template}`)}
       data-state={interactionState}
       data-has-pet={visibleImageTop === null ? undefined : 'true'}
       style={shellStyle}
       {...interactionHandlers}
     >
       {activePet && desiredAsset && dailyFallbackAsset ? (
-        <div className="pet-actor" style={actorStyle} aria-label={activePet.name}>
+        <div className={clsx(styles.actor, 'pet-actor')} style={actorStyle} aria-label={activePet.name}>
           <PhotoTransition
             key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}:${runtimeActive}`}
             petId={activePet.id}
@@ -436,7 +446,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             onTransitionComplete={handlePhotoTransitionComplete}
           />
           {resolvedAction?.overlays.includes('tears') && (
-            <span className="pet-tears-wrap" aria-hidden="true">
+            <span className={styles.tearsWrap} aria-hidden="true">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
                 <path d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z" fill="#60A5FA" />
                 <path d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.65" />
@@ -444,18 +454,18 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             </span>
           )}
           {heartVisible && (
-            <span className="pet-heart-wrap" aria-hidden="true">
+            <span className={styles.heartWrap} aria-hidden="true">
               <svg viewBox="0 0 24 24" width="30" height="30">
                 <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#F43F5E" />
               </svg>
             </span>
           )}
-          {dialogue && !runtimeActive && <span className="pet-dialogue" role="status">{dialogue}</span>}
+          {dialogue && !runtimeActive && <span className={clsx(styles.dialogue, 'pet-dialogue')} role="status">{dialogue}</span>}
         </div>
       ) : (
-        <div className="pet-empty-runtime">
+        <div className={styles.emptyRuntime}>
           <button
-            className="pet-empty-button"
+            className={styles.emptyButton}
             type="button"
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
@@ -466,9 +476,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         </div>
       )}
       {prompt && (
-        <section className="rest-bubble" role="dialog" aria-label="休息提醒">
+        <section className={clsx(styles.restBubble, 'rest-bubble')} role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
-          <div className="rest-actions">
+          <div className={styles.restActions}>
             <button type="button" onClick={startRest}>开始休息</button>
             {([5, 10, 15] as const).map((minutes) => <button type="button" key={minutes} onClick={() => snooze(minutes)}>稍后 {minutes} 分钟</button>)}
             <button type="button" onClick={skipRest}>跳过</button>
@@ -476,7 +486,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         </section>
       )}
       {session && (
-        <section className={`rest-bubble rest-${session.state}`} role="status">
+        <section className={clsx(styles.restBubble, 'rest-bubble', `rest-${session.state}`)} role="status">
           {session.state === 'crying' ? <p>{dialogue ?? '还没休息够呢～'}</p> :
             session.state === 'celebrating' ? <p>{dialogue ?? '休息结束啦！'}</p> :
             <p>{session.message} · {formatCountdown(remainingSeconds)}</p>}

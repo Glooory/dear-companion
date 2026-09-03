@@ -2,8 +2,17 @@ import { useRef } from 'react'
 import type { AssetNormalization, HeadHotspot, PetAsset } from '@shared/contracts'
 import { clampHeadHotspot, defaultHeadHotspot } from '@shared/head-hotspot'
 import { computeAssetGeometry } from '@shared/image-normalization'
+import { clsx } from 'clsx'
+import styles from './HeadHotspotEditor.module.css'
 
 type DragKind = 'center' | 'left' | 'right' | 'top' | 'bottom'
+
+const handleClassMap: Record<'left' | 'right' | 'top' | 'bottom', string | undefined> = {
+  left: styles.left,
+  right: styles.right,
+  top: styles.top,
+  bottom: styles.bottom,
+}
 
 export function HeadHotspotEditor({ asset, targetHeight, normalization, value, onChange }: {
   asset: PetAsset
@@ -44,7 +53,7 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
   return (
     <>
       <div
-        className="head-hotspot"
+        className={styles.hotspot}
         title="摸头感应区：光标在此区域来回移动可触发摸头互动"
         style={{
           left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
@@ -56,9 +65,9 @@ export function HeadHotspotEditor({ asset, targetHeight, normalization, value, o
         onPointerMove={move}
         onPointerUp={() => { drag.current = null }}
       >
-        <span className="hotspot-guide-label">摸头感应区</span>
+        <span className={styles.guideLabel}>摸头感应区</span>
         {(['left', 'right', 'top', 'bottom'] as const).map((kind) => (
-          <span key={kind} className={`hotspot-handle ${kind}`} onPointerDown={(event) => {
+          <span key={kind} className={clsx(styles.handle, handleClassMap[kind])} onPointerDown={(event) => {
             event.stopPropagation()
             begin(event, kind)
           }} />
