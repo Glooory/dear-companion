@@ -1,3 +1,4 @@
+import { ToastProvider } from './components/Toast'
 import { PetShell } from './windows/PetShell'
 import { SettingsShell } from './windows/SettingsShell'
 
@@ -7,7 +8,12 @@ export function App(): React.JSX.Element {
   // eslint-disable-next-line react-hooks/immutability
   document.documentElement.dataset.window = kind
 
-  return kind === 'pet'
-    ? <PetShell api={window.dearCompanion} />
-    : <SettingsShell api={window.dearCompanion} />
+  return (
+    <ToastProvider>
+      {kind === 'pet'
+        ? <PetShell api={window.dearCompanion} />
+        : <SettingsShell api={window.dearCompanion} />}
+    </ToastProvider>
+  )
 }
+

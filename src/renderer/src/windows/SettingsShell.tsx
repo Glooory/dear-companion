@@ -2,14 +2,12 @@ import {
   MAX_PET_TARGET_HEIGHT,
   MIN_PET_TARGET_HEIGHT,
   type AppSettings,
-  type AudioImportResult,
   type AudioSourceInput,
   type AutostartStatus,
   type CompanionSystemSnapshot,
   type CreateReminderInput,
   type CreateWorkScheduleInput,
   type CursorTolerance,
-  type ImageImportResult,
   type PetConfig,
   type PetRendererStatus,
   type PetSystemSnapshot,
@@ -34,6 +32,7 @@ import {
 } from "../components/ReminderEditor";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
+import { useToast } from "../components/Toast";
 import {
   clonePetDialogueSettings,
   getDialogueValidationIssues,
@@ -44,6 +43,7 @@ interface SettingsShellProps {
 }
 
 export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
+  const toast = useToast();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null);
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(
@@ -60,11 +60,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [newPetName, setNewPetName] = useState("");
   const [isCreatingPet, setIsCreatingPet] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [importReport, setImportReport] = useState<ImageImportResult | null>(
-    null,
-  );
-  const [audioImportReport, setAudioImportReport] =
-    useState<AudioImportResult | null>(null);
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(
     null,
   );
@@ -199,13 +194,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const runMutation = async (operation: () => Promise<void>): Promise<void> => {
     if (isBusy) return;
     setIsBusy(true);
-    setError(null);
     try {
       await operation();
     } catch (err) {
       console.error("Mutation failed:", err);
       const message = err instanceof Error ? err.message : String(err);
-      setError(`没有保存成功：${message}`);
+      toast.error(`操作未成功：${message}`);
     } finally {
       setIsBusy(false);
     }
@@ -214,7 +208,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const createPet = (): void => {
     const name = newPetName.trim();
     if (!name || name.length > 80) {
-      setError("请为伙伴起一个名字（最多 80 个字）。");
+      toast.warning("请为伙伴起一个名字（最多 80 个字）。");
       return;
     }
     void runMutation(async () => {
@@ -227,6 +221,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setNewPetName("");
       setIsCreatingPet(false);
       setPetEditorPage("details");
+      toast.success(`已添加伙伴“${name}”`);
     });
   };
 
@@ -235,7 +230,33 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     if (!selectedPetId) return;
     void runMutation(async () => {
       const report = await api.chooseAndImportPetAssets(selectedPetId);
-      setImportReport(report);
+      if (report.failures.length === 0) {
+        toast.success(`成功导入 ${report.imported.length} 张照片`);
+      } else if (report.imported.length === 0) {
+        const firstFailure = report.failures[0];
+        toast.error(
+          report.failures.length === 1 && firstFailure
+            ? `照片导入失败：${firstFailure.message}`
+            : `照片导入失败（共 ${report.failures.length} 张失败）`,
+          {
+            details:
+              report.failures.length > 1
+                ? report.failures.map(
+                    (f) => `第 ${f.index + 1} 张：${f.message}`,
+                  )
+                : undefined,
+          },
+        );
+      } else {
+        toast.warning(
+          `已导入 ${report.imported.length} 张照片，${report.failures.length} 张导入失败`,
+          {
+            details: report.failures.map(
+              (f) => `第 ${f.index + 1} 张：${f.message}`,
+            ),
+          },
+        );
+      }
       const next = await api.getPetSystemSnapshot();
       setSnapshot(next);
       const nextPet = next.pets.find((pet) => pet.id === selectedPetId);
@@ -265,7 +286,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setSelectedPetId(replacement?.id ?? null);
       setDraft(replacement ? petToUpdateInput(replacement) : null);
       setTargetHeightText(replacement ? String(replacement.targetHeight) : "");
-      setImportReport(null);
       setPetEditorPage("details");
       setSettings((current) =>
         current
@@ -276,13 +296,14 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             }
           : current,
       );
+      toast.success("已删除伙伴");
     });
   };
 
   const deleteAsset = (assetId: string): void => {
     if (!selectedPet) return;
     if (selectedPet.id === snapshot?.activePetId && selectedPet.assets.length <= 1) {
-      setError("使用中的伙伴需至少保留一张照片。");
+      toast.warning("使用中的伙伴需至少保留一张照片。");
       return;
     }
     const targetAssetIndex = selectedPet.assets.findIndex((a) => a.id === assetId);
@@ -296,6 +317,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       if (nextPet) {
         setDraft(petToUpdateInput(nextPet));
       }
+      toast.success("已删除照片");
     });
   };
 
@@ -304,25 +326,25 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     setSelectedPetId(pet.id);
     setDraft(petToUpdateInput(pet));
     setTargetHeightText(String(pet.targetHeight));
-    setImportReport(null);
     setPetEditorPage("details");
   };
 
   const saveDraft = (): void => {
     if (!draft || !selectedPet) return;
     if (selectedPet.assets.length === 0) {
-      setError("需先导入照片才可保存设置。");
+      toast.warning("需先导入照片才可保存设置。");
       return;
     }
     const issues = getDialogueValidationIssues(draft.dialogueSettings);
     if (issues.length > 0) {
       setPetEditorPage("dialogues");
       setDialogueValidationAttempt((prev) => prev + 1);
+      toast.warning("对白设置中存在未填写的项目，请检查后再保存。");
       return;
     }
     const targetHeight = normalizeTargetHeight(targetHeightText);
     if (targetHeight === null) {
-      setError(
+      toast.warning(
         `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
       );
       return;
@@ -340,6 +362,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
+      toast.success("伙伴设置已保存");
     });
   };
 
@@ -348,7 +371,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       if (draft && draft.id === petId) {
         const targetHeight = normalizeTargetHeight(targetHeightText);
         if (targetHeight === null) {
-          setError(
+          toast.warning(
             `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
           );
           return;
@@ -371,6 +394,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           ? { ...current, activePetId: next.activePetId, pets: next.pets }
           : current,
       );
+      toast.success("已切换当前伙伴");
     });
   };
 
@@ -384,10 +408,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const updateAutostart = (): void => {
     if (!autostartStatus) return;
+    const target = !autostartStatus.requested;
     void runMutation(async () => {
-      setAutostartStatus(
-        await api.setAutostartEnabled(!autostartStatus.requested),
-      );
+      const next = await api.setAutostartEnabled(target);
+      setAutostartStatus(next);
+      if (next.errorCode) {
+        toast.error(
+          `自启动设置失败（${autostartErrorMessage(next.errorCode)}）。原设置保持不变。`,
+        );
+      } else {
+        toast.success(target ? "已开启开机启动" : "已关闭开机启动");
+      }
     });
   };
 
@@ -414,21 +445,24 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   const createWorkSchedule = (input: CreateWorkScheduleInput): void => {
-    void runMutation(async () =>
-      applyCompanionSnapshot(await api.createWorkSchedule(input)),
-    );
+    void runMutation(async () => {
+      applyCompanionSnapshot(await api.createWorkSchedule(input));
+      toast.success("工作日程已添加");
+    });
   };
 
   const updateWorkSchedule = (input: WorkSchedule): void => {
-    void runMutation(async () =>
-      applyCompanionSnapshot(await api.updateWorkSchedule(input)),
-    );
+    void runMutation(async () => {
+      applyCompanionSnapshot(await api.updateWorkSchedule(input));
+      toast.success("工作日程已更新");
+    });
   };
 
   const deleteWorkSchedule = (id: string): void => {
-    void runMutation(async () =>
-      applyCompanionSnapshot(await api.deleteWorkSchedule(id)),
-    );
+    void runMutation(async () => {
+      applyCompanionSnapshot(await api.deleteWorkSchedule(id));
+      toast.success("工作日程已删除");
+    });
   };
 
   const setWorkScheduleEnabled = (id: string, enabled: boolean): void => {
@@ -471,11 +505,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       sounds: { ...draftValue.sounds },
     };
     void runMutation(async () => {
+      const isEditing = Boolean(draftValue.id);
       const next = draftValue.id
         ? await api.updateReminder({ id: draftValue.id, ...input })
         : await api.createReminder(input);
       applyRestSnapshot(next);
       setReminderDraft(null);
+      toast.success(isEditing ? "休息提醒已更新" : "休息提醒已创建");
     });
   };
 
@@ -484,6 +520,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       applyRestSnapshot(await api.deleteReminder(reminderDraft.id!));
       setReminderDraft(null);
+      toast.success("休息提醒已删除");
     });
   };
 
@@ -529,15 +566,42 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const importAudio = (): void => {
     void runMutation(async () => {
       const report = await api.chooseAndImportAudio();
-      setAudioImportReport(report);
+      if (report.failures.length === 0) {
+        toast.success(`成功导入 ${report.imported.length} 个声音文件`);
+      } else if (report.imported.length === 0) {
+        const firstFailure = report.failures[0];
+        toast.error(
+          report.failures.length === 1 && firstFailure
+            ? `声音导入失败：${firstFailure.message}`
+            : `声音导入失败（共 ${report.failures.length} 个失败）`,
+          {
+            details:
+              report.failures.length > 1
+                ? report.failures.map(
+                    (f) => `第 ${f.index + 1} 个：${f.message}`,
+                  )
+                : undefined,
+          },
+        );
+      } else {
+        toast.warning(
+          `已导入 ${report.imported.length} 个声音，${report.failures.length} 个导入失败`,
+          {
+            details: report.failures.map(
+              (f) => `第 ${f.index + 1} 个：${f.message}`,
+            ),
+          },
+        );
+      }
       applyRestSnapshot(await api.getRestSystemSnapshot());
     });
   };
 
   const updateAudioSources = (input: AudioSourceInput): void => {
-    void runMutation(async () =>
-      applyRestSnapshot(await api.updateAudioSources(input)),
-    );
+    void runMutation(async () => {
+      applyRestSnapshot(await api.updateAudioSources(input));
+      toast.success("声音设置已更新");
+    });
   };
 
   return (
@@ -606,20 +670,18 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         </nav>
       </header>
 
-      {error && (
+      {error && !settings && (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          {!settings && (
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setLoadAttempt((value) => value + 1);
-              }}
-            >
-              重试
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setLoadAttempt((value) => value + 1);
+            }}
+          >
+            重试
+          </button>
         </div>
       )}
 
@@ -761,19 +823,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </div>
                 </div>
 
-                {importReport && (
-                  <div className="import-report" role="status">
-                    <strong>
-                      已成功导入 {importReport.imported.length} 张照片
-                    </strong>
-                    {importReport.failures.map((failure) => (
-                      <p key={`${failure.index}-${failure.code}`}>
-                        第 {failure.index + 1} 张：{failure.message}
-                      </p>
-                    ))}
-                  </div>
-                )}
-
                 <div className="pet-basic-fields">
                   <label>
                     <span className="field-label-row">
@@ -832,7 +881,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     onPreview={(pace) => {
                       void api
                         .previewCompanionPace(pace)
-                        .catch(() => setError("暂时无法预览，请稍后再试。"));
+                        .catch(() => toast.error("暂时无法预览，请稍后再试。"));
                     }}
                   />
                 </section>
@@ -1040,7 +1089,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           </article>
           <AudioSettings
             audio={restSnapshot.audio}
-            report={audioImportReport}
             disabled={isBusy}
             onImport={importAudio}
             onChange={updateAudioSources}

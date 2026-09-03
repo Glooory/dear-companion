@@ -1,17 +1,16 @@
-import type { AudioImportResult, AudioSettingsV3, AudioSource, AudioSourceInput } from '@shared/contracts'
+import type { AudioSettingsV3, AudioSource, AudioSourceInput } from '@shared/contracts'
 import { useEffect, useRef, useState } from 'react'
 import { playAudioSource } from '../audio/use-audio-playback'
 import { InfoTooltip } from './Tooltip'
 
 interface Props {
   audio: AudioSettingsV3
-  report: AudioImportResult | null
   disabled: boolean
   onImport(): void
   onChange(input: AudioSourceInput): void
 }
 
-export function AudioSettings({ audio, report, disabled, onImport, onChange }: Props): React.JSX.Element {
+export function AudioSettings({ audio, disabled, onImport, onChange }: Props): React.JSX.Element {
   const [playingCue, setPlayingCue] = useState<'reminder' | 'crying' | null>(null)
   const stopPreviewRef = useRef<(() => void) | null>(null)
 
@@ -97,7 +96,6 @@ export function AudioSettings({ audio, report, disabled, onImport, onChange }: P
           </div>
         )
       })}
-      {report && <div className="import-report" role="status"><strong>已导入 {report.imported.length} 个声音</strong>{report.failures.map((failure) => <p key={`${failure.index}-${failure.code}`}>第 {failure.index + 1} 个：{failure.message}</p>)}</div>}
     </article>
   )
 }
