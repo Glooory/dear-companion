@@ -5,7 +5,7 @@ import type { SettingsStore } from "../settings/settings-store";
 import type { WindowManager } from "../windows/window-manager";
 
 const traySvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="black" fill-rule="evenodd" d="M16 3.5C8.5 3.5 2.5 8.8 2.5 15.5C2.5 19 4.2 22.2 7 24.2L5.5 28.8C5.3 29.5 6 30.1 6.8 29.8L12.3 26.7C13.5 27.2 14.7 27.5 16 27.5C23.5 27.5 29.5 22.2 29.5 15.5C29.5 8.8 23.5 3.5 16 3.5ZM16 23.5C15.2 23.5 14.2 22.8 13.5 22C10.5 18.8 8 16.2 8 13.8C8 11.2 10 9.5 12.5 9.5C14.1 9.5 15.3 10.4 16 11.8C16.7 10.4 17.9 9.5 19.5 9.5C22 9.5 24 11.2 24 13.8C24 16.2 21.5 18.8 18.5 22C17.8 22.8 16.8 23.5 16 23.5Z"/></svg>';
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32"><path fill="black" fill-rule="evenodd" d="M16 1.2C7.5 1.2 0.5 7 0.5 14.2C0.5 18 2.2 21.4 5.2 23.8L3.2 29.8C2.9 30.6 3.8 31.3 4.6 30.9L11.5 27.1C12.9 27.6 14.4 27.8 16 27.8C24.5 27.8 31.5 22 31.5 14.2C31.5 7 24.5 1.2 16 1.2ZM16 24.2C15 24.2 13.8 23.2 12.8 22.1C9.2 18.2 6 15 6 12C6 8.8 8.5 6.6 11.8 6.6C13.8 6.6 15.2 7.7 16 9.2C16.8 7.7 18.2 6.6 20.2 6.6C23.5 6.6 26 8.8 26 12C26 15 22.8 18.2 19.2 22.1C18.2 23.2 17 24.2 16 24.2Z"/></svg>';
 
 interface TrayControllerOptions {
   settingsStore: Pick<SettingsStore, "update">;
