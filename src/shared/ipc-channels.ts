@@ -12,6 +12,7 @@ export const IPC_CHANNELS = {
   setActivePet: "pet-system:set-active-pet",
   movePetBy: "pet-system:move-pet-by",
   nudgePetBy: "pet-system:nudge-pet-by",
+  setPetIgnoreMouseEvents: "pet-system:set-ignore-mouse-events",
   showPetContextMenu: "pet-system:show-context-menu",
   previewCompanionPace: "pet-system:preview-pace",
   petInteractionRequested: "pet-system:interaction-requested",

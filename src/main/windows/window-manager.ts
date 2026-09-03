@@ -52,6 +52,7 @@ export class WindowManager {
   private settingsBoundsLoaded = false;
   private readonly windowListenerDisposers = new Map<BrowserWindow, Array<() => void>>();
   private pendingSettingsTarget: SettingsNavigationTarget | null = null;
+  private petIgnoreMouseEvents: boolean | null = null;
 
   constructor({ settingsStore, preloadPath, isPackaged, userDataPath }: WindowManagerOptions) {
     this.settingsStore = settingsStore;
@@ -78,6 +79,7 @@ export class WindowManager {
     const petWindow = new BrowserWindow(createPetWindowOptions(this.preloadPath));
     petWindow.setHasShadow(false);
     this.petWindow = petWindow;
+    this.petIgnoreMouseEvents = null;
     this.petWindowReady = false;
     this.petWindowPlaced = false;
     this.secureWindow(petWindow);
@@ -315,6 +317,20 @@ export class WindowManager {
     const display = screen.getDisplayMatching(bounds);
     const next = moveRectWithinWorkArea(bounds, display.workArea, deltaX, deltaY);
     petWindow.setPosition(Math.round(next.x), Math.round(next.y));
+  }
+
+  setPetIgnoreMouseEvents(ignore: boolean): void {
+    if (this.disposed) return;
+    const petWindow = this.petWindow;
+    if (!petWindow || petWindow.isDestroyed()) return;
+    const normalized = Boolean(ignore);
+    if (this.petIgnoreMouseEvents === normalized) return;
+    this.petIgnoreMouseEvents = normalized;
+    try {
+      petWindow.setIgnoreMouseEvents(normalized, { forward: true });
+    } catch {
+      // Ignore errors during window destruction or invalid native handles
+    }
   }
 
   broadcastPetSystemChanged(snapshot: PetSystemSnapshot): void {

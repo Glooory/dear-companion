@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { clsx } from "clsx";
 import { resolveAction, type ActionTemplate, type ResolvedAction } from "@shared/action-fallback";
 import { createPeepApproachSteps, createPostureShiftSteps } from "@shared/companion-rhythm";
@@ -254,6 +254,22 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     onDirection: performWaddle,
   });
 
+  const isDraggingRef = useRef(false);
+  const applyIgnoreRef = useRef<(nextIgnore: boolean) => void>(() => undefined);
+
+  const handleDragSessionChange = useCallback((active: boolean, event?: PointerEvent<HTMLElement>): void => {
+    isDraggingRef.current = active;
+    if (active) {
+      applyIgnoreRef.current(false);
+    } else if (event) {
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const isInteractive = Boolean(target?.closest?.('[data-pet-interactive="true"]'));
+      applyIgnoreRef.current(!isInteractive);
+    } else {
+      applyIgnoreRef.current(true);
+    }
+  }, []);
+
   const {
     state: interactionState,
     tilt,
@@ -276,12 +292,54 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       api.cancelPettingGesture();
       finishAction();
     },
+    onDragSessionChange: handleDragSessionChange,
     onLocalPointerMove: (event) => {
       const pettingCandidateActive = pettingPointerMove(event);
       bodyWaddlePointerMove(event, pettingCandidateActive);
     },
     runtimeState,
   });
+
+  useEffect(() => {
+    if (!pageVisible || !snapshot?.petWindow.visible) return;
+
+    let ignoring = false;
+    const applyIgnore = (nextIgnore: boolean): void => {
+      if (ignoring === nextIgnore) return;
+      ignoring = nextIgnore;
+      api.setIgnoreMouseEvents(nextIgnore);
+    };
+    applyIgnoreRef.current = applyIgnore;
+
+    const initialInteractive = Boolean(document.querySelector('[data-pet-interactive="true"]:hover'));
+    applyIgnore(!initialInteractive);
+
+    const handleMouseMove = (event: MouseEvent): void => {
+      if (isDraggingRef.current) {
+        applyIgnore(false);
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      const isInteractive = Boolean(target?.closest?.('[data-pet-interactive="true"]'));
+      applyIgnore(!isInteractive);
+    };
+
+    const handleMouseLeave = (): void => {
+      if (!isDraggingRef.current) {
+        applyIgnore(true);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    document.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      applyIgnoreRef.current = () => undefined;
+      applyIgnore(false);
+    };
+  }, [api, pageVisible, snapshot?.petWindow.visible]);
 
   const performAmbient = useCallback((): void => {
     if (!activePet || !baseAsset) return;
@@ -466,7 +524,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   if (error) {
     return (
       <main className={clsx(styles.shell, styles.emptyRuntime)}>
-        <button className={styles.emptyButton} type="button" onClick={openSettings}>
+        <button className={styles.emptyButton} type="button" onClick={openSettings} data-pet-interactive="true">
           打开设置
         </button>
       </main>
@@ -587,7 +645,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             </span>
           )}
           {dialogue && !runtimeActive && (
-            <span className={clsx(styles.dialogue, "pet-dialogue")} role="status">
+            <span className={clsx(styles.dialogue, "pet-dialogue")} role="status" data-pet-interactive="true">
               {dialogue}
             </span>
           )}
@@ -597,6 +655,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           <button
             className={styles.emptyButton}
             type="button"
+            data-pet-interactive="true"
             onPointerDown={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={openSettings}
@@ -606,7 +665,12 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         </div>
       )}
       {prompt && (
-        <section className={clsx(styles.restBubble, "rest-bubble")} role="dialog" aria-label="休息提醒">
+        <section
+          className={clsx(styles.restBubble, "rest-bubble")}
+          role="dialog"
+          aria-label="休息提醒"
+          data-pet-interactive="true"
+        >
           <p>{prompt.message}</p>
           <div className={styles.restActions}>
             <button type="button" onClick={startRest}>
@@ -624,7 +688,11 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         </section>
       )}
       {session && (
-        <section className={clsx(styles.restBubble, "rest-bubble", `rest-${session.state}`)} role="status">
+        <section
+          className={clsx(styles.restBubble, "rest-bubble", `rest-${session.state}`)}
+          role="status"
+          data-pet-interactive="true"
+        >
           {session.state === "crying" ? (
             <p>{dialogue ?? "还没休息够呢～"}</p>
           ) : session.state === "celebrating" ? (

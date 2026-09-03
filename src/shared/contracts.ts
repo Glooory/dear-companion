@@ -342,6 +342,7 @@ export interface PetSystemApi extends FoundationApi {
   setActivePet(petId: string): Promise<PetSystemSnapshot>;
   movePetBy(deltaX: number, deltaY: number): void;
   nudgePetBy(deltaX: number, deltaY: number): void;
+  setIgnoreMouseEvents(ignore: boolean): void;
   showPetContextMenu(): void;
   previewCompanionPace(pace: CompanionPace): Promise<void>;
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void;

@@ -98,6 +98,8 @@ export function PhotoTransition({
       {outgoing && outgoingGeometry && (
         <span
           className={clsx(styles.frame, styles.crossOutgoing, "pet-image-frame")}
+          data-pet-interactive="true"
+          data-pet-drag="true"
           style={{
             left: outgoingGeometry.left,
             top: outgoingGeometry.top,
@@ -112,6 +114,8 @@ export function PhotoTransition({
       )}
       <span
         className={clsx(styles.frame, outgoing ? styles.crossIncoming : "photo-idle", "pet-image-frame")}
+        data-pet-interactive="true"
+        data-pet-drag="true"
         style={{
           left: currentGeometry.left,
           top: currentGeometry.top,

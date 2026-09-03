@@ -23,6 +23,7 @@ interface PetSystemIpcDependencies {
     | "getOwnedWindow"
     | "movePetBy"
     | "nudgePetBy"
+    | "setPetIgnoreMouseEvents"
     | "broadcastPetSystemChanged"
     | "isPetVisible"
     | "showPet"
@@ -96,6 +97,15 @@ export function registerPetSystemIpc({
       )
         return;
       windowManager.nudgePetBy(deltaX, deltaY);
+    } catch {
+      // Unknown or stale renderer senders receive no privileged action.
+    }
+  };
+
+  const setIgnoreMouseEventsListener = (event: IpcMainEvent, ignore: unknown): void => {
+    try {
+      if (windowManager.getWindowKind(event.sender.id) !== "pet") return;
+      windowManager.setPetIgnoreMouseEvents(Boolean(ignore));
     } catch {
       // Unknown or stale renderer senders receive no privileged action.
     }
@@ -271,11 +281,13 @@ export function registerPetSystemIpc({
 
     ipcMain.on(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.on(IPC_CHANNELS.nudgePetBy, nudgePetListener);
+    ipcMain.on(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
     ipcMain.on(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
   } catch (error) {
     for (const channel of handledChannels) ipcMain.removeHandler(channel);
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener);
+    ipcMain.removeListener(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
     throw error;
   }
@@ -286,6 +298,7 @@ export function registerPetSystemIpc({
     for (const channel of handledChannels) ipcMain.removeHandler(channel);
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener);
+    ipcMain.removeListener(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
   };
 }

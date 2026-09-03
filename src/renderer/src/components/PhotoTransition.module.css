@@ -4,6 +4,11 @@
   user-select: none;
   -webkit-user-drag: none;
   transform-origin: center bottom;
+  cursor: grab;
+}
+
+.frame:active {
+  cursor: grabbing;
 }
 
 .image {

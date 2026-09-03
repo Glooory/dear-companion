@@ -11,6 +11,7 @@ interface UsePetInteractionsOptions {
   onLand?: () => void;
   onPrimaryClick(): void;
   onDragStarted?(): void;
+  onDragSessionChange?(active: boolean, event?: PointerEvent<HTMLElement>): void;
   onLocalPointerMove?(event: PointerEvent<HTMLElement>): void;
   runtimeState?: "reminding" | "resting" | "crying" | "celebrating" | null;
 }
@@ -30,6 +31,7 @@ export function usePetInteractions({
   onLand,
   onPrimaryClick,
   onDragStarted,
+  onDragSessionChange,
   onLocalPointerMove,
   runtimeState = null,
 }: UsePetInteractionsOptions) {
@@ -50,9 +52,12 @@ export function usePetInteractions({
 
   useEffect(() => {
     if (!visible || runtimeState) {
-      drag.current = null;
+      if (drag.current) {
+        drag.current = null;
+        onDragSessionChange?.(false);
+      }
     }
-  }, [runtimeState, visible]);
+  }, [onDragSessionChange, runtimeState, visible]);
 
   const finishAction = useCallback((): void => {
     setState((current) =>
@@ -64,6 +69,9 @@ export function usePetInteractions({
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     if (event.button !== 0 || state === "hidden" || runtimeState) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('[data-pet-drag="true"]')) return;
+    onDragSessionChange?.(true, event);
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {
       lastScreenX: event.screenX,
@@ -96,6 +104,14 @@ export function usePetInteractions({
 
     onLocalPointerMove?.(event);
 
+    const target = event.target as HTMLElement | null;
+    const isOverPet = Boolean(target?.closest?.('[data-pet-drag="true"]'));
+    if (!isOverPet) {
+      setTilt({ x: 0, y: 0 });
+      setState((current) => (current === "hovering" ? transitionPetState(current, { type: "hover-end" }) : current));
+      return;
+    }
+
     const rect = event.currentTarget.getBoundingClientRect();
     const normalizedX = rect.width > 0 ? (event.clientX - rect.left) / rect.width - 0.5 : 0;
     const normalizedY = rect.height > 0 ? (event.clientY - rect.top) / rect.height - 0.5 : 0;
@@ -110,6 +126,7 @@ export function usePetInteractions({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    onDragSessionChange?.(false, event);
     const angry = session.moved && isAngryDragRelease(session.samples, angryVelocity);
     suppressClick.current = session.moved;
     if (session.moved)
@@ -121,8 +138,10 @@ export function usePetInteractions({
     else if (session.moved) onLand?.();
   };
 
-  const onClick = (): void => {
+  const onClick = (event: MouseEvent<HTMLElement>): void => {
     if (runtimeState) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('[data-pet-drag="true"]')) return;
     if (suppressClick.current) {
       suppressClick.current = false;
       return;
@@ -133,10 +152,12 @@ export function usePetInteractions({
   const onPointerLeave = (): void => {
     if (drag.current) return;
     setTilt({ x: 0, y: 0 });
-    setState((current) => transitionPetState(current, { type: "hover-end" }));
+    setState((current) => (current === "hovering" ? transitionPetState(current, { type: "hover-end" }) : current));
   };
 
   const onContextMenu = (event: MouseEvent<HTMLElement>): void => {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('[data-pet-interactive="true"]')) return;
     event.preventDefault();
     api.showPetContextMenu();
   };

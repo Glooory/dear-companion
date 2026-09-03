@@ -25,6 +25,7 @@ const api: ReleaseHardeningApi = {
   setActivePet: (petId) => ipcRenderer.invoke(IPC_CHANNELS.setActivePet, petId),
   movePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.movePetBy, deltaX, deltaY),
   nudgePetBy: (deltaX, deltaY) => ipcRenderer.send(IPC_CHANNELS.nudgePetBy, deltaX, deltaY),
+  setIgnoreMouseEvents: (ignore) => ipcRenderer.send(IPC_CHANNELS.setPetIgnoreMouseEvents, Boolean(ignore)),
   showPetContextMenu: () => ipcRenderer.send(IPC_CHANNELS.showPetContextMenu),
   previewCompanionPace: (pace) => ipcRenderer.invoke(IPC_CHANNELS.previewCompanionPace, pace),
   onPetSystemChanged: (listener) => {
