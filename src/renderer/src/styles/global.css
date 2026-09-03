@@ -2165,20 +2165,26 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
-.pet-empty-button {
+.pet-empty-runtime {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pet-empty-button {
   width: 132px;
   height: 164px;
   padding: 20px;
-  transform: translate(-50%, -50%);
   border: 3px solid rgba(255, 255, 255, 0.9);
   border-radius: 48% 48% 42% 42% / 42% 42% 56% 56%;
   background: linear-gradient(145deg, #74a898, #3d7363);
   box-shadow: 0 14px 32px rgba(36, 71, 61, 0.28);
   color: white;
   cursor: pointer;
+  pointer-events: auto;
 }
 
 .pet-tears-wrap {

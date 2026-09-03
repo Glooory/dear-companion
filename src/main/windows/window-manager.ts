@@ -156,6 +156,7 @@ export class WindowManager {
     }
     if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
       if (this.settingsWindowReady) {
+        if (this.settingsWindow.isMinimized()) this.settingsWindow.restore()
         this.settingsWindow.show()
         this.settingsWindow.focus()
         if (target) {

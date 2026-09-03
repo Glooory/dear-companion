@@ -452,7 +452,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           )}
           {dialogue && !runtimeActive && <span className="pet-dialogue" role="status">{dialogue}</span>}
         </div>
-      ) : <div className="pet-empty-runtime"><button className="pet-empty-button" type="button" onClick={openSettings}>添加伙伴</button></div>}
+      ) : (
+        <div className="pet-empty-runtime">
+          <button
+            className="pet-empty-button"
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={openSettings}
+          >
+            添加伙伴
+          </button>
+        </div>
+      )}
       {prompt && (
         <section className="rest-bubble" role="dialog" aria-label="休息提醒">
           <p>{prompt.message}</p>
