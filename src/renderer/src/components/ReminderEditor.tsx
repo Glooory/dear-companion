@@ -1,27 +1,33 @@
-import type { CreateReminderInput, CursorTolerance } from '@shared/contracts'
-import { WeekdayPicker } from './WeekdayPicker'
-import styles from './ReminderEditor.module.css'
+import type { CreateReminderInput, CursorTolerance } from "@shared/contracts";
+import { WeekdayPicker } from "./WeekdayPicker";
+import styles from "./ReminderEditor.module.css";
 
-export interface ReminderDraft extends Omit<CreateReminderInput, 'hour' | 'minute'> {
-  id?: string
-  hour: number | null
-  minute: number | null
+export interface ReminderDraft extends Omit<CreateReminderInput, "hour" | "minute"> {
+  id?: string;
+  hour: number | null;
+  minute: number | null;
 }
 
 interface Props {
-  value: ReminderDraft
-  disabled: boolean
-  onChange(value: ReminderDraft): void
-  onSave(): void
-  onCancel(): void
-  onDelete?: () => void
+  value: ReminderDraft;
+  disabled: boolean;
+  onChange(value: ReminderDraft): void;
+  onSave(): void;
+  onCancel(): void;
+  onDelete?: () => void;
 }
 
 export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, onDelete }: Props): React.JSX.Element {
-  const timeValue = value.hour === null || value.minute === null
-    ? '' : `${String(value.hour).padStart(2, '0')}:${String(value.minute).padStart(2, '0')}`
-  const valid = value.hour !== null && value.minute !== null && value.weekdays.length > 0 &&
-    value.message.trim().length >= 1 && value.message.trim().length <= 200
+  const timeValue =
+    value.hour === null || value.minute === null
+      ? ""
+      : `${String(value.hour).padStart(2, "0")}:${String(value.minute).padStart(2, "0")}`;
+  const valid =
+    value.hour !== null &&
+    value.minute !== null &&
+    value.weekdays.length > 0 &&
+    value.message.trim().length >= 1 &&
+    value.message.trim().length <= 200;
 
   return (
     <div className={styles.editor}>
@@ -34,12 +40,12 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               type="time"
               value={timeValue}
               onChange={(event) => {
-                const [hour, minute] = event.currentTarget.value.split(':').map(Number)
+                const [hour, minute] = event.currentTarget.value.split(":").map(Number);
                 onChange({
                   ...value,
                   hour: Number.isInteger(hour) ? hour! : null,
-                  minute: Number.isInteger(minute) ? minute! : null
-                })
+                  minute: Number.isInteger(minute) ? minute! : null,
+                });
               }}
             />
           </label>
@@ -51,12 +57,12 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               max={120}
               value={value.restDurationMinutes}
               onChange={(event) => {
-                const next = Number(event.currentTarget.value)
+                const next = Number(event.currentTarget.value);
                 if (Number.isInteger(next)) {
                   onChange({
                     ...value,
-                    restDurationMinutes: Math.min(Math.max(next, 1), 120)
-                  })
+                    restDurationMinutes: Math.min(Math.max(next, 1), 120),
+                  });
                 }
               }}
             />
@@ -68,7 +74,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               onChange={(event) =>
                 onChange({
                   ...value,
-                  cursorTolerance: event.currentTarget.value as CursorTolerance
+                  cursorTolerance: event.currentTarget.value as CursorTolerance,
                 })
               }
             >
@@ -120,7 +126,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
                 onChange={(event) =>
                   onChange({
                     ...value,
-                    sounds: { ...value.sounds, reminder: event.currentTarget.checked }
+                    sounds: { ...value.sounds, reminder: event.currentTarget.checked },
                   })
                 }
               />
@@ -136,7 +142,7 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
                 onChange={(event) =>
                   onChange({
                     ...value,
-                    sounds: { ...value.sounds, crying: event.currentTarget.checked }
+                    sounds: { ...value.sounds, crying: event.currentTarget.checked },
                   })
                 }
               />
@@ -161,5 +167,5 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
         </button>
       </div>
     </div>
-  )
+  );
 }

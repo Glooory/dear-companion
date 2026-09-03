@@ -88,6 +88,7 @@ Write each later plan only after the previous milestone is implemented and revie
 ### Task 1: Bootstrap the Electron TypeScript Toolchain
 
 **Files:**
+
 - Create: `.nvmrc`
 - Create: `package.json`
 - Create: `pnpm-lock.yaml` via pnpm
@@ -105,6 +106,7 @@ Write each later plan only after the previous milestone is implemented and revie
 - Create: `src/renderer/src/App.tsx`
 
 **Interfaces:**
+
 - Consumes: None.
 - Produces: `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm lint`, and `pnpm test`; electron-vite output at `out/main`, `out/preload`, and `out/renderer`.
 
@@ -157,27 +159,27 @@ Expected: `package.json` contains resolved version ranges and `pnpm-lock.yaml` i
 Create `electron.vite.config.ts`:
 
 ```ts
-import { resolve } from 'node:path'
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'electron-vite'
+import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "electron-vite";
 
 export default defineConfig({
   main: {
-    resolve: { alias: { '@shared': resolve('src/shared') } }
+    resolve: { alias: { "@shared": resolve("src/shared") } },
   },
   preload: {
-    resolve: { alias: { '@shared': resolve('src/shared') } }
+    resolve: { alias: { "@shared": resolve("src/shared") } },
   },
   renderer: {
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/src'),
-        '@shared': resolve('src/shared')
-      }
+        "@renderer": resolve("src/renderer/src"),
+        "@shared": resolve("src/shared"),
+      },
     },
-    plugins: [react()]
-  }
-})
+    plugins: [react()],
+  },
+});
 ```
 
 Create `tsconfig.json`:
@@ -185,10 +187,7 @@ Create `tsconfig.json`:
 ```json
 {
   "files": [],
-  "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.web.json" }
-  ]
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }
 ```
 
@@ -208,7 +207,13 @@ Create `tsconfig.node.json`:
     "paths": { "@shared/*": ["src/shared/*"] },
     "skipLibCheck": true
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "electron.vite.config.ts",
+    "vitest.config.ts",
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "src/shared/**/*.ts"
+  ]
 }
 ```
 
@@ -241,15 +246,15 @@ Create `tsconfig.web.json`:
 Create `vitest.config.ts`:
 
 ```ts
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
-    clearMocks: true
-  }
-})
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+    clearMocks: true,
+  },
+});
 ```
 
 - [ ] **Step 4: Add lint and packaging configuration**
@@ -257,30 +262,30 @@ export default defineConfig({
 Create `eslint.config.mjs`:
 
 ```js
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import tseslint from 'typescript-eslint'
+import js from "@eslint/js";
+import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ['out/**', 'release/**', 'coverage/**', '.superpowers/**'] },
+  { ignores: ["out/**", "release/**", "coverage/**", ".superpowers/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/**/*.{ts,tsx}'],
-    languageOptions: { parserOptions: { ecmaVersion: 'latest', sourceType: 'module' } }
+    files: ["src/**/*.{ts,tsx}"],
+    languageOptions: { parserOptions: { ecmaVersion: "latest", sourceType: "module" } },
   },
   {
-    files: ['src/renderer/**/*.{ts,tsx}'],
+    files: ["src/renderer/**/*.{ts,tsx}"],
     languageOptions: { globals: globals.browser },
-    plugins: { 'react-hooks': reactHooks },
-    rules: reactHooks.configs.recommended.rules
+    plugins: { "react-hooks": reactHooks },
+    rules: reactHooks.configs.recommended.rules,
   },
   {
-    files: ['src/main/**/*.ts', 'src/preload/**/*.ts', '*.ts', '*.mjs'],
-    languageOptions: { globals: globals.node }
+    files: ["src/main/**/*.ts", "src/preload/**/*.ts", "*.ts", "*.mjs"],
+    languageOptions: { globals: globals.node },
   }
-)
+);
 ```
 
 Create `electron-builder.yml`:
@@ -313,35 +318,37 @@ nsis:
 Create `src/main/index.ts`:
 
 ```ts
-import { app } from 'electron'
+import { app } from "electron";
 
 void app.whenReady().then(() => {
-  if (process.env.DEAR_COMPANION_BUILD_SMOKE === '1') app.quit()
-})
+  if (process.env.DEAR_COMPANION_BUILD_SMOKE === "1") app.quit();
+});
 ```
 
 Create `src/preload/index.ts`:
 
 ```ts
-export {}
+export {};
 ```
 
 Create `src/renderer/src/App.tsx` and `main.tsx`:
 
 ```tsx
+// main.tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
+
 // App.tsx
 export function App(): React.JSX.Element {
-  return <main>Dear Companion foundation</main>
+  return <main>Dear Companion foundation</main>;
 }
 
-// main.tsx
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { App } from './App'
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode><App /></StrictMode>
-)
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 ```
 
 Create `src/renderer/index.html` with `#root`, the CSP below, and `<script type="module" src="/src/main.tsx"></script>`.
@@ -349,7 +356,10 @@ Create `src/renderer/index.html` with `#root`, the CSP below, and `<script type=
 The CSP must be:
 
 ```html
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+/>
 ```
 
 - [ ] **Step 6: Verify the toolchain**
@@ -377,6 +387,7 @@ git commit -m "build: scaffold electron application"
 ### Task 2: Define Serializable Settings and the Typed Preload API
 
 **Files:**
+
 - Create: `src/shared/contracts.ts`
 - Create: `src/shared/contracts.test.ts`
 - Create: `src/shared/ipc-channels.ts`
@@ -384,6 +395,7 @@ git commit -m "build: scaffold electron application"
 - Create: `src/preload/index.d.ts`
 
 **Interfaces:**
+
 - Consumes: Electron `contextBridge` and `ipcRenderer` from Task 1.
 - Produces: `AppSettingsV1`, `AppSettings`, `WindowKind`, `FoundationApi`, `parseAppSettings(value: unknown): AppSettings`, `IPC_CHANNELS`, and `window.dearCompanion`.
 
@@ -392,27 +404,27 @@ git commit -m "build: scaffold electron application"
 Create `src/shared/contracts.test.ts` with tests asserting:
 
 ```ts
-import { describe, expect, it } from 'vitest'
-import { DEFAULT_APP_SETTINGS, parseAppSettings } from './contracts'
+import { describe, expect, it } from "vitest";
+import { DEFAULT_APP_SETTINGS, parseAppSettings } from "./contracts";
 
-describe('parseAppSettings', () => {
-  it('uses privacy-preserving first-run defaults', () => {
+describe("parseAppSettings", () => {
+  it("uses privacy-preserving first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
       schemaVersion: 1,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
       audio: { reminderEnabled: false, cryingEnabled: false },
-      reminders: []
-    })
-  })
+      reminders: [],
+    });
+  });
 
-  it('rejects settings with a non-empty unknown reminder payload', () => {
+  it("rejects settings with a non-empty unknown reminder payload", () => {
     expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{}] })).toThrow(
-      'Unsupported reminder data in schema version 1'
-    )
-  })
-})
+      "Unsupported reminder data in schema version 1"
+    );
+  });
+});
 ```
 
 - [ ] **Step 2: Run the focused tests and verify failure**
@@ -426,32 +438,32 @@ Expected: FAIL because `contracts.ts` does not exist.
 Create `src/shared/contracts.ts` with these exact public shapes:
 
 ```ts
-export type WindowKind = 'pet' | 'settings'
+export type WindowKind = "pet" | "settings";
 
 export interface PetWindowSettings {
-  x: number | null
-  y: number | null
-  displayId: string | null
-  height: number
-  visible: boolean
+  x: number | null;
+  y: number | null;
+  displayId: string | null;
+  height: number;
+  visible: boolean;
 }
 
 export interface AppSettingsV1 {
-  schemaVersion: 1
-  activePetId: string | null
-  petWindow: PetWindowSettings
-  autostartEnabled: boolean
-  audio: { reminderEnabled: boolean; cryingEnabled: boolean }
-  reminders: readonly []
+  schemaVersion: 1;
+  activePetId: string | null;
+  petWindow: PetWindowSettings;
+  autostartEnabled: boolean;
+  audio: { reminderEnabled: boolean; cryingEnabled: boolean };
+  reminders: readonly [];
 }
 
-export type AppSettings = AppSettingsV1
+export type AppSettings = AppSettingsV1;
 
 export interface FoundationApi {
-  getSettings(): Promise<AppSettings>
-  setPetVisibility(visible: boolean): Promise<AppSettings>
-  openSettings(): Promise<void>
-  getWindowKind(): WindowKind
+  getSettings(): Promise<AppSettings>;
+  setPetVisibility(visible: boolean): Promise<AppSettings>;
+  openSettings(): Promise<void>;
+  getWindowKind(): WindowKind;
 }
 ```
 
@@ -463,28 +475,28 @@ Create `src/shared/ipc-channels.ts`:
 
 ```ts
 export const IPC_CHANNELS = {
-  getSettings: 'foundation:get-settings',
-  setPetVisibility: 'foundation:set-pet-visibility',
-  openSettings: 'foundation:open-settings',
-  getWindowKind: 'foundation:get-window-kind'
-} as const
+  getSettings: "foundation:get-settings",
+  setPetVisibility: "foundation:set-pet-visibility",
+  openSettings: "foundation:open-settings",
+  getWindowKind: "foundation:get-window-kind",
+} as const;
 ```
 
 Implement `src/preload/index.ts` so it exposes exactly one `FoundationApi` object as `window.dearCompanion`:
 
 ```ts
-import { contextBridge, ipcRenderer } from 'electron'
-import type { FoundationApi } from '@shared/contracts'
-import { IPC_CHANNELS } from '@shared/ipc-channels'
+import { contextBridge, ipcRenderer } from "electron";
+import type { FoundationApi } from "@shared/contracts";
+import { IPC_CHANNELS } from "@shared/ipc-channels";
 
 const api: FoundationApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getSettings),
   setPetVisibility: (visible) => ipcRenderer.invoke(IPC_CHANNELS.setPetVisibility, visible),
   openSettings: () => ipcRenderer.invoke(IPC_CHANNELS.openSettings),
-  getWindowKind: () => ipcRenderer.sendSync(IPC_CHANNELS.getWindowKind)
-}
+  getWindowKind: () => ipcRenderer.sendSync(IPC_CHANNELS.getWindowKind),
+};
 
-contextBridge.exposeInMainWorld('dearCompanion', api)
+contextBridge.exposeInMainWorld("dearCompanion", api);
 ```
 
 Do not expose `send`, `invoke`, `on`, Electron objects, or channel names. The synchronous window-kind call is local, constant-time, and returns no user data; all other operations remain asynchronous.
@@ -492,15 +504,15 @@ Do not expose `send`, `invoke`, `on`, Electron objects, or channel names. The sy
 Create `src/preload/index.d.ts`:
 
 ```ts
-import type { FoundationApi } from '@shared/contracts'
+import type { FoundationApi } from "@shared/contracts";
 
 declare global {
   interface Window {
-    dearCompanion: FoundationApi
+    dearCompanion: FoundationApi;
   }
 }
 
-export {}
+export {};
 ```
 
 - [ ] **Step 5: Run contract and type checks**
@@ -526,11 +538,13 @@ git commit -m "feat: define foundation contracts and preload api"
 ### Task 3: Implement Atomic Local Settings Persistence
 
 **Files:**
+
 - Create: `src/main/settings/default-settings.ts`
 - Create: `src/main/settings/settings-store.ts`
 - Create: `src/main/settings/settings-store.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AppSettings`, `DEFAULT_APP_SETTINGS`, and `parseAppSettings` from Task 2.
 - Produces: `SettingsStore` with `load(): Promise<AppSettings>`, `save(settings: AppSettings): Promise<void>`, and `update(mutator: (current: AppSettings) => AppSettings): Promise<AppSettings>`.
 
@@ -539,11 +553,11 @@ git commit -m "feat: define foundation contracts and preload api"
 Use `mkdtemp`, a unique directory under `tmpdir()`, and cleanup in `afterEach`. Cover these behaviors:
 
 ```ts
-it('returns defaults without writing on first load')
-it('saves and reloads validated settings')
-it('restores the backup when settings.json is corrupt')
-it('throws when both primary and backup files are corrupt')
-it('serializes concurrent updates so neither mutation is lost')
+it("returns defaults without writing on first load");
+it("saves and reloads validated settings");
+it("restores the backup when settings.json is corrupt");
+it("throws when both primary and backup files are corrupt");
+it("serializes concurrent updates so neither mutation is lost");
 ```
 
 For concurrent updates, start two `store.update` calls without awaiting the first and assert the final state contains both the visibility and height changes.
@@ -578,21 +592,28 @@ Use this public skeleton and keep file parsing in private helpers:
 
 ```ts
 export class SettingsStore {
-  private updateQueue: Promise<void> = Promise.resolve()
+  private updateQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly userDataPath: string) {}
 
-  async load(): Promise<AppSettings> { /* read primary, then backup, then defaults */ }
-  async save(settings: AppSettings): Promise<void> { /* validate, back up, atomic write */ }
+  async load(): Promise<AppSettings> {
+    /* read primary, then backup, then defaults */
+  }
+  async save(settings: AppSettings): Promise<void> {
+    /* validate, back up, atomic write */
+  }
 
   update(mutator: (current: AppSettings) => AppSettings): Promise<AppSettings> {
     const operation = this.updateQueue.then(async () => {
-      const next = parseAppSettings(mutator(await this.load()))
-      await this.save(next)
-      return next
-    })
-    this.updateQueue = operation.then(() => undefined, () => undefined)
-    return operation
+      const next = parseAppSettings(mutator(await this.load()));
+      await this.save(next);
+      return next;
+    });
+    this.updateQueue = operation.then(
+      () => undefined,
+      () => undefined
+    );
+    return operation;
   }
 }
 ```
@@ -621,6 +642,7 @@ git commit -m "feat: persist foundation settings safely"
 ### Task 4: Create Secure Window Options and the Application Protocol
 
 **Files:**
+
 - Create: `src/main/windows/window-options.ts`
 - Create: `src/main/windows/window-options.test.ts`
 - Create: `src/main/security/app-protocol.ts`
@@ -628,6 +650,7 @@ git commit -m "feat: persist foundation settings safely"
 - Modify: `src/main/index.ts`
 
 **Interfaces:**
+
 - Consumes: electron-vite output paths and `WindowKind` from Task 2.
 - Produces: `createPetWindowOptions(preloadPath: string): BrowserWindowConstructorOptions`, `createSettingsWindowOptions(preloadPath: string): BrowserWindowConstructorOptions`, `registerAppProtocol(rendererRoot: string): Promise<void>`, and `WindowManager` methods `showPet()`, `hidePet()`, `openSettings()`, `getWindowKind(webContentsId: number)`, `dispose()`.
 
@@ -644,15 +667,15 @@ expect(pet).toMatchObject({
   resizable: false,
   alwaysOnTop: true,
   skipTaskbar: true,
-  show: false
-})
+  show: false,
+});
 expect(pet.webPreferences).toMatchObject({
   nodeIntegration: false,
   contextIsolation: true,
   sandbox: true,
-  webSecurity: true
-})
-expect(settings).toMatchObject({ width: 800, height: 640, show: false })
+  webSecurity: true,
+});
+expect(settings).toMatchObject({ width: 800, height: 640, show: false });
 ```
 
 Also assert both windows receive the supplied preload path and neither enables `webviewTag`, `allowRunningInsecureContent`, or experimental features.
@@ -676,8 +699,8 @@ const secureWebPreferences = (preload: string): WebPreferences => ({
   contextIsolation: true,
   sandbox: true,
   webSecurity: true,
-  webviewTag: false
-})
+  webviewTag: false,
+});
 ```
 
 - [ ] **Step 4: Register a contained packaged-app protocol**
@@ -689,20 +712,20 @@ For `app://renderer/index.html?window=pet`, resolve `/index.html` under `rendere
 The handler structure is:
 
 ```ts
-protocol.handle('app', async (request) => {
-  const url = new URL(request.url)
-  if (url.host !== 'renderer') return new Response('Forbidden', { status: 403 })
-  const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'index.html'
-  const resolvedPath = resolve(rendererRoot, relativePath)
-  if (relativePath.includes('\0') || !isPathInside(rendererRoot, resolvedPath)) {
-    return new Response('Forbidden', { status: 403 })
+protocol.handle("app", async (request) => {
+  const url = new URL(request.url);
+  if (url.host !== "renderer") return new Response("Forbidden", { status: 403 });
+  const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.html";
+  const resolvedPath = resolve(rendererRoot, relativePath);
+  if (relativePath.includes("\0") || !isPathInside(rendererRoot, resolvedPath)) {
+    return new Response("Forbidden", { status: 403 });
   }
   try {
-    return await net.fetch(pathToFileURL(resolvedPath).toString())
+    return await net.fetch(pathToFileURL(resolvedPath).toString());
   } catch {
-    return new Response('Not found', { status: 404 })
+    return new Response("Not found", { status: 404 });
   }
-})
+});
 ```
 
 Development windows load `${process.env.ELECTRON_RENDERER_URL}?window=pet` or `?window=settings`. Packaged windows load `app://renderer/index.html?window=pet` or `?window=settings`.
@@ -717,14 +740,24 @@ The class surface must stay:
 
 ```ts
 export class WindowManager {
-  private petWindow: BrowserWindow | null = null
-  private settingsWindow: BrowserWindow | null = null
+  private petWindow: BrowserWindow | null = null;
+  private settingsWindow: BrowserWindow | null = null;
 
-  async showPet(): Promise<void> { /* create once, then show */ }
-  hidePet(): void { this.petWindow?.hide() }
-  async openSettings(): Promise<void> { /* create or focus singleton */ }
-  getWindowKind(webContentsId: number): WindowKind { /* exact owned-ID match */ }
-  dispose(): void { /* remove listeners and destroy owned windows */ }
+  async showPet(): Promise<void> {
+    /* create once, then show */
+  }
+  hidePet(): void {
+    this.petWindow?.hide();
+  }
+  async openSettings(): Promise<void> {
+    /* create or focus singleton */
+  }
+  getWindowKind(webContentsId: number): WindowKind {
+    /* exact owned-ID match */
+  }
+  dispose(): void {
+    /* remove listeners and destroy owned windows */
+  }
 }
 ```
 
@@ -744,11 +777,11 @@ Update `src/main/index.ts` to:
 Compose dependencies in this order:
 
 ```ts
-const settingsStore = new SettingsStore(app.getPath('userData'))
-const windowManager = new WindowManager({ settingsStore, preloadPath, rendererRoot })
-const settings = await settingsStore.load()
-if (settings.petWindow.visible) await windowManager.showPet()
-if (settings.activePetId === null) await windowManager.openSettings()
+const settingsStore = new SettingsStore(app.getPath("userData"));
+const windowManager = new WindowManager({ settingsStore, preloadPath, rendererRoot });
+const settings = await settingsStore.load();
+if (settings.petWindow.visible) await windowManager.showPet();
+if (settings.activePetId === null) await windowManager.openSettings();
 ```
 
 At this milestone the settings shell and transparent pet placeholder may appear together on first run. Later pet-pack work replaces that placeholder.
@@ -778,11 +811,13 @@ git commit -m "feat: create secure application windows"
 ### Task 5: Keep the Pet Window on a Visible Display
 
 **Files:**
+
 - Create: `src/main/windows/display-placement.ts`
 - Create: `src/main/windows/display-placement.test.ts`
 - Modify: `src/main/windows/window-manager.ts`
 
 **Interfaces:**
+
 - Consumes: Electron `Display.bounds`/`workArea`, stored `PetWindowSettings`, and `SettingsStore.update`.
 - Produces: `Rect`, `DisplaySnapshot`, `chooseDisplay(displays, savedDisplayId, savedPoint)`, and `clampRectToWorkArea(rect, workArea, margin = 8)`.
 
@@ -791,11 +826,11 @@ git commit -m "feat: create secure application windows"
 Cover:
 
 ```ts
-it('uses the saved display when it still exists')
-it('uses the display containing the saved point when the id changed')
-it('falls back to the primary display when the saved display disappeared')
-it('keeps every edge inside the work area with an 8 DIP margin')
-it('places a missing position at the primary work-area bottom-right')
+it("uses the saved display when it still exists");
+it("uses the display containing the saved point when the id changed");
+it("falls back to the primary display when the saved display disappeared");
+it("keeps every edge inside the work area with an 8 DIP margin");
+it("places a missing position at the primary work-area bottom-right");
 ```
 
 Use negative coordinates in one fixture to represent a monitor to the left of the primary display.
@@ -829,13 +864,13 @@ Keep the Electron adapter thin:
 
 ```ts
 const persistBounds = debounce(async () => {
-  const [x, y] = petWindow.getPosition()
-  const nearest = screen.getDisplayNearestPoint({ x, y })
+  const [x, y] = petWindow.getPosition();
+  const nearest = screen.getDisplayNearestPoint({ x, y });
   await settingsStore.update((current) => ({
     ...current,
-    petWindow: { ...current.petWindow, x, y, displayId: String(nearest.id) }
-  }))
-}, 250)
+    petWindow: { ...current.petWindow, x, y, displayId: String(nearest.id) },
+  }));
+}, 250);
 ```
 
 - [ ] **Step 5: Verify logic and dual-display behavior**
@@ -862,11 +897,13 @@ git commit -m "feat: persist safe pet window placement"
 ### Task 6: Register Validated Foundation IPC
 
 **Files:**
+
 - Create: `src/main/ipc/register-foundation-ipc.ts`
 - Modify: `src/main/index.ts`
 - Modify: `src/main/windows/window-manager.ts`
 
 **Interfaces:**
+
 - Consumes: `IPC_CHANNELS`, `SettingsStore`, and `WindowManager` from earlier tasks.
 - Produces: `registerFoundationIpc({ settingsStore, windowManager }): () => void`, returning a cleanup function that removes only its own handlers.
 
@@ -889,21 +926,21 @@ Register handlers explicitly:
 
 ```ts
 ipcMain.handle(IPC_CHANNELS.getSettings, (event) => {
-  windowManager.getWindowKind(event.sender.id)
-  return settingsStore.load()
-})
+  windowManager.getWindowKind(event.sender.id);
+  return settingsStore.load();
+});
 
 ipcMain.handle(IPC_CHANNELS.setPetVisibility, async (event, visible: unknown) => {
-  windowManager.getWindowKind(event.sender.id)
-  if (typeof visible !== 'boolean') throw new TypeError('visible must be a boolean')
+  windowManager.getWindowKind(event.sender.id);
+  if (typeof visible !== "boolean") throw new TypeError("visible must be a boolean");
   const settings = await settingsStore.update((current) => ({
     ...current,
-    petWindow: { ...current.petWindow, visible }
-  }))
-  if (visible) await windowManager.showPet()
-  else windowManager.hidePet()
-  return settings
-})
+    petWindow: { ...current.petWindow, visible },
+  }));
+  if (visible) await windowManager.showPet();
+  else windowManager.hidePet();
+  return settings;
+});
 ```
 
 - [ ] **Step 2: Compose registration and cleanup**
@@ -914,11 +951,11 @@ Cleanup removes only the functions registered by this module:
 
 ```ts
 return () => {
-  ipcMain.removeHandler(IPC_CHANNELS.getSettings)
-  ipcMain.removeHandler(IPC_CHANNELS.setPetVisibility)
-  ipcMain.removeHandler(IPC_CHANNELS.openSettings)
-  ipcMain.removeListener(IPC_CHANNELS.getWindowKind, getWindowKindListener)
-}
+  ipcMain.removeHandler(IPC_CHANNELS.getSettings);
+  ipcMain.removeHandler(IPC_CHANNELS.setPetVisibility);
+  ipcMain.removeHandler(IPC_CHANNELS.openSettings);
+  ipcMain.removeListener(IPC_CHANNELS.getWindowKind, getWindowKindListener);
+};
 ```
 
 - [ ] **Step 3: Run static and build checks**
@@ -945,6 +982,7 @@ git commit -m "feat: register validated foundation ipc"
 ### Task 7: Build the Pet and Settings Renderer Shells
 
 **Files:**
+
 - Modify: `src/renderer/src/App.tsx`
 - Modify: `src/renderer/src/main.tsx`
 - Create: `src/renderer/src/styles/global.css`
@@ -952,6 +990,7 @@ git commit -m "feat: register validated foundation ipc"
 - Create: `src/renderer/src/windows/SettingsShell.tsx`
 
 **Interfaces:**
+
 - Consumes: `window.dearCompanion.getWindowKind()`, `getSettings()`, `setPetVisibility()`, and `openSettings()`.
 - Produces: separate pet/settings render trees without a routing dependency.
 
@@ -971,10 +1010,10 @@ Keep the Electron API behind an explicit prop boundary:
 
 ```tsx
 export function SettingsShell({ api }: { api: FoundationApi }): React.JSX.Element {
-  const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [error, setError] = useState<string | null>(null);
   // load once; update the visibility toggle only after the Promise resolves
-  return <main aria-busy={settings === null}>{/* exact sections listed above */}</main>
+  return <main aria-busy={settings === null}>{/* exact sections listed above */}</main>;
 }
 ```
 
@@ -985,9 +1024,9 @@ The pet shell contains a CSS-only rounded silhouette labeled `Dear Companion` an
 Pet-window CSS requirements:
 
 ```css
-html[data-window='pet'],
-html[data-window='pet'] body,
-html[data-window='pet'] #root {
+html[data-window="pet"],
+html[data-window="pet"] body,
+html[data-window="pet"] #root {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -1004,11 +1043,9 @@ Settings mode uses an opaque neutral background. Respect `prefers-reduced-motion
 
 ```tsx
 export function App(): React.JSX.Element {
-  const kind = window.dearCompanion.getWindowKind()
-  document.documentElement.dataset.window = kind
-  return kind === 'pet'
-    ? <PetShell api={window.dearCompanion} />
-    : <SettingsShell api={window.dearCompanion} />
+  const kind = window.dearCompanion.getWindowKind();
+  document.documentElement.dataset.window = kind;
+  return kind === "pet" ? <PetShell api={window.dearCompanion} /> : <SettingsShell api={window.dearCompanion} />;
 }
 ```
 
@@ -1036,11 +1073,13 @@ git commit -m "feat: add pet and settings application shells"
 ### Task 8: Add Tray Controls and Desktop Lifecycle Behavior
 
 **Files:**
+
 - Create: `src/main/tray/tray-controller.ts`
 - Modify: `src/main/index.ts`
 - Modify: `src/main/windows/window-manager.ts`
 
 **Interfaces:**
+
 - Consumes: `WindowManager`, `SettingsStore`, and a packaged tray icon path supplied by the composition root.
 - Produces: `TrayController.create()`, `TrayController.refresh(settings)`, and `TrayController.dispose()`.
 
@@ -1062,21 +1101,21 @@ Keep menu creation state-derived:
 ```ts
 const menu = Menu.buildFromTemplate([
   {
-    label: settings.petWindow.visible ? '隐藏宠物' : '显示宠物',
-    click: () => void setVisibility(!settings.petWindow.visible)
+    label: settings.petWindow.visible ? "隐藏宠物" : "显示宠物",
+    click: () => void setVisibility(!settings.petWindow.visible),
   },
-  { label: '设置…', click: () => void windowManager.openSettings() },
-  { type: 'separator' },
-  { label: '退出 Dear Companion', click: requestQuit }
-])
-tray.setContextMenu(menu)
+  { label: "设置…", click: () => void windowManager.openSettings() },
+  { type: "separator" },
+  { label: "退出 Dear Companion", click: requestQuit },
+]);
+tray.setContextMenu(menu);
 ```
 
 The composition root supplies `requestQuit`, which sets `isQuitting = true` before calling `app.quit()`.
 
 Define the foundation-only icon in the same file so there is no missing binary asset:
 
-```ts
+````ts
 const traySvg = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="black"/><circle cx="6" cy="7" r="1" fill="white"/><circle cx="10" cy="7" r="1" fill="white"/></svg>'
 const trayIcon = nativeImage.createFromDataURL(
   `data:image/svg+xml;charset=utf-8,${encodeURIComponent(traySvg)}`
@@ -1103,7 +1142,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
-```
+````
 
 Expected: PASS.
 
@@ -1119,11 +1158,13 @@ git commit -m "feat: add tray and desktop lifecycle"
 ### Task 9: Add Cross-Platform CI and Development Documentation
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 - Create: `docs/development.md`
 - Modify: `.gitignore`
 
 **Interfaces:**
+
 - Consumes: all package scripts from Task 1.
 - Produces: reproducible Windows/macOS validation on pull requests and main-branch pushes; local onboarding documentation.
 

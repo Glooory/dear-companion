@@ -1,1 +1,1 @@
-export { DEFAULT_APP_SETTINGS } from '../../shared/contracts'
+export { DEFAULT_APP_SETTINGS } from "../../shared/contracts";

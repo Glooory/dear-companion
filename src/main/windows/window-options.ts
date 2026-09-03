@@ -1,6 +1,6 @@
-import type { BrowserWindowConstructorOptions, WebPreferences } from 'electron'
-import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from '../../shared/contracts'
-import type { SettingsWindowBounds } from './display-placement'
+import type { BrowserWindowConstructorOptions, WebPreferences } from "electron";
+import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH } from "../../shared/contracts";
+import type { SettingsWindowBounds } from "./display-placement";
 
 const secureWebPreferences = (preload: string): WebPreferences => ({
   preload,
@@ -8,8 +8,8 @@ const secureWebPreferences = (preload: string): WebPreferences => ({
   contextIsolation: true,
   sandbox: true,
   webSecurity: true,
-  webviewTag: false
-})
+  webviewTag: false,
+});
 
 export function createPetWindowOptions(preloadPath: string): BrowserWindowConstructorOptions {
   return {
@@ -22,11 +22,11 @@ export function createPetWindowOptions(preloadPath: string): BrowserWindowConstr
     alwaysOnTop: true,
     skipTaskbar: true,
     show: false,
-    backgroundColor: '#00000000',
+    backgroundColor: "#00000000",
     autoHideMenuBar: true,
     focusable: true,
-    webPreferences: secureWebPreferences(preloadPath)
-  }
+    webPreferences: secureWebPreferences(preloadPath),
+  };
 }
 
 export function createSettingsWindowOptions(
@@ -42,6 +42,6 @@ export function createSettingsWindowOptions(
       ? { x: initialBounds.x, y: initialBounds.y }
       : {}),
     show: false,
-    webPreferences: secureWebPreferences(preloadPath)
-  }
+    webPreferences: secureWebPreferences(preloadPath),
+  };
 }

@@ -40,7 +40,9 @@
   line-height: 1;
   vertical-align: middle;
   flex-shrink: 0;
-  transition: color 120ms ease, background-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 .infoButton:hover {
@@ -93,7 +95,7 @@
 }
 
 .top::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 100%;
   left: 50%;
@@ -111,7 +113,7 @@
 }
 
 .topEnd::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 100%;
   right: 20px;
@@ -129,7 +131,7 @@
 }
 
 .bottom::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 100%;
   left: 50%;

@@ -1,141 +1,139 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 import {
+  createCompanionSystemSnapshot,
   DEFAULT_ACTION_TEMPLATES,
   DEFAULT_APP_SETTINGS,
   DEFAULT_ASSET_NORMALIZATION,
   EMPTY_ACTION_SLOTS,
   migrateAppSettings,
-  createCompanionSystemSnapshot,
-  parseCreateWorkScheduleInput,
-  parseManualLifeSelection,
-  parseScreenEllipse,
-  parseUpdateWorkScheduleInput,
+  parseAppSettings,
   parseAutostartEnabledInput,
   parseAutostartStatus,
-  parsePetRendererStatus,
-  parseAppSettings,
+  parseCreateWorkScheduleInput,
   parseHeadHotspot,
+  parseManualLifeSelection,
+  parsePetRendererStatus,
   parsePetUpdateInput,
+  parseScreenEllipse,
   parseSettingsNavigationTarget,
-  type PetConfig
-} from './contracts'
-import { resolveDialogueLines } from './dialogue-settings'
+  parseUpdateWorkScheduleInput,
+  type PetConfig,
+} from "./contracts";
+import { resolveDialogueLines } from "./dialogue-settings";
 
 function createPet(): PetConfig {
   return {
-    id: 'pet-1',
-    name: 'Mochi',
+    id: "pet-1",
+    name: "Mochi",
     targetHeight: 180,
     assets: [
       {
-        id: 'asset-1',
-        fileName: 'asset-1.png',
-        format: 'png',
+        id: "asset-1",
+        fileName: "asset-1.png",
+        format: "png",
         byteSize: 100,
         width: 100,
         height: 200,
         alphaBounds: { x: 10, y: 20, width: 80, height: 170 },
         normalization: { ...DEFAULT_ASSET_NORMALIZATION },
-        headHotspot: null
-      }
+        headHotspot: null,
+      },
     ],
-    actionSlots: { ...EMPTY_ACTION_SLOTS, idle: ['asset-1'] },
+    actionSlots: { ...EMPTY_ACTION_SLOTS, idle: ["asset-1"] },
     actionTemplates: { ...DEFAULT_ACTION_TEMPLATES },
     lifeStates: {
       drowsy: { enabled: false, assetIds: [] },
       sleeping: { enabled: false, assetIds: [] },
-      workingAssetIds: []
+      workingAssetIds: [],
     },
-    companionPace: 'natural',
+    companionPace: "natural",
     interactionBubblesEnabled: true,
-    dialogueSettings: { address: '', categories: {} }
-  }
+    dialogueSettings: { address: "", categories: {} },
+  };
 }
 
-describe('settings contracts', () => {
-  it('uses privacy-preserving schema v5 first-run defaults', () => {
+describe("settings contracts", () => {
+  it("uses privacy-preserving schema v5 first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
       schemaVersion: 5,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
       audio: {
-        reminderSource: { kind: 'builtin', id: 'gentle-chime' },
-        cryingSource: { kind: 'builtin', id: 'soft-whimper' },
-        assets: []
+        reminderSource: { kind: "builtin", id: "gentle-chime" },
+        cryingSource: { kind: "builtin", id: "soft-whimper" },
+        assets: [],
       },
       reminders: [],
       workSchedules: [],
-      pets: []
-    })
-  })
+      pets: [],
+    });
+  });
 
-  it('rejects legacy schema versions instead of migrating pre-release data', () => {
-    expect(() => migrateAppSettings({ schemaVersion: 1 })).toThrow('Unsupported settings schema version')
-    expect(() => migrateAppSettings({ schemaVersion: 2 })).toThrow('Unsupported settings schema version')
-    expect(() => migrateAppSettings({ schemaVersion: 3 })).toThrow('Unsupported settings schema version')
-    expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow('Unsupported settings schema version')
-  })
+  it("rejects legacy schema versions instead of migrating pre-release data", () => {
+    expect(() => migrateAppSettings({ schemaVersion: 1 })).toThrow("Unsupported settings schema version");
+    expect(() => migrateAppSettings({ schemaVersion: 2 })).toThrow("Unsupported settings schema version");
+    expect(() => migrateAppSettings({ schemaVersion: 3 })).toThrow("Unsupported settings schema version");
+    expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow("Unsupported settings schema version");
+  });
 
-  it('round-trips v5 into newly allocated nested values', () => {
-    const pet = createPet()
-    const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] }
-    const parsed = parseAppSettings(input)
+  it("round-trips v5 into newly allocated nested values", () => {
+    const pet = createPet();
+    const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] };
+    const parsed = parseAppSettings(input);
 
-    expect(parsed).toEqual(input)
-    expect(parsed).not.toBe(input)
-    expect(parsed.pets).not.toBe(input.pets)
-    expect(parsed.pets[0]?.assets).not.toBe(pet.assets)
-    expect(parsed.pets[0]?.actionSlots).not.toBe(pet.actionSlots)
-    expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings)
-  })
+    expect(parsed).toEqual(input);
+    expect(parsed).not.toBe(input);
+    expect(parsed.pets).not.toBe(input.pets);
+    expect(parsed.pets[0]?.assets).not.toBe(pet.assets);
+    expect(parsed.pets[0]?.actionSlots).not.toBe(pet.actionSlots);
+    expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings);
+  });
 
-  it('rejects a stale active pet or active pet without idle', () => {
-    const pet = createPet()
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: 'missing' })).toThrow(
-      'Active pet must reference a configured idle asset'
-    )
+  it("rejects a stale active pet or active pet without idle", () => {
+    const pet = createPet();
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: "missing" })).toThrow(
+      "Active pet must reference a configured idle asset"
+    );
     expect(() =>
       parseAppSettings({
         ...DEFAULT_APP_SETTINGS,
         activePetId: pet.id,
-        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, idle: [] } }]
+        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, idle: [] } }],
       })
-    ).toThrow('Active pet must reference a configured idle asset')
-  })
+    ).toThrow("Active pet must reference a configured idle asset");
+  });
 
-  it('rejects duplicate IDs and stale action references', () => {
-    const pet = createPet()
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, pets: [pet, pet] })).toThrow(
-      'Duplicate pet identifier'
-    )
+  it("rejects duplicate IDs and stale action references", () => {
+    const pet = createPet();
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, pets: [pet, pet] })).toThrow("Duplicate pet identifier");
     expect(() =>
       parseAppSettings({
         ...DEFAULT_APP_SETTINGS,
-        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, resting: ['missing'] } }]
+        pets: [{ ...pet, actionSlots: { ...pet.actionSlots, resting: ["missing"] } }],
       })
-    ).toThrow('Unknown asset in resting action slot')
-  })
+    ).toThrow("Unknown asset in resting action slot");
+  });
 
-  it('rejects invalid immutable metadata and normalization values', () => {
-    const pet = createPet()
-    const asset = pet.assets[0]!
+  it("rejects invalid immutable metadata and normalization values", () => {
+    const pet = createPet();
+    const asset = pet.assets[0]!;
     expect(() =>
       parseAppSettings({
         ...DEFAULT_APP_SETTINGS,
-        pets: [{ ...pet, assets: [{ ...asset, fileName: '../photo.png' }] }]
+        pets: [{ ...pet, assets: [{ ...asset, fileName: "../photo.png" }] }],
       })
-    ).toThrow('Invalid pet asset filename')
+    ).toThrow("Invalid pet asset filename");
     expect(() =>
       parseAppSettings({
         ...DEFAULT_APP_SETTINGS,
-        pets: [{ ...pet, assets: [{ ...asset, normalization: { ...asset.normalization, scale: 9 } }] }]
+        pets: [{ ...pet, assets: [{ ...asset, normalization: { ...asset.normalization, scale: 9 } }] }],
       })
-    ).toThrow('Invalid asset normalization')
-  })
+    ).toThrow("Invalid asset normalization");
+  });
 
-  it('rejects unknown fields in pet update payloads', () => {
-    const pet = createPet()
+  it("rejects unknown fields in pet update payloads", () => {
+    const pet = createPet();
     const input = {
       id: pet.id,
       name: pet.name,
@@ -143,41 +141,47 @@ describe('settings contracts', () => {
       assets: pet.assets.map((asset) => ({
         id: asset.id,
         normalization: asset.normalization,
-        headHotspot: asset.headHotspot
+        headHotspot: asset.headHotspot,
       })),
       actionSlots: pet.actionSlots,
       actionTemplates: pet.actionTemplates,
       lifeStates: pet.lifeStates,
       companionPace: pet.companionPace,
       interactionBubblesEnabled: pet.interactionBubblesEnabled,
-      dialogueSettings: pet.dialogueSettings
-    }
+      dialogueSettings: pet.dialogueSettings,
+    };
 
-    expect(() => parsePetUpdateInput({ ...input, unexpected: true }, ['asset-1']))
-      .toThrow('Invalid pet update')
-    expect(() => parsePetUpdateInput({
-      ...input,
-      assets: [{ ...input.assets[0], unexpected: true }]
-    }, ['asset-1'])).toThrow('Invalid pet asset adjustment')
-  })
+    expect(() => parsePetUpdateInput({ ...input, unexpected: true }, ["asset-1"])).toThrow("Invalid pet update");
+    expect(() =>
+      parsePetUpdateInput(
+        {
+          ...input,
+          assets: [{ ...input.assets[0], unexpected: true }],
+        },
+        ["asset-1"]
+      )
+    ).toThrow("Invalid pet asset adjustment");
+  });
 
-  it('rejects a configured pet pack above 250 MB', () => {
-    const pet = createPet()
-    const template = pet.assets[0]!
+  it("rejects a configured pet pack above 250 MB", () => {
+    const pet = createPet();
+    const template = pet.assets[0]!;
     const assets = Array.from({ length: 13 }, (_, index) => ({
       ...template,
       id: `asset-${index}`,
       fileName: `asset-${index}.png`,
-      byteSize: 20 * 1024 * 1024
-    }))
-    expect(() => parseAppSettings({
-      ...DEFAULT_APP_SETTINGS,
-      pets: [{ ...pet, assets, actionSlots: { ...pet.actionSlots, idle: ['asset-0'] } }]
-    })).toThrow('exceeds 250 MB')
-  })
+      byteSize: 20 * 1024 * 1024,
+    }));
+    expect(() =>
+      parseAppSettings({
+        ...DEFAULT_APP_SETTINGS,
+        pets: [{ ...pet, assets, actionSlots: { ...pet.actionSlots, idle: ["asset-0"] } }],
+      })
+    ).toThrow("exceeds 250 MB");
+  });
 
-  it('validates dialogueSettings in pet update and settings, and preserves safe stale line IDs', () => {
-    const pet = createPet()
+  it("validates dialogueSettings in pet update and settings, and preserves safe stale line IDs", () => {
+    const pet = createPet();
     const validUpdate = {
       id: pet.id,
       name: pet.name,
@@ -185,7 +189,7 @@ describe('settings contracts', () => {
       assets: pet.assets.map((asset) => ({
         id: asset.id,
         normalization: asset.normalization,
-        headHotspot: asset.headHotspot
+        headHotspot: asset.headHotspot,
       })),
       actionSlots: pet.actionSlots,
       actionTemplates: pet.actionTemplates,
@@ -193,224 +197,288 @@ describe('settings contracts', () => {
       companionPace: pet.companionPace,
       interactionBubblesEnabled: pet.interactionBubblesEnabled,
       dialogueSettings: {
-        address: '小葡萄',
+        address: "小葡萄",
         categories: {
-          'daily:click': {
-            builtInOverrides: [
-              { lineId: 'daily-click-here', text: '在呢！' }
-            ],
-            customLines: [
-              { id: 'custom-1', automaticEnabled: true, text: '自定义一句' }
-            ]
-          }
-        }
-      }
-    }
+          "daily:click": {
+            builtInOverrides: [{ lineId: "daily-click-here", text: "在呢！" }],
+            customLines: [{ id: "custom-1", automaticEnabled: true, text: "自定义一句" }],
+          },
+        },
+      },
+    };
 
-    const parsedUpdate = parsePetUpdateInput(validUpdate, ['asset-1'])
-    expect(parsedUpdate.dialogueSettings.address).toBe('小葡萄')
+    const parsedUpdate = parsePetUpdateInput(validUpdate, ["asset-1"]);
+    expect(parsedUpdate.dialogueSettings.address).toBe("小葡萄");
 
     // invalid category ID in update
-    expect(() => parsePetUpdateInput({
-      ...validUpdate,
-      dialogueSettings: {
-        address: '',
-        categories: { 'invalid-category': { builtInOverrides: [], customLines: [] } }
-      }
-    }, ['asset-1'])).toThrow('Unknown dialogue category')
+    expect(() =>
+      parsePetUpdateInput(
+        {
+          ...validUpdate,
+          dialogueSettings: {
+            address: "",
+            categories: { "invalid-category": { builtInOverrides: [], customLines: [] } },
+          },
+        },
+        ["asset-1"]
+      )
+    ).toThrow("Unknown dialogue category");
 
     // malformed built-in override
-    expect(() => parsePetUpdateInput({
-      ...validUpdate,
-      dialogueSettings: {
-        address: '',
-        categories: {
-          'daily:click': {
-            builtInOverrides: [{ lineId: 'daily-click-here', text: 123 as unknown as string }],
-            customLines: []
-          }
-        }
-      }
-    }, ['asset-1'])).toThrow('对白内容必须是文本')
+    expect(() =>
+      parsePetUpdateInput(
+        {
+          ...validUpdate,
+          dialogueSettings: {
+            address: "",
+            categories: {
+              "daily:click": {
+                builtInOverrides: [{ lineId: "daily-click-here", text: 123 as unknown as string }],
+                customLines: [],
+              },
+            },
+          },
+        },
+        ["asset-1"]
+      )
+    ).toThrow("对白内容必须是文本");
 
     // duplicate custom lines in update
-    expect(() => parsePetUpdateInput({
-      ...validUpdate,
-      dialogueSettings: {
-        address: '',
-        categories: {
-          'daily:click': {
-            builtInOverrides: [],
-            customLines: [
-              { id: 'c-1', automaticEnabled: true, text: '重复文字' },
-              { id: 'c-2', automaticEnabled: true, text: '重复文字' }
-            ]
-          }
-        }
-      }
-    }, ['asset-1'])).toThrow('对白内容不能重复')
+    expect(() =>
+      parsePetUpdateInput(
+        {
+          ...validUpdate,
+          dialogueSettings: {
+            address: "",
+            categories: {
+              "daily:click": {
+                builtInOverrides: [],
+                customLines: [
+                  { id: "c-1", automaticEnabled: true, text: "重复文字" },
+                  { id: "c-2", automaticEnabled: true, text: "重复文字" },
+                ],
+              },
+            },
+          },
+        },
+        ["asset-1"]
+      )
+    ).toThrow("对白内容不能重复");
 
     // excessive custom lines in update
     const excessiveLines = Array.from({ length: 21 }, (_, i) => ({
       id: `c-${i}`,
       automaticEnabled: true,
-      text: `句子${i}`
-    }))
-    expect(() => parsePetUpdateInput({
-      ...validUpdate,
-      dialogueSettings: {
-        address: '',
-        categories: {
-          'daily:click': { builtInOverrides: [], customLines: excessiveLines }
-        }
-      }
-    }, ['asset-1'])).toThrow('每个互动时机最多添加 20 条对白')
+      text: `句子${i}`,
+    }));
+    expect(() =>
+      parsePetUpdateInput(
+        {
+          ...validUpdate,
+          dialogueSettings: {
+            address: "",
+            categories: {
+              "daily:click": { builtInOverrides: [], customLines: excessiveLines },
+            },
+          },
+        },
+        ["asset-1"]
+      )
+    ).toThrow("每个互动时机最多添加 20 条对白");
 
     // safe stale built-in line ID round-trips in saved settings but never enters effective pool
     const stalePet: PetConfig = {
       ...pet,
       dialogueSettings: {
-        address: '',
+        address: "",
         categories: {
-          'daily:click': {
-            builtInOverrides: [
-              { lineId: 'stale-built-in-line', text: '旧版文字' }
-            ],
-            customLines: []
-          }
-        }
-      }
-    }
-    const saved = parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [stalePet] })
-    expect(saved.pets[0]?.dialogueSettings.categories['daily:click']?.builtInOverrides[0]?.lineId)
-      .toBe('stale-built-in-line')
-    const effectiveLines = resolveDialogueLines('daily:click', saved.pets[0]?.dialogueSettings)
-    expect(effectiveLines).not.toContain('旧版文字')
-  })
+          "daily:click": {
+            builtInOverrides: [{ lineId: "stale-built-in-line", text: "旧版文字" }],
+            customLines: [],
+          },
+        },
+      },
+    };
+    const saved = parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [stalePet] });
+    expect(saved.pets[0]?.dialogueSettings.categories["daily:click"]?.builtInOverrides[0]?.lineId).toBe(
+      "stale-built-in-line"
+    );
+    const effectiveLines = resolveDialogueLines("daily:click", saved.pets[0]?.dialogueSettings);
+    expect(effectiveLines).not.toContain("旧版文字");
+  });
 
-  it('validates reminder and audio ownership strictly', () => {
+  it("validates reminder and audio ownership strictly", () => {
     const reminder = {
-      id: 'reminder-1', enabled: true, hour: 9, minute: 30,
-      weekdays: [1, 2, 3, 4, 5], restDurationMinutes: 10,
-      cursorTolerance: 'standard', message: '  休息一下  ',
-      sounds: { reminder: false, crying: false }
-    }
-    const parsed = parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder] })
-    expect(parsed.reminders[0]?.message).toBe('休息一下')
-    expect(parsed.reminders[0]).not.toBe(reminder)
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, weekdays: [1, 1] }] })).toThrow('Duplicate reminder weekday')
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder, reminder] })).toThrow('Duplicate reminder identifier')
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, hour: Number.NaN }] })).toThrow('Invalid reminder time')
-    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, unknown: true }] })).toThrow('Invalid reminder schedule')
-    expect(() => parseAppSettings({
-      ...DEFAULT_APP_SETTINGS,
-      audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: 'imported', assetId: 'missing' } }
-    })).toThrow('Stale imported audio source')
-  })
+      id: "reminder-1",
+      enabled: true,
+      hour: 9,
+      minute: 30,
+      weekdays: [1, 2, 3, 4, 5],
+      restDurationMinutes: 10,
+      cursorTolerance: "standard",
+      message: "  休息一下  ",
+      sounds: { reminder: false, crying: false },
+    };
+    const parsed = parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder] });
+    expect(parsed.reminders[0]?.message).toBe("休息一下");
+    expect(parsed.reminders[0]).not.toBe(reminder);
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, weekdays: [1, 1] }] })).toThrow(
+      "Duplicate reminder weekday"
+    );
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [reminder, reminder] })).toThrow(
+      "Duplicate reminder identifier"
+    );
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, hour: Number.NaN }] })).toThrow(
+      "Invalid reminder time"
+    );
+    expect(() => parseAppSettings({ ...DEFAULT_APP_SETTINGS, reminders: [{ ...reminder, unknown: true }] })).toThrow(
+      "Invalid reminder schedule"
+    );
+    expect(() =>
+      parseAppSettings({
+        ...DEFAULT_APP_SETTINGS,
+        audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: "imported", assetId: "missing" } },
+      })
+    ).toThrow("Stale imported audio source");
+  });
 
-  it('rejects malformed audio assets and unknown sound sources', () => {
-    const asset = { id: 'sound-1', fileName: 'sound-1.mp3', format: 'mp3', byteSize: 10, available: true }
-    expect(parseAppSettings({
-      ...DEFAULT_APP_SETTINGS,
-      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [asset], reminderSource: { kind: 'imported', assetId: 'sound-1' } }
-    }).audio.assets).toEqual([asset])
-    expect(() => parseAppSettings({
-      ...DEFAULT_APP_SETTINGS,
-      audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [asset, asset] }
-    })).toThrow('Duplicate audio asset identifier')
-    expect(() => parseAppSettings({
-      ...DEFAULT_APP_SETTINGS,
-      audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: 'builtin', id: 'soft-whimper' } }
-    })).toThrow('Unknown built-in audio source')
-  })
+  it("rejects malformed audio assets and unknown sound sources", () => {
+    const asset = { id: "sound-1", fileName: "sound-1.mp3", format: "mp3", byteSize: 10, available: true };
+    expect(
+      parseAppSettings({
+        ...DEFAULT_APP_SETTINGS,
+        audio: {
+          ...DEFAULT_APP_SETTINGS.audio,
+          assets: [asset],
+          reminderSource: { kind: "imported", assetId: "sound-1" },
+        },
+      }).audio.assets
+    ).toEqual([asset]);
+    expect(() =>
+      parseAppSettings({
+        ...DEFAULT_APP_SETTINGS,
+        audio: { ...DEFAULT_APP_SETTINGS.audio, assets: [asset, asset] },
+      })
+    ).toThrow("Duplicate audio asset identifier");
+    expect(() =>
+      parseAppSettings({
+        ...DEFAULT_APP_SETTINGS,
+        audio: { ...DEFAULT_APP_SETTINGS.audio, reminderSource: { kind: "builtin", id: "soft-whimper" } },
+      })
+    ).toThrow("Unknown built-in audio source");
+  });
 
-  it('validates and clones sanitized release-hardening statuses', () => {
+  it("validates and clones sanitized release-hardening statuses", () => {
     const autostart = {
       supported: true,
       requested: false,
       effective: true,
-      errorCode: 'readback-mismatch'
-    } as const
-    const parsedAutostart = parseAutostartStatus(autostart)
-    expect(parsedAutostart).toEqual(autostart)
-    expect(parsedAutostart).not.toBe(autostart)
+      errorCode: "readback-mismatch",
+    } as const;
+    const parsedAutostart = parseAutostartStatus(autostart);
+    expect(parsedAutostart).toEqual(autostart);
+    expect(parsedAutostart).not.toBe(autostart);
 
-    const recovery = { state: 'safe-mode', errorCode: 'pet-renderer-failed' } as const
-    const parsedRecovery = parsePetRendererStatus(recovery)
-    expect(parsedRecovery).toEqual(recovery)
-    expect(parsedRecovery).not.toBe(recovery)
-  })
+    const recovery = { state: "safe-mode", errorCode: "pet-renderer-failed" } as const;
+    const parsedRecovery = parsePetRendererStatus(recovery);
+    expect(parsedRecovery).toEqual(recovery);
+    expect(parsedRecovery).not.toBe(recovery);
+  });
 
-  it('rejects invalid autostart payloads and unsanitized status errors', () => {
-    expect(parseAutostartEnabledInput(true)).toBe(true)
-    expect(() => parseAutostartEnabledInput('true')).toThrow('enabled must be a boolean')
-    expect(() => parseAutostartStatus({
-      supported: true,
-      requested: true,
-      effective: false,
-      errorCode: '/Users/private/login-item-error'
-    })).toThrow('Invalid autostart status')
-    expect(() => parsePetRendererStatus({
-      state: 'safe-mode',
-      errorCode: 'render-process-gone: crashed'
-    })).toThrow('Invalid pet renderer status')
-  })
+  it("rejects invalid autostart payloads and unsanitized status errors", () => {
+    expect(parseAutostartEnabledInput(true)).toBe(true);
+    expect(() => parseAutostartEnabledInput("true")).toThrow("enabled must be a boolean");
+    expect(() =>
+      parseAutostartStatus({
+        supported: true,
+        requested: true,
+        effective: false,
+        errorCode: "/Users/private/login-item-error",
+      })
+    ).toThrow("Invalid autostart status");
+    expect(() =>
+      parsePetRendererStatus({
+        state: "safe-mode",
+        errorCode: "render-process-gone: crashed",
+      })
+    ).toThrow("Invalid pet renderer status");
+  });
 
-  it('validates work schedules and narrow companion inputs', () => {
+  it("validates work schedules and narrow companion inputs", () => {
     const input = {
-      enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 30,
-      weekdays: [1, 2, 3, 4, 5]
-    }
-    expect(parseCreateWorkScheduleInput(input)).toEqual(input)
-    expect(parseUpdateWorkScheduleInput({ id: 'work-1', ...input })).toEqual({ id: 'work-1', ...input })
-    expect(() => parseCreateWorkScheduleInput({ ...input, endHour: 9, endMinute: 0 })).toThrow('must differ')
-    expect(() => parseCreateWorkScheduleInput({ ...input, weekdays: [1, 1] })).toThrow('Duplicate')
-    expect(parseManualLifeSelection('sleeping')).toBe('sleeping')
-    expect(() => parseManualLifeSelection('working')).toThrow('Invalid manual')
+      enabled: true,
+      startHour: 9,
+      startMinute: 0,
+      endHour: 17,
+      endMinute: 30,
+      weekdays: [1, 2, 3, 4, 5],
+    };
+    expect(parseCreateWorkScheduleInput(input)).toEqual(input);
+    expect(parseUpdateWorkScheduleInput({ id: "work-1", ...input })).toEqual({ id: "work-1", ...input });
+    expect(() => parseCreateWorkScheduleInput({ ...input, endHour: 9, endMinute: 0 })).toThrow("must differ");
+    expect(() => parseCreateWorkScheduleInput({ ...input, weekdays: [1, 1] })).toThrow("Duplicate");
+    expect(parseManualLifeSelection("sleeping")).toBe("sleeping");
+    expect(() => parseManualLifeSelection("working")).toThrow("Invalid manual");
     expect(parseScreenEllipse({ centerX: -20, centerY: 10, radiusX: 6, radiusY: 200 })).toEqual({
-      centerX: -20, centerY: 10, radiusX: 6, radiusY: 200
-    })
-    expect(() => parseScreenEllipse({ centerX: 0, centerY: 0, radiusX: 5, radiusY: 10 })).toThrow('Invalid screen')
-  })
+      centerX: -20,
+      centerY: 10,
+      radiusX: 6,
+      radiusY: 200,
+    });
+    expect(() => parseScreenEllipse({ centerX: 0, centerY: 0, radiusX: 5, radiusY: 10 })).toThrow("Invalid screen");
+  });
 
-  it('clones companion snapshots without exposing mutable settings values', () => {
-    const work = { id: 'work-1', enabled: true, startHour: 9, startMinute: 0, endHour: 17, endMinute: 0, weekdays: [1] as const }
+  it("clones companion snapshots without exposing mutable settings values", () => {
+    const work = {
+      id: "work-1",
+      enabled: true,
+      startHour: 9,
+      startMinute: 0,
+      endHour: 17,
+      endMinute: 0,
+      weekdays: [1] as const,
+    };
     const runtime = {
-      lifeState: 'daily-calm' as const, pace: 'natural' as const, manualSelection: 'auto' as const,
-      manualWorkActive: false, scheduledWorkActive: false, systemSuspended: false,
-      nextTransitionAt: null, available: { drowsy: false, sleeping: false }
-    }
-    const snapshot = createCompanionSystemSnapshot({ ...DEFAULT_APP_SETTINGS, workSchedules: [work] }, runtime)
-    expect(snapshot).toEqual({ workSchedules: [work], runtime })
-    expect(snapshot.workSchedules).not.toBe(DEFAULT_APP_SETTINGS.workSchedules)
-    expect(snapshot.runtime).not.toBe(runtime)
-    expect(snapshot.runtime.available).not.toBe(runtime.available)
-  })
+      lifeState: "daily-calm" as const,
+      pace: "natural" as const,
+      manualSelection: "auto" as const,
+      manualWorkActive: false,
+      scheduledWorkActive: false,
+      systemSuspended: false,
+      nextTransitionAt: null,
+      available: { drowsy: false, sleeping: false },
+    };
+    const snapshot = createCompanionSystemSnapshot({ ...DEFAULT_APP_SETTINGS, workSchedules: [work] }, runtime);
+    expect(snapshot).toEqual({ workSchedules: [work], runtime });
+    expect(snapshot.workSchedules).not.toBe(DEFAULT_APP_SETTINGS.workSchedules);
+    expect(snapshot.runtime).not.toBe(runtime);
+    expect(snapshot.runtime.available).not.toBe(runtime.available);
+  });
 
-  it('validates settings navigation target payloads', () => {
-    expect(parseSettingsNavigationTarget(null)).toBeNull()
-    expect(parseSettingsNavigationTarget({})).toBeNull()
-    expect(parseSettingsNavigationTarget({ tab: 'invalid' })).toBeNull()
-    expect(parseSettingsNavigationTarget({ tab: 'rest', action: 'invalid' })).toBeNull()
-    expect(parseSettingsNavigationTarget({ tab: 'rest' })).toEqual({ tab: 'rest' })
-    expect(parseSettingsNavigationTarget({ tab: 'rest', action: 'new-reminder' })).toEqual({
-      tab: 'rest',
-      action: 'new-reminder'
-    })
-    expect(parseSettingsNavigationTarget({ tab: 'pets' })).toEqual({ tab: 'pets' })
-  })
+  it("validates settings navigation target payloads", () => {
+    expect(parseSettingsNavigationTarget(null)).toBeNull();
+    expect(parseSettingsNavigationTarget({})).toBeNull();
+    expect(parseSettingsNavigationTarget({ tab: "invalid" })).toBeNull();
+    expect(parseSettingsNavigationTarget({ tab: "rest", action: "invalid" })).toBeNull();
+    expect(parseSettingsNavigationTarget({ tab: "rest" })).toEqual({ tab: "rest" });
+    expect(parseSettingsNavigationTarget({ tab: "rest", action: "new-reminder" })).toEqual({
+      tab: "rest",
+      action: "new-reminder",
+    });
+    expect(parseSettingsNavigationTarget({ tab: "pets" })).toEqual({ tab: "pets" });
+  });
 
-  it('parses head hotspot with optional enabled flag', () => {
-    const legacy = { centerX: 0.5, centerY: 0.22, radiusX: 0.18, radiusY: 0.18 }
-    expect(parseHeadHotspot(legacy)).toEqual(legacy)
+  it("parses head hotspot with optional enabled flag", () => {
+    const legacy = { centerX: 0.5, centerY: 0.22, radiusX: 0.18, radiusY: 0.18 };
+    expect(parseHeadHotspot(legacy)).toEqual(legacy);
 
-    const disabled = { ...legacy, enabled: false }
-    expect(parseHeadHotspot(disabled)).toEqual(disabled)
+    const disabled = { ...legacy, enabled: false };
+    expect(parseHeadHotspot(disabled)).toEqual(disabled);
 
-    const enabled = { ...legacy, enabled: true }
-    expect(parseHeadHotspot(enabled)).toEqual(enabled)
+    const enabled = { ...legacy, enabled: true };
+    expect(parseHeadHotspot(enabled)).toEqual(enabled);
 
-    expect(() => parseHeadHotspot({ ...legacy, enabled: 'yes' })).toThrow('Invalid head hotspot enabled state')
-    expect(() => parseHeadHotspot({ ...legacy, extra: 1 })).toThrow('Invalid head hotspot')
-  })
-})
+    expect(() => parseHeadHotspot({ ...legacy, enabled: "yes" })).toThrow("Invalid head hotspot enabled state");
+    expect(() => parseHeadHotspot({ ...legacy, extra: 1 })).toThrow("Invalid head hotspot");
+  });
+});

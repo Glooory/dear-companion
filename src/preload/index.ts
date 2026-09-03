@@ -1,15 +1,15 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from "electron";
 import type {
   AudioPlaybackRequest,
   CompanionSystemSnapshot,
-  PetRendererStatus,
   PetInteractionRequest,
+  PetRendererStatus,
   PetSystemSnapshot,
   ReleaseHardeningApi,
   RestSystemSnapshot,
-  SettingsNavigationTarget
-} from '@shared/contracts'
-import { IPC_CHANNELS } from '@shared/ipc-channels'
+  SettingsNavigationTarget,
+} from "@shared/contracts";
+import { IPC_CHANNELS } from "@shared/ipc-channels";
 
 const api: ReleaseHardeningApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getSettings),
@@ -29,15 +29,15 @@ const api: ReleaseHardeningApi = {
   previewCompanionPace: (pace) => ipcRenderer.invoke(IPC_CHANNELS.previewCompanionPace, pace),
   onPetSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: PetSystemSnapshot): void => {
-      listener(snapshot)
-    }
-    ipcRenderer.on(IPC_CHANNELS.petSystemChanged, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.petSystemChanged, wrapped)
+      listener(snapshot);
+    };
+    ipcRenderer.on(IPC_CHANNELS.petSystemChanged, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.petSystemChanged, wrapped);
   },
   onPetInteractionRequested: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, request: PetInteractionRequest): void => listener(request)
-    ipcRenderer.on(IPC_CHANNELS.petInteractionRequested, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.petInteractionRequested, wrapped)
+    const wrapped = (_event: Electron.IpcRendererEvent, request: PetInteractionRequest): void => listener(request);
+    ipcRenderer.on(IPC_CHANNELS.petInteractionRequested, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.petInteractionRequested, wrapped);
   },
   getCompanionSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getCompanionSystemSnapshot),
   createWorkSchedule: (input) => ipcRenderer.invoke(IPC_CHANNELS.createWorkSchedule, input),
@@ -48,14 +48,14 @@ const api: ReleaseHardeningApi = {
   beginPettingGesture: (region) => ipcRenderer.send(IPC_CHANNELS.beginPettingGesture, region),
   cancelPettingGesture: () => ipcRenderer.send(IPC_CHANNELS.cancelPettingGesture),
   onCompanionSystemChanged: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: CompanionSystemSnapshot): void => listener(snapshot)
-    ipcRenderer.on(IPC_CHANNELS.companionSystemChanged, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.companionSystemChanged, wrapped)
+    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: CompanionSystemSnapshot): void => listener(snapshot);
+    ipcRenderer.on(IPC_CHANNELS.companionSystemChanged, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.companionSystemChanged, wrapped);
   },
   onPettingGestureDetected: (listener) => {
-    const wrapped = (): void => listener()
-    ipcRenderer.on(IPC_CHANNELS.pettingGestureDetected, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.pettingGestureDetected, wrapped)
+    const wrapped = (): void => listener();
+    ipcRenderer.on(IPC_CHANNELS.pettingGestureDetected, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.pettingGestureDetected, wrapped);
   },
   getRestSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getRestSystemSnapshot),
   createReminder: (input) => ipcRenderer.invoke(IPC_CHANNELS.createReminder, input),
@@ -69,16 +69,17 @@ const api: ReleaseHardeningApi = {
   endRestSession: () => ipcRenderer.invoke(IPC_CHANNELS.endRestSession),
   chooseAndImportAudio: () => ipcRenderer.invoke(IPC_CHANNELS.importAudio),
   updateAudioSources: (input) => ipcRenderer.invoke(IPC_CHANNELS.updateAudioSources, input),
-  reportAudioPlaybackFailure: (requestId, assetId) => ipcRenderer.send(IPC_CHANNELS.reportAudioPlaybackFailure, requestId, assetId),
+  reportAudioPlaybackFailure: (requestId, assetId) =>
+    ipcRenderer.send(IPC_CHANNELS.reportAudioPlaybackFailure, requestId, assetId),
   onRestSystemChanged: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: RestSystemSnapshot): void => listener(snapshot)
-    ipcRenderer.on(IPC_CHANNELS.restSystemChanged, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.restSystemChanged, wrapped)
+    const wrapped = (_event: Electron.IpcRendererEvent, snapshot: RestSystemSnapshot): void => listener(snapshot);
+    ipcRenderer.on(IPC_CHANNELS.restSystemChanged, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.restSystemChanged, wrapped);
   },
   onAudioPlaybackRequested: (listener) => {
-    const wrapped = (_event: Electron.IpcRendererEvent, request: AudioPlaybackRequest): void => listener(request)
-    ipcRenderer.on(IPC_CHANNELS.audioPlaybackRequested, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.audioPlaybackRequested, wrapped)
+    const wrapped = (_event: Electron.IpcRendererEvent, request: AudioPlaybackRequest): void => listener(request);
+    ipcRenderer.on(IPC_CHANNELS.audioPlaybackRequested, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.audioPlaybackRequested, wrapped);
   },
   getAutostartStatus: () => ipcRenderer.invoke(IPC_CHANNELS.getAutostartStatus),
   setAutostartEnabled: (enabled) => ipcRenderer.invoke(IPC_CHANNELS.setAutostartEnabled, enabled),
@@ -86,19 +87,19 @@ const api: ReleaseHardeningApi = {
   retryPetRenderer: () => ipcRenderer.invoke(IPC_CHANNELS.retryPetRenderer),
   onPetRendererStatusChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, status: PetRendererStatus): void => {
-      listener(status)
-    }
-    ipcRenderer.on(IPC_CHANNELS.petRendererStatusChanged, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.petRendererStatusChanged, wrapped)
+      listener(status);
+    };
+    ipcRenderer.on(IPC_CHANNELS.petRendererStatusChanged, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.petRendererStatusChanged, wrapped);
   },
   getSettingsNavigationTarget: () => ipcRenderer.invoke(IPC_CHANNELS.getSettingsNavigationTarget),
   onSettingsNavigationRequested: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, target: SettingsNavigationTarget): void => {
-      listener(target)
-    }
-    ipcRenderer.on(IPC_CHANNELS.settingsNavigationRequested, wrapped)
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.settingsNavigationRequested, wrapped)
-  }
-}
+      listener(target);
+    };
+    ipcRenderer.on(IPC_CHANNELS.settingsNavigationRequested, wrapped);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.settingsNavigationRequested, wrapped);
+  },
+};
 
-contextBridge.exposeInMainWorld('dearCompanion', api)
+contextBridge.exposeInMainWorld("dearCompanion", api);

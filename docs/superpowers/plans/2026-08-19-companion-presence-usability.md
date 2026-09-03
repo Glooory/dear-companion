@@ -26,6 +26,7 @@
 ### Batch 1: Reliable layered presence scheduling
 
 **Files:**
+
 - Create: `src/shared/companion-presence.ts`
 - Create: `src/shared/companion-presence.test.ts`
 - Create: `src/renderer/src/interactions/use-companion-presence.ts`
@@ -36,6 +37,7 @@
 - Include: `docs/superpowers/plans/2026-08-19-companion-presence-usability.md`
 
 **Interfaces:**
+
 - `PRESENCE_PROFILES: Record<CompanionPace, { ambientRangeMs; motionRangeMs }>` contains the exact ranges from the spec.
 - `nextAmbientDelay(pace, random)` and `nextMotionDelay(pace, random)` return clamped randomized delays.
 - `PresenceDeadline` exposes `arm(now, delay)`, `isDue(now)`, `consume(now, nextDelay)`, `clear()`, and `dueAt`; calling `arm` while already armed preserves the original deadline.
@@ -44,15 +46,15 @@
 - [ ] Add core tests that prove the three ambient/motion ranges, non-finite random clamping, preservation of an armed deadline across repeated `arm` calls, due detection, consumption, and clearing:
 
 ```ts
-expect(nextAmbientDelay('natural', () => 0)).toBe(8_000)
-expect(nextAmbientDelay('natural', () => 1)).toBe(14_000)
-expect(nextMotionDelay('lively', () => 0)).toBe(25_000)
-const deadline = new PresenceDeadline()
-deadline.arm(1_000, 8_000)
-deadline.arm(4_000, 14_000)
-expect(deadline.dueAt).toBe(9_000)
-expect(deadline.isDue(8_999)).toBe(false)
-expect(deadline.isDue(9_000)).toBe(true)
+expect(nextAmbientDelay("natural", () => 0)).toBe(8_000);
+expect(nextAmbientDelay("natural", () => 1)).toBe(14_000);
+expect(nextMotionDelay("lively", () => 0)).toBe(25_000);
+const deadline = new PresenceDeadline();
+deadline.arm(1_000, 8_000);
+deadline.arm(4_000, 14_000);
+expect(deadline.dueAt).toBe(9_000);
+expect(deadline.isDue(8_999)).toBe(false);
+expect(deadline.isDue(9_000)).toBe(true);
 ```
 
 - [ ] Run `pnpm test -- src/shared/companion-presence.test.ts`; expect failure because the module does not exist.
@@ -67,6 +69,7 @@ expect(deadline.isDue(9_000)).toBe(true)
 ### Batch 2: Intent-based menu, immediate actions, and one-photo setup
 
 **Files:**
+
 - Modify: `src/shared/contracts.ts`
 - Modify: `src/shared/ipc-channels.ts`
 - Modify: `src/preload/index.ts`
@@ -79,6 +82,7 @@ expect(deadline.isDue(9_000)).toBe(true)
 - Modify: `src/renderer/src/windows/SettingsShell.tsx`
 
 **Interfaces:**
+
 - `PetInteractionRequest = { type: 'play-now' } | { type: 'preview-pace'; pace: CompanionPace }`.
 - `PetSystemApi.previewCompanionPace(pace)` is settings-only and main-process validated.
 - `PetSystemApi.onPetInteractionRequested(listener)` subscribes the pet renderer to trusted requests.
@@ -96,6 +100,7 @@ expect(deadline.isDue(9_000)).toBe(true)
 ### Batch 3: Settings hierarchy and product-wide copy pass
 
 **Files:**
+
 - Modify: `src/renderer/src/windows/SettingsShell.tsx`
 - Modify: `src/renderer/src/components/CompanionPreferences.tsx`
 - Modify: `src/renderer/src/components/ActionSlotEditor.tsx`
@@ -112,6 +117,7 @@ expect(deadline.isDue(9_000)).toBe(true)
 - Update: affected tests that assert exact error copy without changing their behavioral coverage
 
 **Interfaces:**
+
 - `CompanionPreferences` receives `onPreview(pace: CompanionPace): void` and renders three descriptive choice cards.
 - Advanced photo adjustment is presented through native `<details>` progressive disclosure; no new navigation state or routing layer is introduced.
 
@@ -127,6 +133,7 @@ expect(deadline.isDue(9_000)).toBe(true)
 ### Batch 4: Milestone verification, comprehensive review, and consolidated fix
 
 **Files:**
+
 - Modify only files needed to resolve findings from the single milestone review.
 
 - [ ] Run the full allowed unit suite: `pnpm test`.

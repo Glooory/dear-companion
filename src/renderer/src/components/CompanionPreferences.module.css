@@ -36,7 +36,10 @@
   border: 1.5px solid #ede8e1;
   border-radius: 10px;
   background: #faf8f5;
-  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .option:hover {
@@ -114,4 +117,3 @@
     grid-template-columns: 1fr;
   }
 }
-

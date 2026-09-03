@@ -8,7 +8,9 @@
   background: rgba(61, 115, 99, 0.16);
   cursor: move;
   touch-action: none;
-  transition: border-color 150ms ease, background-color 150ms ease;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
 }
 
 .hotspot:hover {

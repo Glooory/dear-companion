@@ -1,6 +1,6 @@
-import type { PetAsset } from '@shared/contracts'
-import { clsx } from 'clsx'
-import styles from './AssetChoice.module.css'
+import { clsx } from "clsx";
+import type { PetAsset } from "@shared/contracts";
+import styles from "./AssetChoice.module.css";
 
 export function AssetChoice({
   petId,
@@ -8,19 +8,14 @@ export function AssetChoice({
   checked,
   onChange,
 }: {
-  petId: string
-  asset: PetAsset
-  checked: boolean
-  onChange(): void
+  petId: string;
+  asset: PetAsset;
+  checked: boolean;
+  onChange(): void;
 }): React.JSX.Element {
   return (
     <label className={clsx(styles.choice, checked && styles.selected)}>
-      <input
-        type="checkbox"
-        className={styles.input}
-        checked={checked}
-        onChange={onChange}
-      />
+      <input type="checkbox" className={styles.input} checked={checked} onChange={onChange} />
       <span className={styles.thumbnail} aria-hidden="true">
         <img
           src={`app://renderer/pet-assets/${encodeURIComponent(petId)}/${encodeURIComponent(asset.id)}`}
@@ -35,5 +30,5 @@ export function AssetChoice({
         </small>
       </span>
     </label>
-  )
+  );
 }

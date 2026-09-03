@@ -1,134 +1,130 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
-import writeFileAtomic from 'write-file-atomic'
-import {
-  type AppSettings,
-  migrateAppSettings,
-  parseAppSettings
-} from '../../shared/contracts'
-import { DEFAULT_APP_SETTINGS } from './default-settings'
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import writeFileAtomic from "write-file-atomic";
+import { migrateAppSettings, parseAppSettings, type AppSettings } from "../../shared/contracts";
+import { DEFAULT_APP_SETTINGS } from "./default-settings";
 
-const SETTINGS_FILE_NAME = 'settings.json'
-const BACKUP_FILE_NAME = 'settings.backup.json'
-const SETTINGS_FILE_MODE = 0o600
+const SETTINGS_FILE_NAME = "settings.json";
+const BACKUP_FILE_NAME = "settings.backup.json";
+const SETTINGS_FILE_MODE = 0o600;
 
 type SettingsFileResult =
-  | { status: 'valid'; settings: AppSettings; migrated: boolean; source: unknown }
-  | { status: 'missing' | 'invalid' | 'unreadable' }
+  | { status: "valid"; settings: AppSettings; migrated: boolean; source: unknown }
+  | { status: "missing" | "invalid" | "unreadable" };
 
 export class SettingsRecoveryError extends Error {
   constructor() {
-    super('Settings could not be recovered from local storage')
-    this.name = 'SettingsRecoveryError'
+    super("Settings could not be recovered from local storage");
+    this.name = "SettingsRecoveryError";
   }
 }
 
 export class SettingsStore {
-  private updateQueue: Promise<void> = Promise.resolve()
+  private updateQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly userDataPath: string) {}
 
   async load(): Promise<AppSettings> {
-    const primary = await this.readSettingsFile(this.settingsPath)
-    if (primary.status === 'valid') {
+    const primary = await this.readSettingsFile(this.settingsPath);
+    if (primary.status === "valid") {
       if (primary.migrated) {
         try {
-          await this.writeRawSettingsFile(this.backupPath, primary.source)
-          await this.writeSettingsFile(this.settingsPath, primary.settings)
+          await this.writeRawSettingsFile(this.backupPath, primary.source);
+          await this.writeSettingsFile(this.settingsPath, primary.settings);
         } catch {
-          throw new SettingsRecoveryError()
+          throw new SettingsRecoveryError();
         }
       }
-      return primary.settings
+      return primary.settings;
     }
-    if (primary.status === 'unreadable') {
-      throw new SettingsRecoveryError()
+    if (primary.status === "unreadable") {
+      throw new SettingsRecoveryError();
     }
 
-    const backup = await this.readSettingsFile(this.backupPath)
-    if (backup.status === 'valid') {
+    const backup = await this.readSettingsFile(this.backupPath);
+    if (backup.status === "valid") {
       try {
-        await this.writeSettingsFile(this.settingsPath, backup.settings)
+        await this.writeSettingsFile(this.settingsPath, backup.settings);
       } catch {
-        throw new SettingsRecoveryError()
+        throw new SettingsRecoveryError();
       }
-      return backup.settings
+      return backup.settings;
     }
 
-    if (primary.status === 'missing' && backup.status === 'missing') {
-      return parseAppSettings(DEFAULT_APP_SETTINGS)
+    if (primary.status === "missing" && backup.status === "missing") {
+      return parseAppSettings(DEFAULT_APP_SETTINGS);
     }
 
-    throw new SettingsRecoveryError()
+    throw new SettingsRecoveryError();
   }
 
   async save(settings: AppSettings): Promise<void> {
-    const validated = parseAppSettings(settings)
-    const primary = await this.readSettingsFile(this.settingsPath)
+    const validated = parseAppSettings(settings);
+    const primary = await this.readSettingsFile(this.settingsPath);
 
-    if (primary.status === 'unreadable') {
-      throw new Error('Existing settings could not be read safely')
+    if (primary.status === "unreadable") {
+      throw new Error("Existing settings could not be read safely");
     }
 
-    if (primary.status === 'valid') {
-      await this.writeSettingsFile(this.backupPath, primary.settings)
+    if (primary.status === "valid") {
+      await this.writeSettingsFile(this.backupPath, primary.settings);
     }
 
-    await this.writeSettingsFile(this.settingsPath, validated)
+    await this.writeSettingsFile(this.settingsPath, validated);
   }
 
   update(mutator: (current: AppSettings) => AppSettings): Promise<AppSettings> {
     const operation = this.updateQueue.then(async () => {
-      const next = parseAppSettings(mutator(await this.load()))
-      await this.save(next)
-      return next
-    })
+      const next = parseAppSettings(mutator(await this.load()));
+      await this.save(next);
+      return next;
+    });
 
     this.updateQueue = operation.then(
       () => undefined,
       () => undefined
-    )
-    return operation
+    );
+    return operation;
   }
 
   private get settingsPath(): string {
-    return join(this.userDataPath, SETTINGS_FILE_NAME)
+    return join(this.userDataPath, SETTINGS_FILE_NAME);
   }
 
   private get backupPath(): string {
-    return join(this.userDataPath, BACKUP_FILE_NAME)
+    return join(this.userDataPath, BACKUP_FILE_NAME);
   }
 
   private async readSettingsFile(path: string): Promise<SettingsFileResult> {
-    let contents: string
+    let contents: string;
 
     try {
-      contents = await readFile(path, 'utf8')
+      contents = await readFile(path, "utf8");
     } catch (error) {
-      return isMissingFileError(error) ? { status: 'missing' } : { status: 'unreadable' }
+      return isMissingFileError(error) ? { status: "missing" } : { status: "unreadable" };
     }
 
     try {
-      const source: unknown = JSON.parse(contents)
-      const migration = migrateAppSettings(source)
-      return { status: 'valid', ...migration, source }
+      const source: unknown = JSON.parse(contents);
+      const migration = migrateAppSettings(source);
+      return { status: "valid", ...migration, source };
     } catch {
-      return { status: 'invalid' }
+      return { status: "invalid" };
     }
   }
 
   private async writeSettingsFile(path: string, settings: AppSettings): Promise<void> {
-    await this.writeRawSettingsFile(path, parseAppSettings(settings))
+    await this.writeRawSettingsFile(path, parseAppSettings(settings));
   }
 
   private async writeRawSettingsFile(path: string, settings: unknown): Promise<void> {
     await writeFileAtomic(path, `${JSON.stringify(settings, null, 2)}\n`, {
-      encoding: 'utf8',
-      mode: SETTINGS_FILE_MODE
-    })
+      encoding: "utf8",
+      mode: SETTINGS_FILE_MODE,
+    });
   }
 }
 
 function isMissingFileError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT'
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

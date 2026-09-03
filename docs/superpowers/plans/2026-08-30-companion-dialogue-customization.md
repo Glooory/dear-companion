@@ -30,6 +30,7 @@
 ### Batch 1: Shared dialogue model, strict validation, and per-pet persistence
 
 **Files:**
+
 - Create: `src/shared/dialogue-catalog.ts`
 - Create: `src/shared/dialogue-settings.ts`
 - Create: `src/shared/dialogue-settings.test.ts`
@@ -42,6 +43,7 @@
 - Modify: `src/main/pets/pet-pack-service.test.ts`
 
 **Interfaces:**
+
 - `DialogueCategory` is the union of the 17 existing selector keys: `daily:click`, `playful:click`, `daily:petting`, `auto:cute`, `state:daily`, `state:drowsy`, `drowsy:click`, `drowsy:petting`, `state:sleeping`, `sleeping:murmur`, `sleeping:stirring`, `sleeping:awake`, `sleeping:touch`, `state:working`, `working:click`, `working:petting`, and `angry`.
 - `DIALOGUE_GROUPS` defines the five ordered user-facing groups and exact labels from the spec; each trigger metadata entry contains `id`, `group`, `label`, and built-in `{ id, text }` rows.
 - `SYSTEM_DIALOGUES` contains only `crying` and `reminderCompletion`; it is not accepted in `PetDialogueSettings.categories`.
@@ -58,22 +60,27 @@
 
 ```ts
 export const SYSTEM_DIALOGUES = {
-  crying: ['还没休息够呢～', '再休息一会儿吧～', '闭目养神一会儿好不好？'],
-  reminderCompletion: ['休息结束啦！', '活动一下，感觉好多了～', '充满电啦，继续加油！']
-} as const
+  crying: ["还没休息够呢～", "再休息一会儿吧～", "闭目养神一会儿好不好？"],
+  reminderCompletion: ["休息结束啦！", "活动一下，感觉好多了～", "充满电啦，继续加油！"],
+} as const;
 ```
 
 - [ ] Write failing core tests for catalog coverage and dialogue normalization. The assertions must prove that all 17 trigger IDs are unique, every built-in line ID is unique within its trigger, emoji and combined characters count as one grapheme, outer whitespace is trimmed, newlines/control characters are rejected, 13-character addresses and 31-character lines are rejected, a 21st custom line is rejected, unsafe/duplicate IDs are rejected, and duplicate templates in one trigger are rejected:
 
 ```ts
-expect(countVisibleCharacters('👨‍👩‍👧‍👦')).toBe(1)
-expect(parsePetDialogueSettings({ address: '  小葡萄  ', categories: {} }).address).toBe('小葡萄')
-expect(() => parsePetDialogueSettings({
-  address: '',
-  categories: { 'daily:click': { builtInOverrides: [], customLines: [
-    { id: 'line-1', automaticEnabled: true, text: '第一行\n第二行' }
-  ] } }
-})).toThrow('对白只能写一行')
+expect(countVisibleCharacters("👨‍👩‍👧‍👦")).toBe(1);
+expect(parsePetDialogueSettings({ address: "  小葡萄  ", categories: {} }).address).toBe("小葡萄");
+expect(() =>
+  parsePetDialogueSettings({
+    address: "",
+    categories: {
+      "daily:click": {
+        builtInOverrides: [],
+        customLines: [{ id: "line-1", automaticEnabled: true, text: "第一行\n第二行" }],
+      },
+    },
+  })
+).toThrow("对白只能写一行");
 ```
 
 - [ ] Run `pnpm test -- src/shared/dialogue-settings.test.ts src/shared/contracts.test.ts`; expect failure because the shared dialogue modules and schema v5 do not exist.
@@ -84,24 +91,25 @@ expect(() => parsePetDialogueSettings({
 
 ```ts
 const settings = parsePetDialogueSettings({
-  address: '小葡萄',
+  address: "小葡萄",
   categories: {
-    'daily:click': {
+    "daily:click": {
       builtInOverrides: [
-        { lineId: 'daily-click-here', text: '[称呼]，在呢。' },
-        { lineId: 'daily-click-whats-up', automaticEnabled: false }
+        { lineId: "daily-click-here", text: "[称呼]，在呢。" },
+        { lineId: "daily-click-whats-up", automaticEnabled: false },
       ],
       customLines: [
-        { id: 'custom-1', automaticEnabled: true, text: '[称呼]，在呢。' },
-        { id: 'custom-2', automaticEnabled: false, text: '暂不自动说' }
-      ]
-    }
-  }
-})
-expect(resolveDialogueLines('daily:click', settings)).toContain('小葡萄，在呢。')
-expect(resolveDialogueLines('daily:click', { ...settings, address: '' })).not.toContain('[称呼]，在呢。')
-expect(new Set(resolveDialogueLines('daily:click', settings)).size)
-  .toBe(resolveDialogueLines('daily:click', settings).length)
+        { id: "custom-1", automaticEnabled: true, text: "[称呼]，在呢。" },
+        { id: "custom-2", automaticEnabled: false, text: "暂不自动说" },
+      ],
+    },
+  },
+});
+expect(resolveDialogueLines("daily:click", settings)).toContain("小葡萄，在呢。");
+expect(resolveDialogueLines("daily:click", { ...settings, address: "" })).not.toContain("[称呼]，在呢。");
+expect(new Set(resolveDialogueLines("daily:click", settings)).size).toBe(
+  resolveDialogueLines("daily:click", settings).length
+);
 ```
 
 Also prove that all-disabled returns `[]`, `restoreBuiltInLine` keeps a false enabled override, and `restoreBuiltInCategory` leaves address and custom lines byte-for-byte equivalent.
@@ -121,19 +129,21 @@ Also prove that all-disabled returns `[]`, `restoreBuiltInLine` keeps a false en
 ### Batch 2: Nested dialogue-and-address settings experience
 
 **Files:**
+
 - Create: `src/renderer/src/components/DialogueSettingsEditor.tsx`
 - Create: `src/renderer/src/components/DialogueLineEditor.tsx`
 - Modify: `src/renderer/src/windows/SettingsShell.tsx`
 - Modify: `src/renderer/src/styles/global.css`
 
 **Interfaces:**
+
 - `DialogueSettingsEditor` receives `{ petName, settings, bubblesEnabled, drowsyEnabled, sleepingEnabled, validationAttempt, onChange, onBack }`.
 - `DialogueLineEditor` receives a resolved row model with source `builtin | custom`, current text, default text, automatic state, validation issue, and callbacks for text change, toggle, restore, delete, and placeholder insertion.
 - `SettingsShell` owns `petEditorPage: 'details' | 'dialogues'`, keeps dialogue changes in the existing `PetUpdateInput` draft, and runs the same `saveDraft` method from either page.
 - Local navigation inside `DialogueSettingsEditor` is `home -> group -> trigger`; it does not create a new top-level settings tab or URL/router dependency.
 - New custom IDs use renderer `crypto.randomUUID()` and are stored without display-text coupling.
 
-- [ ] Add a `对白与称呼` summary card immediately after `CompanionPreferences` and provide the single action label `编辑对白`. Build the secondary copy from concrete fragments: use `${petName}称呼你为“${address}”` when an address exists, `自定义 ${count} 句` when custom lines exist, and `已调整内置对白` when overrides exist; join present fragments with ` · `. When none are present, show `当前使用内置对白`.
+- [ ] Add a `对白与称呼` summary card immediately after `CompanionPreferences` and provide the single action label `编辑对白`. Build the secondary copy from concrete fragments: use `${petName}称呼你为“${address}”` when an address exists, `自定义 ${count} 句` when custom lines exist, and `已调整内置对白` when overrides exist; join present fragments with `·`. When none are present, show `当前使用内置对白`.
 
 - [ ] Build the nested home and group views from `DIALOGUE_GROUPS`, not duplicated JSX metadata. The home view must show the address field, five ordered scene rows, trigger/custom counts, the fixed system-message note, and the disabled-bubbles notice. The relevant group view shows `这个场景尚未启用，设置会保留` when drowsy or sleeping is not enabled. Returning to pet details must preserve the draft.
 
@@ -156,6 +166,7 @@ Also prove that all-disabled returns `[]`, `restoreBuiltInLine` keeps a false en
 ### Batch 3: Runtime effective pools and system-message isolation
 
 **Files:**
+
 - Delete: `src/renderer/src/dialogues/dialogue-library.ts`
 - Modify: `src/renderer/src/windows/PetShell.tsx`
 - Modify: `src/renderer/src/dialogues/use-dialogue.ts`
@@ -163,6 +174,7 @@ Also prove that all-disabled returns `[]`, `restoreBuiltInLine` keeps a false en
 - Modify: `src/shared/dialogue-settings.test.ts`
 
 **Interfaces:**
+
 - `PetShell.showPetDialogue(category)` calls `resolveDialogueLines(category, activePet.dialogueSettings)` and then `showDialogue(category, lines)`.
 - Required flows continue to call `showDialogue('system:crying', SYSTEM_DIALOGUES.crying, true)` and `showDialogue('system:completion', SYSTEM_DIALOGUES.reminderCompletion, true)`.
 - `useDialogue` retains the current `required || enabled` boundary; optional empty pools return without clearing an already visible required message or changing an action.
@@ -184,6 +196,7 @@ Also prove that all-disabled returns `[]`, `restoreBuiltInLine` keeps a false en
 ### Batch 4: Milestone verification, comprehensive review, and consolidated fix
 
 **Files:**
+
 - Modify only files needed to resolve findings from the single milestone review.
 
 - [ ] Run the full allowed unit suite: `pnpm test`.

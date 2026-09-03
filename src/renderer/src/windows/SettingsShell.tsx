@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { clsx } from "clsx";
 import {
   MAX_PET_TARGET_HEIGHT,
   MIN_PET_TARGET_HEIGHT,
@@ -19,22 +22,16 @@ import {
   type Weekday,
   type WorkSchedule,
 } from "@shared/contracts";
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
 import { DialogueSettingsEditor } from "../components/DialogueSettingsEditor";
 import { PetGalleryManager } from "../components/PetGalleryManager";
-import {
-  ReminderEditor,
-  type ReminderDraft,
-} from "../components/ReminderEditor";
-import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
-import { InfoTooltip, Tooltip } from "../components/Tooltip";
+import { ReminderEditor, type ReminderDraft } from "../components/ReminderEditor";
 import { useToast } from "../components/Toast";
-import { clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
-import { clsx } from "clsx";
+import { InfoTooltip, Tooltip } from "../components/Tooltip";
+import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
 import styles from "./SettingsShell.module.css";
 
 interface SettingsShellProps {
@@ -45,36 +42,27 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const toast = useToast();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [snapshot, setSnapshot] = useState<PetSystemSnapshot | null>(null);
-  const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(
-    null,
-  );
-  const [companionSnapshot, setCompanionSnapshot] =
-    useState<CompanionSystemSnapshot | null>(null);
-  const [autostartStatus, setAutostartStatus] =
-    useState<AutostartStatus | null>(null);
-  const [petRendererStatus, setPetRendererStatus] =
-    useState<PetRendererStatus | null>(null);
+  const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null);
+  const [companionSnapshot, setCompanionSnapshot] = useState<CompanionSystemSnapshot | null>(null);
+  const [autostartStatus, setAutostartStatus] = useState<AutostartStatus | null>(null);
+  const [petRendererStatus, setPetRendererStatus] = useState<PetRendererStatus | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PetUpdateInput | null>(null);
   const [newPetName, setNewPetName] = useState("");
   const [isCreatingPet, setIsCreatingPet] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(
-    null,
-  );
+  const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [targetHeightText, setTargetHeightText] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "pets" | "rest" | "work" | "system"
-  >("pets");
+  const [activeTab, setActiveTab] = useState<"pets" | "rest" | "work" | "system">("pets");
   const [petEditorPage, setPetEditorPage] = useState<"details" | "dialogues">("details");
   const [dialogueValidationAttempt, setDialogueValidationAttempt] = useState(0);
 
   const selectedPet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
-    [snapshot, selectedPetId],
+    [snapshot, selectedPetId]
   );
 
   const dialogueSummary = useMemo(() => {
@@ -93,7 +81,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     if (overridesExist) fragments.push("已调整内置对白");
     return fragments.length > 0 ? fragments.join(" · ") : "当前使用内置对白";
   }, [draft, selectedPet]);
-
 
   useEffect(() => {
     let cancelled = false;
@@ -115,11 +102,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       ]) => {
         if (cancelled) return;
         const initialPet =
-          loadedSnapshot.pets.find(
-            (pet) => pet.id === loadedSnapshot.activePetId,
-          ) ??
-          loadedSnapshot.pets[0] ??
-          null;
+          loadedSnapshot.pets.find((pet) => pet.id === loadedSnapshot.activePetId) ?? loadedSnapshot.pets[0] ?? null;
         setSettings(loadedSettings);
         setSnapshot(loadedSnapshot);
         setRestSnapshot(loadedRestSnapshot);
@@ -127,18 +110,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         setAutostartStatus(loadedAutostart);
         setPetRendererStatus(loadedRenderer);
         setSelectedPetId((current) => current ?? initialPet?.id ?? null);
-        setDraft(
-          (current) =>
-            current ?? (initialPet ? petToUpdateInput(initialPet) : null),
-        );
-        setTargetHeightText(
-          (current) =>
-            current || (initialPet ? String(initialPet.targetHeight) : ""),
-        );
+        setDraft((current) => current ?? (initialPet ? petToUpdateInput(initialPet) : null));
+        setTargetHeightText((current) => current || (initialPet ? String(initialPet.targetHeight) : ""));
       },
       () => {
         if (!cancelled) setError("设置没有读取成功。请再试一次。");
-      },
+      }
     );
     return () => {
       cancelled = true;
@@ -157,38 +134,31 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 petWindow: next.petWindow,
                 pets: next.pets,
               }
-            : current,
+            : current
         );
       }),
-    [api],
+    [api]
   );
 
   useEffect(
     () =>
       api.onRestSystemChanged((next) => {
         setRestSnapshot(next);
-        setSettings((current) =>
-          current
-            ? { ...current, reminders: next.reminders, audio: next.audio }
-            : current,
-        );
+        setSettings((current) => (current ? { ...current, reminders: next.reminders, audio: next.audio } : current));
       }),
-    [api],
+    [api]
   );
 
   useEffect(
     () =>
       api.onCompanionSystemChanged((next) => {
         setCompanionSnapshot(next);
-        setSettings((current) =>
-          current ? { ...current, workSchedules: next.workSchedules } : current,
-        );
+        setSettings((current) => (current ? { ...current, workSchedules: next.workSchedules } : current));
       }),
-    [api],
+    [api]
   );
 
   useEffect(() => api.onPetRendererStatusChanged(setPetRendererStatus), [api]);
-
 
   const runMutation = async (operation: () => Promise<void>): Promise<void> => {
     if (isBusy) return;
@@ -224,7 +194,6 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     });
   };
 
-
   const importAssets = (): void => {
     if (!selectedPetId) return;
     void runMutation(async () => {
@@ -239,48 +208,30 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             : `照片导入失败（共 ${report.failures.length} 张失败）`,
           {
             details:
-              report.failures.length > 1
-                ? report.failures.map(
-                    (f) => `第 ${f.index + 1} 张：${f.message}`,
-                  )
-                : undefined,
-          },
+              report.failures.length > 1 ? report.failures.map((f) => `第 ${f.index + 1} 张：${f.message}`) : undefined,
+          }
         );
       } else {
-        toast.warning(
-          `已导入 ${report.imported.length} 张照片，${report.failures.length} 张导入失败`,
-          {
-            details: report.failures.map(
-              (f) => `第 ${f.index + 1} 张：${f.message}`,
-            ),
-          },
-        );
+        toast.warning(`已导入 ${report.imported.length} 张照片，${report.failures.length} 张导入失败`, {
+          details: report.failures.map((f) => `第 ${f.index + 1} 张：${f.message}`),
+        });
       }
       const next = await api.getPetSystemSnapshot();
       setSnapshot(next);
       const nextPet = next.pets.find((pet) => pet.id === selectedPetId);
       if (nextPet) {
         setDraft((current) => mergeImportedAssetsIntoDraft(current, nextPet));
-        if (!draft || draft.id !== nextPet.id)
-          setTargetHeightText(String(nextPet.targetHeight));
+        if (!draft || draft.id !== nextPet.id) setTargetHeightText(String(nextPet.targetHeight));
       }
     });
   };
 
   const deletePet = (): void => {
-    if (
-      !selectedPet ||
-      !window.confirm(
-        `删除“${selectedPet.name}”后，它的照片也会从这台电脑中移除。继续删除吗？`,
-      )
-    )
+    if (!selectedPet || !window.confirm(`删除“${selectedPet.name}”后，它的照片也会从这台电脑中移除。继续删除吗？`))
       return;
     void runMutation(async () => {
       const next = await api.deletePet(selectedPet.id);
-      const replacement =
-        next.pets.find((pet) => pet.id === next.activePetId) ??
-        next.pets[0] ??
-        null;
+      const replacement = next.pets.find((pet) => pet.id === next.activePetId) ?? next.pets[0] ?? null;
       setSnapshot(next);
       setSelectedPetId(replacement?.id ?? null);
       setDraft(replacement ? petToUpdateInput(replacement) : null);
@@ -293,7 +244,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               activePetId: next.activePetId,
               pets: next.pets,
             }
-          : current,
+          : current
       );
       toast.success("已删除伙伴");
     });
@@ -343,9 +294,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     }
     const targetHeight = normalizeTargetHeight(targetHeightText);
     if (targetHeight === null) {
-      toast.warning(
-        `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
-      );
+      toast.warning(`桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`);
       return;
     }
     const input = { ...draft, targetHeight };
@@ -370,9 +319,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       if (draft && draft.id === petId) {
         const targetHeight = normalizeTargetHeight(targetHeightText);
         if (targetHeight === null) {
-          toast.warning(
-            `桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`,
-          );
+          toast.warning(`桌面上的大小需要在 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} 之间。`);
           return;
         }
         const input = { ...draft, targetHeight };
@@ -388,11 +335,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
         setDraft(petToUpdateInput(targetPet));
         setTargetHeightText(String(targetPet.targetHeight));
       }
-      setSettings((current) =>
-        current
-          ? { ...current, activePetId: next.activePetId, pets: next.pets }
-          : current,
-      );
+      setSettings((current) => (current ? { ...current, activePetId: next.activePetId, pets: next.pets } : current));
       toast.success("已切换当前伙伴");
     });
   };
@@ -412,9 +355,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       const next = await api.setAutostartEnabled(target);
       setAutostartStatus(next);
       if (next.errorCode) {
-        toast.error(
-          `自启动设置失败（${autostartErrorMessage(next.errorCode)}）。原设置保持不变。`,
-        );
+        toast.error(`自启动设置失败（${autostartErrorMessage(next.errorCode)}）。原设置保持不变。`);
       } else {
         toast.success(target ? "已开启开机启动" : "已关闭开机启动");
       }
@@ -429,18 +370,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const applyRestSnapshot = (next: RestSystemSnapshot): void => {
     setRestSnapshot(next);
-    setSettings((current) =>
-      current
-        ? { ...current, reminders: next.reminders, audio: next.audio }
-        : current,
-    );
+    setSettings((current) => (current ? { ...current, reminders: next.reminders, audio: next.audio } : current));
   };
 
   const applyCompanionSnapshot = (next: CompanionSystemSnapshot): void => {
     setCompanionSnapshot(next);
-    setSettings((current) =>
-      current ? { ...current, workSchedules: next.workSchedules } : current,
-    );
+    setSettings((current) => (current ? { ...current, workSchedules: next.workSchedules } : current));
   };
 
   const createWorkSchedule = (input: CreateWorkScheduleInput): void => {
@@ -465,9 +400,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   const setWorkScheduleEnabled = (id: string, enabled: boolean): void => {
-    void runMutation(async () =>
-      applyCompanionSnapshot(await api.setWorkScheduleEnabled(id, enabled)),
-    );
+    void runMutation(async () => applyCompanionSnapshot(await api.setWorkScheduleEnabled(id, enabled)));
   };
 
   const newReminder = (): void =>
@@ -491,8 +424,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const saveReminder = (): void => {
     const draftValue = reminderDraft;
-    if (!draftValue || draftValue.hour === null || draftValue.minute === null)
-      return;
+    if (!draftValue || draftValue.hour === null || draftValue.minute === null) return;
     const input: CreateReminderInput = {
       enabled: draftValue.enabled,
       hour: draftValue.hour,
@@ -524,11 +456,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   const setReminderEnabled = (reminder: ReminderSchedule): void => {
-    void runMutation(async () =>
-      applyRestSnapshot(
-        await api.setReminderEnabled(reminder.id, !reminder.enabled),
-      ),
-    );
+    void runMutation(async () => applyRestSnapshot(await api.setReminderEnabled(reminder.id, !reminder.enabled)));
   };
 
   useEffect(() => {
@@ -575,22 +503,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             : `声音导入失败（共 ${report.failures.length} 个失败）`,
           {
             details:
-              report.failures.length > 1
-                ? report.failures.map(
-                    (f) => `第 ${f.index + 1} 个：${f.message}`,
-                  )
-                : undefined,
-          },
+              report.failures.length > 1 ? report.failures.map((f) => `第 ${f.index + 1} 个：${f.message}`) : undefined,
+          }
         );
       } else {
-        toast.warning(
-          `已导入 ${report.imported.length} 个声音，${report.failures.length} 个导入失败`,
-          {
-            details: report.failures.map(
-              (f) => `第 ${f.index + 1} 个：${f.message}`,
-            ),
-          },
-        );
+        toast.warning(`已导入 ${report.imported.length} 个声音，${report.failures.length} 个导入失败`, {
+          details: report.failures.map((f) => `第 ${f.index + 1} 个：${f.message}`),
+        });
       }
       applyRestSnapshot(await api.getRestSystemSnapshot());
     });
@@ -604,15 +523,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   return (
-    <main
-      className={styles.shell}
-      aria-busy={
-        isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot
-      }
-    >
+    <main className={styles.shell} aria-busy={isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot}>
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">✦</span>
+          <span className={styles.brandMark} aria-hidden="true">
+            ✦
+          </span>
           <span className={styles.brandTitle}>Dear Companion</span>
           <span className={styles.brandBadge}>本地离线</span>
         </div>
@@ -623,7 +539,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             className={clsx(styles.navButton, activeTab === "pets" && styles.active)}
             onClick={() => setActiveTab("pets")}
           >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <path d="M10 14c-2.5 0-4-1.5-4-3.5 0-1.8 1.5-3 4-3s4 1.2 4 3c0 2-1.5 3.5-4 3.5z" />
               <circle cx="6" cy="5.5" r="1.5" />
               <circle cx="14" cy="5.5" r="1.5" />
@@ -637,7 +563,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             className={clsx(styles.navButton, activeTab === "rest" && styles.active)}
             onClick={() => setActiveTab("rest")}
           >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <circle cx="10" cy="10" r="7.5" />
               <polyline points="10,6 10,10 13,12" />
             </svg>
@@ -648,7 +584,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             className={clsx(styles.navButton, activeTab === "work" && styles.active)}
             onClick={() => setActiveTab("work")}
           >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <rect x="3" y="6" width="14" height="11" rx="2" />
               <path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3h3A1.5 1.5 0 0 1 13 4.5V6" />
               <path d="M3 11h14" />
@@ -660,7 +606,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             className={clsx(styles.navButton, activeTab === "system" && styles.active)}
             onClick={() => setActiveTab("system")}
           >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <circle cx="10" cy="10" r="3" />
               <path d="M16.2 12.3a1 1 0 0 0 .2 1.1l.6.6a1.2 1.2 0 0 1-1.7 1.7l-.6-.6a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9v.9a1.2 1.2 0 0 1-2.4 0v-.9a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.6.6a1.2 1.2 0 0 1-1.7-1.7l.6-.6a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H3.8a1.2 1.2 0 0 1 0-2.4h.9a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.6-.6a1.2 1.2 0 0 1 1.7-1.7l.6.6a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V3.8a1.2 1.2 0 0 1 2.4 0v.9a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.6-.6a1.2 1.2 0 0 1 1.7 1.7l-.6.6a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.9a1.2 1.2 0 0 1 0 2.4h-.9a1 1 0 0 0-.9.6z" />
             </svg>
@@ -715,11 +671,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                         type="button"
                         className={styles.quickSwitchBtn}
                         disabled={isBusy || pet.actionSlots.idle.length === 0}
-                        title={
-                          pet.actionSlots.idle.length === 0
-                            ? "需先导入照片才可设为桌面伙伴"
-                            : "设为桌面伙伴"
-                        }
+                        title={pet.actionSlots.idle.length === 0 ? "需先导入照片才可设为桌面伙伴" : "设为桌面伙伴"}
                         onClick={(event) => {
                           event.stopPropagation();
                           switchActivePet(pet.id);
@@ -731,11 +683,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   </div>
                 </div>
               ))}
-              {snapshot.pets.length === 0 && (
-                <p className="supporting-copy">
-                  还没有添加伙伴。
-                </p>
-              )}
+              {snapshot.pets.length === 0 && <p className="supporting-copy">还没有添加伙伴。</p>}
             </div>
 
             {isCreatingPet ? (
@@ -782,7 +730,15 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 disabled={isBusy}
                 onClick={() => setIsCreatingPet(true)}
               >
-                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <svg
+                  viewBox="0 0 16 16"
+                  width="13"
+                  height="13"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
                   <line x1="8" y1="3" x2="8" y2="13" />
                   <line x1="3" y1="8" x2="13" y2="8" />
                 </svg>
@@ -801,9 +757,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   drowsyEnabled={draft.lifeStates.drowsy.enabled}
                   sleepingEnabled={draft.lifeStates.sleeping.enabled}
                   validationAttempt={dialogueValidationAttempt}
-                  onChange={(dialogueSettings) =>
-                    setDraft({ ...draft, dialogueSettings })
-                  }
+                  onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
                   onBack={() => setPetEditorPage("details")}
                   onSave={saveDraft}
                   isBusy={isBusy}
@@ -812,171 +766,147 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               ) : (
                 <>
                   <div className="editor-heading-row">
-                  <div className={styles.titleWrap}>
-                    <div className={styles.titleLine}>
-                      <h2>{selectedPet.name}</h2>
-                      {snapshot.activePetId === selectedPet.id && (
-                        <span className={styles.petActiveBadge}>当前使用</span>
-                      )}
+                    <div className={styles.titleWrap}>
+                      <div className={styles.titleLine}>
+                        <h2>{selectedPet.name}</h2>
+                        {snapshot.activePetId === selectedPet.id && (
+                          <span className={styles.petActiveBadge}>当前使用</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className={styles.basicFields}>
-                  <label>
-                    <span className="field-label-row">
-                      <span>伙伴名称</span>
-                    </span>
-                    <input
-                      value={draft.name}
-                      maxLength={80}
-                      onChange={(event) =>
-                        setDraft({ ...draft, name: event.currentTarget.value })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span className="field-label-row">
-                      <span>显示高度</span>
-                      <InfoTooltip text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`} />
-                    </span>
-                    <div className={styles.unitWrap}>
+                  <div className={styles.basicFields}>
+                    <label>
+                      <span className="field-label-row">
+                        <span>伙伴名称</span>
+                      </span>
                       <input
-                        type="number"
-                        min={MIN_PET_TARGET_HEIGHT}
-                        max={MAX_PET_TARGET_HEIGHT}
-                        step={1}
-                        inputMode="numeric"
-                        value={targetHeightText}
-                        onChange={(event) => {
-                          const text = event.currentTarget.value;
-                          setTargetHeightText(text);
-                          const value = parseTargetHeight(text);
-                          if (value !== null)
-                            setDraft({ ...draft, targetHeight: value });
-                        }}
-                        onBlur={() => {
-                          const value = normalizeTargetHeight(targetHeightText);
-                          if (value === null) return;
-                          setTargetHeightText(String(value));
-                          setDraft({ ...draft, targetHeight: value });
-                        }}
+                        value={draft.name}
+                        maxLength={80}
+                        onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })}
                       />
-                      <span className={styles.unitSuffix}>px</span>
-                    </div>
-                  </label>
-                </div>
-
-                <section className="editor-section">
-                  <CompanionPreferences
-                    pace={draft.companionPace}
-                    bubblesEnabled={draft.interactionBubblesEnabled}
-                    onPaceChange={(companionPace) =>
-                      setDraft({ ...draft, companionPace })
-                    }
-                    onBubblesChange={(interactionBubblesEnabled) =>
-                      setDraft({ ...draft, interactionBubblesEnabled })
-                    }
-                    onPreview={(pace) => {
-                      void api
-                        .previewCompanionPace(pace)
-                        .catch(() => toast.error("暂时无法预览，请稍后再试。"));
-                    }}
-                  />
-                </section>
-
-                <section className="editor-section">
-                  <div className={styles.dialogueSummaryCard}>
-                    <div className={styles.dialogueSummaryInfo}>
-                      <div className={styles.dialogueSummaryTitle}>对白与称呼</div>
-                      <div className={styles.dialogueSummaryCopy}>{dialogueSummary}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="ghost-button"
-                      onClick={() => setPetEditorPage("dialogues")}
-                    >
-                      编辑对白
-                    </button>
+                    </label>
+                    <label>
+                      <span className="field-label-row">
+                        <span>显示高度</span>
+                        <InfoTooltip
+                          text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`}
+                        />
+                      </span>
+                      <div className={styles.unitWrap}>
+                        <input
+                          type="number"
+                          min={MIN_PET_TARGET_HEIGHT}
+                          max={MAX_PET_TARGET_HEIGHT}
+                          step={1}
+                          inputMode="numeric"
+                          value={targetHeightText}
+                          onChange={(event) => {
+                            const text = event.currentTarget.value;
+                            setTargetHeightText(text);
+                            const value = parseTargetHeight(text);
+                            if (value !== null) setDraft({ ...draft, targetHeight: value });
+                          }}
+                          onBlur={() => {
+                            const value = normalizeTargetHeight(targetHeightText);
+                            if (value === null) return;
+                            setTargetHeightText(String(value));
+                            setDraft({ ...draft, targetHeight: value });
+                          }}
+                        />
+                        <span className={styles.unitSuffix}>px</span>
+                      </div>
+                    </label>
                   </div>
-                </section>
 
-                <PetGalleryManager
-                  petId={selectedPet.id}
-                  assets={selectedPet.assets}
-                  targetHeight={draft.targetHeight}
-                  assetAdjustments={draft.assets}
-                  isActivePet={selectedPet.id === snapshot?.activePetId}
-                  onImport={importAssets}
-                  onDeleteAsset={deleteAsset}
-                  isBusy={isBusy}
-                  onUpdateNormalization={(assetId, normalization) =>
-                    setDraft({
-                      ...draft,
-                      assets: draft.assets.map((entry) =>
-                        entry.id === assetId ? { ...entry, normalization } : entry,
-                      ),
-                    })
-                  }
-                  onUpdateHeadHotspot={(assetId, headHotspot) =>
-                    setDraft({
-                      ...draft,
-                      assets: draft.assets.map((entry) =>
-                        entry.id === assetId ? { ...entry, headHotspot } : entry,
-                      ),
-                    })
-                  }
-                />
+                  <section className="editor-section">
+                    <CompanionPreferences
+                      pace={draft.companionPace}
+                      bubblesEnabled={draft.interactionBubblesEnabled}
+                      onPaceChange={(companionPace) => setDraft({ ...draft, companionPace })}
+                      onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
+                      onPreview={(pace) => {
+                        void api.previewCompanionPace(pace).catch(() => toast.error("暂时无法预览，请稍后再试。"));
+                      }}
+                    />
+                  </section>
 
-                <section className="editor-section">
-                  <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                    <h2>日常姿态与场景</h2>
-                    <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
-                  </div>
-                  <CompanionBehaviorEditor
+                  <section className="editor-section">
+                    <div className={styles.dialogueSummaryCard}>
+                      <div className={styles.dialogueSummaryInfo}>
+                        <div className={styles.dialogueSummaryTitle}>对白与称呼</div>
+                        <div className={styles.dialogueSummaryCopy}>{dialogueSummary}</div>
+                      </div>
+                      <button type="button" className="ghost-button" onClick={() => setPetEditorPage("dialogues")}>
+                        编辑对白
+                      </button>
+                    </div>
+                  </section>
+
+                  <PetGalleryManager
                     petId={selectedPet.id}
                     assets={selectedPet.assets}
-                    slots={draft.actionSlots}
-                    lifeStates={draft.lifeStates}
-                    onSlotsChange={(actionSlots) =>
-                      setDraft({ ...draft, actionSlots })
+                    targetHeight={draft.targetHeight}
+                    assetAdjustments={draft.assets}
+                    isActivePet={selectedPet.id === snapshot?.activePetId}
+                    onImport={importAssets}
+                    onDeleteAsset={deleteAsset}
+                    isBusy={isBusy}
+                    onUpdateNormalization={(assetId, normalization) =>
+                      setDraft({
+                        ...draft,
+                        assets: draft.assets.map((entry) =>
+                          entry.id === assetId ? { ...entry, normalization } : entry
+                        ),
+                      })
                     }
-                    onLifeStatesChange={(lifeStates) =>
-                      setDraft({ ...draft, lifeStates })
+                    onUpdateHeadHotspot={(assetId, headHotspot) =>
+                      setDraft({
+                        ...draft,
+                        assets: draft.assets.map((entry) => (entry.id === assetId ? { ...entry, headHotspot } : entry)),
+                      })
                     }
                   />
-                </section>
 
-                <div className="editor-actions">
-                  <button
-                    type="button"
-                    className="danger-button"
-                    disabled={isBusy}
-                    onClick={deletePet}
-                  >
-                    删除伙伴
-                  </button>
-                  <Tooltip
-                    content="需先导入照片才可保存设置"
-                    position="top-end"
-                    disabled={selectedPet.assets.length > 0}
-                  >
-                    <button
-                      type="button"
-                      className={clsx("primary-button", saveSuccess && "saved")}
-                      disabled={isBusy || selectedPet.assets.length === 0}
-                      onClick={saveDraft}
-                    >
-                      {saveSuccess ? "已保存 ✓" : "保存设置"}
+                  <section className="editor-section">
+                    <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
+                      <h2>日常姿态与场景</h2>
+                      <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
+                    </div>
+                    <CompanionBehaviorEditor
+                      petId={selectedPet.id}
+                      assets={selectedPet.assets}
+                      slots={draft.actionSlots}
+                      lifeStates={draft.lifeStates}
+                      onSlotsChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
+                      onLifeStatesChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
+                    />
+                  </section>
+
+                  <div className="editor-actions">
+                    <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>
+                      删除伙伴
                     </button>
-                  </Tooltip>
-                </div>
-              </>
-            )
+                    <Tooltip
+                      content="需先导入照片才可保存设置"
+                      position="top-end"
+                      disabled={selectedPet.assets.length > 0}
+                    >
+                      <button
+                        type="button"
+                        className={clsx("primary-button", saveSuccess && "saved")}
+                        disabled={isBusy || selectedPet.assets.length === 0}
+                        onClick={saveDraft}
+                      >
+                        {saveSuccess ? "已保存 ✓" : "保存设置"}
+                      </button>
+                    </Tooltip>
+                  </div>
+                </>
+              )
             ) : (
-              <div className={styles.emptyState}>
-                请选择或新建一个伙伴。
-              </div>
+              <div className={styles.emptyState}>请选择或新建一个伙伴。</div>
             )}
           </section>
         </div>
@@ -990,28 +920,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <h2>休息提醒</h2>
                 <InfoTooltip text="按设定时间提醒起身活动或喝水。默认保持静音，不打扰工作。" />
               </div>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={isBusy}
-                onClick={newReminder}
-              >
+              <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>
                 添加休息提醒
               </button>
             </div>
             {restSnapshot.runtime.serviceStatus === "error" && (
               <div className={styles.serviceError} role="alert">
-                <span>
-                  {restSnapshot.runtime.serviceError?.message ??
-                    "休息提醒暂时不可用。"}
-                </span>
+                <span>{restSnapshot.runtime.serviceError?.message ?? "休息提醒暂时不可用。"}</span>
                 <button
                   type="button"
-                  onClick={() =>
-                    void runMutation(async () =>
-                      applyRestSnapshot(await api.retryReminderService()),
-                    )
-                  }
+                  onClick={() => void runMutation(async () => applyRestSnapshot(await api.retryReminderService()))}
                 >
                   再试一次
                 </button>
@@ -1019,9 +937,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             )}
             <div className={styles.reminderList}>
               {restSnapshot.reminders.length === 0 ? (
-                <p className={styles.emptyState}>
-                  暂无休息提醒。
-                </p>
+                <p className={styles.emptyState}>暂无休息提醒。</p>
               ) : (
                 restSnapshot.reminders.map((reminder) => {
                   const soundBadge = formatSoundBadge(reminder.sounds);
@@ -1044,15 +960,19 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       >
                         <div className={styles.reminderPrimaryRow}>
                           <strong className={styles.reminderTime}>
-                            {String(reminder.hour).padStart(2, "0")}:
-                            {String(reminder.minute).padStart(2, "0")}
+                            {String(reminder.hour).padStart(2, "0")}:{String(reminder.minute).padStart(2, "0")}
                           </strong>
                           <span className={styles.reminderMessage}>{reminder.message}</span>
                         </div>
                         <div className={styles.reminderBadges}>
                           <span className={styles.reminderBadge}>{formatReminderWeekdays(reminder.weekdays)}</span>
                           <span className={styles.reminderBadge}>{reminder.restDurationMinutes} 分钟休息</span>
-                          <span className={clsx(styles.reminderBadge, soundBadge.enabled ? styles.badgeSoundOn : styles.badgeSoundOff)}>
+                          <span
+                            className={clsx(
+                              styles.reminderBadge,
+                              soundBadge.enabled ? styles.badgeSoundOn : styles.badgeSoundOff
+                            )}
+                          >
                             {soundBadge.label}
                           </span>
                           <span className={styles.reminderBadge}>{formatTolerance(reminder.cursorTolerance)}</span>
@@ -1067,10 +987,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                         >
                           编辑 ›
                         </button>
-                        <label
-                          className="toggle-control"
-                          style={{ marginBottom: 0 }}
-                        >
+                        <label className="toggle-control" style={{ marginBottom: 0 }}>
                           <input
                             type="checkbox"
                             checked={reminder.enabled}
@@ -1129,7 +1046,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   />
                 </div>
               </div>,
-              document.body,
+              document.body
             )}
         </section>
       )}
@@ -1177,9 +1094,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <InfoTooltip text="电脑开机后自动在后台启动应用并常驻托盘。" />
                 </div>
                 {!autostartStatus?.supported && (
-                  <p className="supporting-copy">
-                    开发调试模式下不写入系统启动项，仅在安装版本中生效。
-                  </p>
+                  <p className="supporting-copy">开发调试模式下不写入系统启动项，仅在安装版本中生效。</p>
                 )}
               </div>
               {autostartStatus ? (
@@ -1207,15 +1122,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
           {petRendererStatus?.state === "safe-mode" && (
             <article className={clsx(styles.card, styles.recoveryCard)}>
               <h2>伙伴窗口恢复</h2>
-              <p className="supporting-copy">
-                受屏幕分辨率或系统渲染影响暂时停用，设置与提醒仍正常运行。
-              </p>
-              <button
-                type="button"
-                className="secondary-button"
-                disabled={isBusy}
-                onClick={retryPetRenderer}
-              >
+              <p className="supporting-copy">受屏幕分辨率或系统渲染影响暂时停用，设置与提醒仍正常运行。</p>
+              <button type="button" className="secondary-button" disabled={isBusy} onClick={retryPetRenderer}>
                 恢复伙伴窗口
               </button>
             </article>
@@ -1230,9 +1138,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   );
 }
 
-function autostartErrorMessage(
-  errorCode: NonNullable<AutostartStatus["errorCode"]>,
-): string {
+function autostartErrorMessage(errorCode: NonNullable<AutostartStatus["errorCode"]>): string {
   switch (errorCode) {
     case "os-read-failed":
       return "无法读取系统状态";
@@ -1279,21 +1185,15 @@ function petToUpdateInput(pet: PetConfig): PetUpdateInput {
   };
 }
 
-function mergeImportedAssetsIntoDraft(
-  current: PetUpdateInput | null,
-  persistedPet: PetConfig,
-): PetUpdateInput {
+function mergeImportedAssetsIntoDraft(current: PetUpdateInput | null, persistedPet: PetConfig): PetUpdateInput {
   const persisted = petToUpdateInput(persistedPet);
   if (!current || current.id !== persistedPet.id) return persisted;
-  const existingAdjustments = new Map(
-    current.assets.map((asset) => [asset.id, asset]),
-  );
+  const existingAdjustments = new Map(current.assets.map((asset) => [asset.id, asset]));
   return {
     ...current,
     dialogueSettings: clonePetDialogueSettings(current.dialogueSettings),
     actionSlots:
-      current.actionSlots.idle.length === 0 &&
-      persisted.actionSlots.idle.length > 0
+      current.actionSlots.idle.length === 0 && persisted.actionSlots.idle.length > 0
         ? { ...current.actionSlots, idle: [...persisted.actionSlots.idle] }
         : current.actionSlots,
     assets: persisted.assets.map((asset) => {
@@ -1302,9 +1202,7 @@ function mergeImportedAssetsIntoDraft(
         ? {
             id: existing.id,
             normalization: { ...existing.normalization },
-            headHotspot: existing.headHotspot
-              ? { ...existing.headHotspot }
-              : null,
+            headHotspot: existing.headHotspot ? { ...existing.headHotspot } : null,
           }
         : asset;
     }),
@@ -1314,9 +1212,7 @@ function mergeImportedAssetsIntoDraft(
 function parseTargetHeight(value: string): number | null {
   if (value.trim() === "") return null;
   const parsed = Number(value);
-  return Number.isFinite(parsed) &&
-    parsed >= MIN_PET_TARGET_HEIGHT &&
-    parsed <= MAX_PET_TARGET_HEIGHT
+  return Number.isFinite(parsed) && parsed >= MIN_PET_TARGET_HEIGHT && parsed <= MAX_PET_TARGET_HEIGHT
     ? Math.round(parsed)
     : null;
 }
@@ -1325,9 +1221,7 @@ function normalizeTargetHeight(value: string): number | null {
   if (value.trim() === "") return null;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
-  return Math.round(
-    Math.min(Math.max(parsed, MIN_PET_TARGET_HEIGHT), MAX_PET_TARGET_HEIGHT),
-  );
+  return Math.round(Math.min(Math.max(parsed, MIN_PET_TARGET_HEIGHT), MAX_PET_TARGET_HEIGHT));
 }
 
 function formatReminderWeekdays(weekdays: readonly Weekday[]): string {
@@ -1359,4 +1253,3 @@ function formatSoundBadge(sounds: { reminder: boolean; crying: boolean }): { lab
   if (sounds.crying) return { label: "🔔 督促音开启", enabled: true };
   return { label: "🔕 静音", enabled: false };
 }
-

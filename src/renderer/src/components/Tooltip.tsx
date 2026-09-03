@@ -1,42 +1,42 @@
-import { useState, type ReactNode } from 'react'
-import { clsx } from 'clsx'
-import styles from './Tooltip.module.css'
+import { useState, type ReactNode } from "react";
+import { clsx } from "clsx";
+import styles from "./Tooltip.module.css";
 
 interface TooltipProps {
-  content: string
-  children: ReactNode
-  position?: 'top' | 'bottom' | 'right' | 'left' | 'top-end'
-  className?: string
-  disabled?: boolean
+  content: string;
+  children: ReactNode;
+  position?: "top" | "bottom" | "right" | "left" | "top-end";
+  className?: string;
+  disabled?: boolean;
 }
 
-const positionClassMap: Record<'top' | 'bottom' | 'right' | 'left' | 'top-end', string | undefined> = {
+const positionClassMap: Record<"top" | "bottom" | "right" | "left" | "top-end", string | undefined> = {
   top: styles.top,
   bottom: styles.bottom,
   right: styles.right,
   left: styles.left,
-  'top-end': styles.topEnd,
-}
+  "top-end": styles.topEnd,
+};
 
 export function Tooltip({
   content,
   children,
-  position = 'top',
-  className = '',
+  position = "top",
+  className = "",
   disabled = false,
 }: TooltipProps): React.JSX.Element {
-  const [visible, setVisible] = useState(false)
-  const isEnabled = !disabled && Boolean(content)
+  const [visible, setVisible] = useState(false);
+  const isEnabled = !disabled && Boolean(content);
 
   return (
     <span
       className={clsx(styles.wrapper, className)}
       onMouseEnter={() => {
-        if (isEnabled) setVisible(true)
+        if (isEnabled) setVisible(true);
       }}
       onMouseLeave={() => setVisible(false)}
       onFocus={() => {
-        if (isEnabled) setVisible(true)
+        if (isEnabled) setVisible(true);
       }}
       onBlur={() => setVisible(false)}
     >
@@ -47,15 +47,15 @@ export function Tooltip({
         </span>
       )}
     </span>
-  )
+  );
 }
 
 export function InfoTooltip({
   text,
-  position = 'top',
+  position = "top",
 }: {
-  text: string
-  position?: 'top' | 'bottom' | 'right' | 'left'
+  text: string;
+  position?: "top" | "bottom" | "right" | "left";
 }): React.JSX.Element {
   return (
     <Tooltip content={text} position={position} className={styles.infoTrigger}>
@@ -76,5 +76,5 @@ export function InfoTooltip({
         </svg>
       </button>
     </Tooltip>
-  )
+  );
 }

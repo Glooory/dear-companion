@@ -101,94 +101,88 @@ Existing renderer presentation, IPC wiring, preload, settings, pet-pack persiste
 **Interfaces produced for later batches:**
 
 ```ts
-export type CompanionPace = 'quiet' | 'natural' | 'lively'
-export type CompanionLifeState =
-  | 'daily-calm' | 'daily-playful' | 'drowsy' | 'sleeping' | 'working'
-export type ManualLifeSelection =
-  | 'auto' | 'daily-calm' | 'daily-playful' | 'drowsy' | 'sleeping'
+export type CompanionPace = "quiet" | "natural" | "lively";
+export type CompanionLifeState = "daily-calm" | "daily-playful" | "drowsy" | "sleeping" | "working";
+export type ManualLifeSelection = "auto" | "daily-calm" | "daily-playful" | "drowsy" | "sleeping";
 
 export interface HeadHotspot {
-  centerX: number
-  centerY: number
-  radiusX: number
-  radiusY: number
+  centerX: number;
+  centerY: number;
+  radiusX: number;
+  radiusY: number;
 }
 
 export interface ScreenEllipse {
-  centerX: number
-  centerY: number
-  radiusX: number
-  radiusY: number
+  centerX: number;
+  centerY: number;
+  radiusX: number;
+  radiusY: number;
 }
 
 export interface OptionalLifeAssets {
-  enabled: boolean
-  assetIds: readonly string[]
+  enabled: boolean;
+  assetIds: readonly string[];
 }
 
 export interface PetLifeStates {
-  drowsy: OptionalLifeAssets
-  sleeping: OptionalLifeAssets
-  workingAssetIds: readonly string[]
+  drowsy: OptionalLifeAssets;
+  sleeping: OptionalLifeAssets;
+  workingAssetIds: readonly string[];
 }
 
 export interface WorkSchedule {
-  id: string
-  enabled: boolean
-  startHour: number
-  startMinute: number
-  endHour: number
-  endMinute: number
-  weekdays: readonly Weekday[]
+  id: string;
+  enabled: boolean;
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  weekdays: readonly Weekday[];
 }
 
 export interface CompanionRuntimeSnapshot {
-  lifeState: CompanionLifeState
-  manualSelection: ManualLifeSelection
-  manualWorkActive: boolean
-  scheduledWorkActive: boolean
-  systemSuspended: boolean
-  nextTransitionAt: number | null
-  available: { drowsy: boolean; sleeping: boolean }
+  lifeState: CompanionLifeState;
+  manualSelection: ManualLifeSelection;
+  manualWorkActive: boolean;
+  scheduledWorkActive: boolean;
+  systemSuspended: boolean;
+  nextTransitionAt: number | null;
+  available: { drowsy: boolean; sleeping: boolean };
 }
 
 export interface CompanionSystemSnapshot {
-  workSchedules: readonly WorkSchedule[]
-  runtime: CompanionRuntimeSnapshot
+  workSchedules: readonly WorkSchedule[];
+  runtime: CompanionRuntimeSnapshot;
 }
 
 export interface CompanionStateInputs {
-  current: CompanionLifeState
-  automaticState: CompanionLifeState
-  manualSelection: ManualLifeSelection
-  manualWorkActive: boolean
-  scheduledWorkActive: boolean
-  systemSuspended: boolean
-  available: { drowsy: boolean; sleeping: boolean }
+  current: CompanionLifeState;
+  automaticState: CompanionLifeState;
+  manualSelection: ManualLifeSelection;
+  manualWorkActive: boolean;
+  scheduledWorkActive: boolean;
+  systemSuspended: boolean;
+  available: { drowsy: boolean; sleeping: boolean };
 }
 
-export function resolveCompanionState(inputs: CompanionStateInputs): CompanionLifeState
+export function resolveCompanionState(inputs: CompanionStateInputs): CompanionLifeState;
 export function nextRhythmStep(
   input: {
-    state: CompanionLifeState
-    pace: CompanionPace
-    available: { drowsy: boolean; sleeping: boolean }
-    now: number
-    awakeUntil: number
+    state: CompanionLifeState;
+    pace: CompanionPace;
+    available: { drowsy: boolean; sleeping: boolean };
+    now: number;
+    awakeUntil: number;
   },
   random: () => number
-): { state: CompanionLifeState; dueAt: number }
-export function nextAutoCuteDelay(pace: CompanionPace, random: () => number): number
-export function isWorkScheduleActive(
-  schedule: WorkSchedule,
-  now: number,
-  calendar?: LocalCalendarAdapter
-): boolean
+): { state: CompanionLifeState; dueAt: number };
+export function nextAutoCuteDelay(pace: CompanionPace, random: () => number): number;
+export function isWorkScheduleActive(schedule: WorkSchedule, now: number, calendar?: LocalCalendarAdapter): boolean;
 export function nextWorkBoundary(
   schedules: readonly WorkSchedule[],
   now: number,
   calendar?: LocalCalendarAdapter
-): number | null
+): number | null;
 ```
 
 `PetAsset` gains `headHotspot: HeadHotspot | null`. `PetConfig` gains `lifeStates`, `companionPace`, and `interactionBubblesEnabled`. `PetUpdateInput` carries all of those fields plus each asset's normalized hotspot. `AppSettingsV4` adds global `workSchedules` and becomes `AppSettings`; v1–v3 stay parseable only as migration sources.
@@ -249,15 +243,15 @@ pnpm exec vitest run \
 
 ```ts
 export class CompanionStateController {
-  start(): Promise<void>
-  refresh(): Promise<void>
-  getSnapshot(): CompanionRuntimeSnapshot
-  selectManualState(selection: ManualLifeSelection): void
-  setManualWork(active: boolean): void
-  wakeFromSleep(): void
-  setSystemSuspended(suspended: boolean): void
-  handleResume(): void
-  dispose(): void
+  start(): Promise<void>;
+  refresh(): Promise<void>;
+  getSnapshot(): CompanionRuntimeSnapshot;
+  selectManualState(selection: ManualLifeSelection): void;
+  setManualWork(active: boolean): void;
+  wakeFromSleep(): void;
+  setSystemSuspended(suspended: boolean): void;
+  handleResume(): void;
+  dispose(): void;
 }
 ```
 

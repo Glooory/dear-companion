@@ -121,8 +121,8 @@ The detailed phase-three list below remains useful for functional coverage:
 11. Verify built-in and imported MP3/WAV/OGG sound sources, independent sound
     toggles, the 30-second cap, and silent built-in fallback after a bad file.
 12. Repeat relevant behavior on supported Windows and macOS hosts. Use the
-   platform network inspector or firewall while exercising these
-   flows; the production bundle must make no network requests.
+    platform network inspector or firewall while exercising these
+    flows; the production bundle must make no network requests.
 
 ## Agent verification boundary
 

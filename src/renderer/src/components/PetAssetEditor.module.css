@@ -40,7 +40,7 @@
 }
 
 .baseline::after {
-  content: '地面线 (可拖拽)';
+  content: "地面线 (可拖拽)";
   position: absolute;
   right: 8px;
   top: -18px;
@@ -86,7 +86,7 @@
   gap: 10px;
 }
 
-.sliderRow input[type='range'] {
+.sliderRow input[type="range"] {
   flex: 1;
   accent-color: #3d7363;
   cursor: pointer;

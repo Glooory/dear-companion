@@ -1,0 +1,14 @@
+# Dependencies and build outputs
+node_modules/
+out/
+dist/
+release/
+coverage/
+*.tsbuildinfo
+package-lock.json
+
+# Tooling and internal agent artifacts
+.agents/
+.superpowers/
+.worktrees/
+.pnpm-store/

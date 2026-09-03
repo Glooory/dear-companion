@@ -1,21 +1,21 @@
-import { useState } from 'react'
-import type { AssetNormalization, HeadHotspot, PetAsset, PetAssetAdjustment } from '@shared/contracts'
-import { PetAssetEditor } from './PetAssetEditor'
-import { InfoTooltip, Tooltip } from './Tooltip'
-import { clsx } from 'clsx'
-import styles from './PetGalleryManager.module.css'
+import { useState } from "react";
+import { clsx } from "clsx";
+import type { AssetNormalization, HeadHotspot, PetAsset, PetAssetAdjustment } from "@shared/contracts";
+import { PetAssetEditor } from "./PetAssetEditor";
+import { InfoTooltip, Tooltip } from "./Tooltip";
+import styles from "./PetGalleryManager.module.css";
 
 interface PetGalleryManagerProps {
-  petId: string
-  assets: readonly PetAsset[]
-  targetHeight: number
-  assetAdjustments: readonly PetAssetAdjustment[]
-  isActivePet?: boolean
-  onImport(): void
-  onDeleteAsset?(assetId: string): void
-  onUpdateNormalization(assetId: string, normalization: AssetNormalization): void
-  onUpdateHeadHotspot(assetId: string, headHotspot: HeadHotspot | null): void
-  isBusy?: boolean
+  petId: string;
+  assets: readonly PetAsset[];
+  targetHeight: number;
+  assetAdjustments: readonly PetAssetAdjustment[];
+  isActivePet?: boolean;
+  onImport(): void;
+  onDeleteAsset?(assetId: string): void;
+  onUpdateNormalization(assetId: string, normalization: AssetNormalization): void;
+  onUpdateHeadHotspot(assetId: string, headHotspot: HeadHotspot | null): void;
+  isBusy?: boolean;
 }
 
 export function PetGalleryManager({
@@ -28,21 +28,18 @@ export function PetGalleryManager({
   onDeleteAsset,
   onUpdateNormalization,
   onUpdateHeadHotspot,
-  isBusy
+  isBusy,
 }: PetGalleryManagerProps): React.JSX.Element {
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null)
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
-  const activeId = (selectedAssetId && assets.some((a) => a.id === selectedAssetId))
-    ? selectedAssetId
-    : assets[0]?.id ?? null
+  const activeId =
+    selectedAssetId && assets.some((a) => a.id === selectedAssetId) ? selectedAssetId : (assets[0]?.id ?? null);
 
-  const activeAsset = assets.find((a) => a.id === activeId) ?? null
-  const activeAdjustment = activeId
-    ? assetAdjustments.find((adj) => adj.id === activeId)
-    : null
+  const activeAsset = assets.find((a) => a.id === activeId) ?? null;
+  const activeAdjustment = activeId ? assetAdjustments.find((adj) => adj.id === activeId) : null;
 
-  const isOnlyActiveAsset = Boolean(isActivePet && assets.length <= 1)
-  const isDeleteDisabled = isBusy || isOnlyActiveAsset
+  const isOnlyActiveAsset = Boolean(isActivePet && assets.length <= 1);
+  const isDeleteDisabled = isBusy || isOnlyActiveAsset;
 
   return (
     <section className={`editor-section ${styles.section}`}>
@@ -53,10 +50,7 @@ export function PetGalleryManager({
         </div>
         <div className={styles.headerActions}>
           {activeAsset && onDeleteAsset && (
-            <Tooltip
-              content="使用中的伙伴需至少保留一张照片"
-              disabled={!isOnlyActiveAsset}
-            >
+            <Tooltip content="使用中的伙伴需至少保留一张照片" disabled={!isOnlyActiveAsset}>
               <button
                 type="button"
                 className="danger-button compact-button"
@@ -67,13 +61,18 @@ export function PetGalleryManager({
               </button>
             </Tooltip>
           )}
-          <button
-            type="button"
-            className="secondary-button compact-button"
-            disabled={isBusy}
-            onClick={onImport}
-          >
-            <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <button type="button" className="secondary-button compact-button" disabled={isBusy} onClick={onImport}>
+            <svg
+              viewBox="0 0 16 16"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <rect x="2" y="2" width="12" height="12" rx="2" />
               <circle cx="5.5" cy="5.5" r="1.2" />
               <path d="M14 10l-3.5-3.5L3 14" />
@@ -108,7 +107,7 @@ export function PetGalleryManager({
         <div className={styles.workbench}>
           <div className={styles.assetRail} role="tablist" aria-label="伙伴照片选择">
             {assets.map((asset, index) => {
-              const isActive = asset.id === activeId
+              const isActive = asset.id === activeId;
               return (
                 <div
                   key={asset.id}
@@ -118,47 +117,42 @@ export function PetGalleryManager({
                   className={clsx(styles.railItem, isActive && styles.isActive)}
                   onClick={() => setSelectedAssetId(asset.id)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setSelectedAssetId(asset.id)
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedAssetId(asset.id);
                     }
                   }}
                 >
                   <div className={styles.thumbWrap}>
-                    <img
-                      src={petAssetUrl(petId, asset.id)}
-                      alt=""
-                      draggable={false}
-                      className={styles.thumbImg}
-                    />
+                    <img src={petAssetUrl(petId, asset.id)} alt="" draggable={false} className={styles.thumbImg} />
                     {onDeleteAsset && !isDeleteDisabled && (
                       <button
                         type="button"
                         className={styles.deleteBtn}
                         title={`删除照片 ${index + 1}`}
                         onClick={(event) => {
-                          event.stopPropagation()
-                          onDeleteAsset(asset.id)
+                          event.stopPropagation();
+                          onDeleteAsset(asset.id);
                         }}
                       >
                         ×
                       </button>
                     )}
                   </div>
-                  <span className={styles.itemLabel}>
-                    照片 {index + 1}
-                  </span>
+                  <span className={styles.itemLabel}>照片 {index + 1}</span>
                 </div>
-              )
+              );
             })}
-            <button
-              type="button"
-              className={styles.railAdd}
-              disabled={isBusy}
-              onClick={onImport}
-              title="导入新照片"
-            >
-              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <button type="button" className={styles.railAdd} disabled={isBusy} onClick={onImport} title="导入新照片">
+              <svg
+                viewBox="0 0 16 16"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
                 <line x1="8" y1="3" x2="8" y2="13" />
                 <line x1="3" y1="8" x2="13" y2="8" />
               </svg>
@@ -183,9 +177,9 @@ export function PetGalleryManager({
         </div>
       )}
     </section>
-  )
+  );
 }
 
 function petAssetUrl(petId: string, assetId: string): string {
-  return `app://renderer/pet-assets/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`
+  return `app://renderer/pet-assets/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`;
 }

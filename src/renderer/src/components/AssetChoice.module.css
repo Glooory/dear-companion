@@ -9,7 +9,10 @@
   border-radius: 9px;
   background: #faf8f5;
   cursor: pointer;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
 }
 
 .choice:hover {

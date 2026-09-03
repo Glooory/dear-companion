@@ -1,12 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
 import styles from "./Toast.module.css";
 
@@ -27,22 +19,10 @@ export interface ToastItem extends ToastOptions {
 
 interface ToastContextValue {
   show: (options: ToastOptions) => string;
-  success: (
-    message: string,
-    options?: Omit<ToastOptions, "type" | "message">,
-  ) => string;
-  error: (
-    message: string,
-    options?: Omit<ToastOptions, "type" | "message">,
-  ) => string;
-  warning: (
-    message: string,
-    options?: Omit<ToastOptions, "type" | "message">,
-  ) => string;
-  info: (
-    message: string,
-    options?: Omit<ToastOptions, "type" | "message">,
-  ) => string;
+  success: (message: string, options?: Omit<ToastOptions, "type" | "message">) => string;
+  error: (message: string, options?: Omit<ToastOptions, "type" | "message">) => string;
+  warning: (message: string, options?: Omit<ToastOptions, "type" | "message">) => string;
+  info: (message: string, options?: Omit<ToastOptions, "type" | "message">) => string;
   dismiss: (id: string) => void;
 }
 
@@ -133,17 +113,9 @@ function ToastIcon({ type }: { type: ToastType }): React.JSX.Element {
   }
 }
 
-function ToastElement({
-  toast,
-  onDismiss,
-}: {
-  toast: ToastItem;
-  onDismiss: (id: string) => void;
-}): React.JSX.Element {
+function ToastElement({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: string) => void }): React.JSX.Element {
   const [isPaused, setIsPaused] = useState(false);
-  const remainingRef = useRef(
-    toast.durationMs ?? DEFAULT_DURATIONS[toast.type],
-  );
+  const remainingRef = useRef(toast.durationMs ?? DEFAULT_DURATIONS[toast.type]);
   const startTimeRef = useRef(0);
 
   useEffect(() => {
@@ -163,8 +135,7 @@ function ToastElement({
     };
   }, [isPaused, onDismiss, toast.id]);
 
-  const role =
-    toast.type === "error" || toast.type === "warning" ? "alert" : "status";
+  const role = toast.type === "error" || toast.type === "warning" ? "alert" : "status";
 
   return (
     <div
@@ -187,12 +158,7 @@ function ToastElement({
           </ul>
         )}
       </div>
-      <button
-        type="button"
-        className={styles.close}
-        aria-label="关闭提示"
-        onClick={() => onDismiss(toast.id)}
-      >
+      <button type="button" className={styles.close} aria-label="关闭提示" onClick={() => onDismiss(toast.id)}>
         <svg
           viewBox="0 0 16 16"
           width="14"
@@ -211,11 +177,7 @@ function ToastElement({
   );
 }
 
-export function ToastProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}): React.JSX.Element {
+export function ToastProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: string) => {
@@ -235,43 +197,31 @@ export function ToastProvider({
   }, []);
 
   const success = useCallback(
-    (
-      message: string,
-      options?: Omit<ToastOptions, "type" | "message">,
-    ): string => {
+    (message: string, options?: Omit<ToastOptions, "type" | "message">): string => {
       return show({ ...options, message, type: "success" });
     },
-    [show],
+    [show]
   );
 
   const error = useCallback(
-    (
-      message: string,
-      options?: Omit<ToastOptions, "type" | "message">,
-    ): string => {
+    (message: string, options?: Omit<ToastOptions, "type" | "message">): string => {
       return show({ ...options, message, type: "error" });
     },
-    [show],
+    [show]
   );
 
   const warning = useCallback(
-    (
-      message: string,
-      options?: Omit<ToastOptions, "type" | "message">,
-    ): string => {
+    (message: string, options?: Omit<ToastOptions, "type" | "message">): string => {
       return show({ ...options, message, type: "warning" });
     },
-    [show],
+    [show]
   );
 
   const info = useCallback(
-    (
-      message: string,
-      options?: Omit<ToastOptions, "type" | "message">,
-    ): string => {
+    (message: string, options?: Omit<ToastOptions, "type" | "message">): string => {
       return show({ ...options, message, type: "info" });
     },
-    [show],
+    [show]
   );
 
   const value = useMemo(
@@ -283,24 +233,16 @@ export function ToastProvider({
       info,
       dismiss,
     }),
-    [show, success, error, warning, info, dismiss],
+    [show, success, error, warning, info, dismiss]
   );
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       {toasts.length > 0 && (
-        <div
-          className={styles.container}
-          aria-live="polite"
-          aria-atomic="false"
-        >
+        <div className={styles.container} aria-live="polite" aria-atomic="false">
           {toasts.map((toast) => (
-            <ToastElement
-              key={toast.id}
-              toast={toast}
-              onDismiss={dismiss}
-            />
+            <ToastElement key={toast.id} toast={toast} onDismiss={dismiss} />
           ))}
         </div>
       )}

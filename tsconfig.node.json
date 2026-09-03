@@ -11,5 +11,11 @@
     "paths": { "@shared/*": ["src/shared/*"] },
     "skipLibCheck": true
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "src/main/**/*.ts", "src/preload/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "electron.vite.config.ts",
+    "vitest.config.ts",
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "src/shared/**/*.ts"
+  ]
 }

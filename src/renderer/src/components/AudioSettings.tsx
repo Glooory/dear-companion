@@ -1,12 +1,8 @@
-import type {
-  AudioSettingsV3,
-  AudioSource,
-  AudioSourceInput,
-} from "@shared/contracts";
 import { useEffect, useRef, useState } from "react";
+import type { AudioSettingsV3, AudioSource, AudioSourceInput } from "@shared/contracts";
 import { playAudioSource } from "../audio/use-audio-playback";
-import styles from "./AudioSettings.module.css";
 import { InfoTooltip } from "./Tooltip";
+import styles from "./AudioSettings.module.css";
 
 interface Props {
   audio: AudioSettingsV3;
@@ -15,15 +11,8 @@ interface Props {
   onChange(input: AudioSourceInput): void;
 }
 
-export function AudioSettings({
-  audio,
-  disabled,
-  onImport,
-  onChange,
-}: Props): React.JSX.Element {
-  const [playingCue, setPlayingCue] = useState<"reminder" | "crying" | null>(
-    null,
-  );
+export function AudioSettings({ audio, disabled, onImport, onChange }: Props): React.JSX.Element {
+  const [playingCue, setPlayingCue] = useState<"reminder" | "crying" | null>(null);
   const stopPreviewRef = useRef<(() => void) | null>(null);
 
   const stopPreview = (): void => {
@@ -40,10 +29,7 @@ export function AudioSettings({
     };
   }, []);
 
-  const handlePreview = (
-    cue: "reminder" | "crying",
-    source: AudioSource,
-  ): void => {
+  const handlePreview = (cue: "reminder" | "crying", source: AudioSource): void => {
     if (playingCue === cue) {
       stopPreview();
       return;
@@ -78,38 +64,26 @@ export function AudioSettings({
             <h2>提醒声音</h2>
             <InfoTooltip text="声音默认保持静音。每条休息提醒可单独开启提示音。" />
           </div>
-          <p className={styles.subtext}>
-            设置全局声音来源。每条休息提醒可单独开启或关闭提示音。
-          </p>
+          <p className={styles.subtext}>设置全局声音来源。每条休息提醒可单独开启或关闭提示音。</p>
         </div>
-        <button
-          type="button"
-          className="secondary-button"
-          disabled={disabled}
-          onClick={onImport}
-        >
+        <button type="button" className="secondary-button" disabled={disabled} onClick={onImport}>
           导入声音
         </button>
       </div>
 
       {(["reminder", "crying"] as const).map((cue) => {
-        const source =
-          cue === "reminder" ? audio.reminderSource : audio.cryingSource;
+        const source = cue === "reminder" ? audio.reminderSource : audio.cryingSource;
         const isPlaying = playingCue === cue;
         return (
           <div className={styles.control} key={cue}>
             <label className={styles.source}>
-              <span>
-                {cue === "reminder" ? "休息提醒提示音" : "督促继续休息提示音"}
-              </span>
+              <span>{cue === "reminder" ? "休息提醒提示音" : "督促继续休息提示音"}</span>
               <select
                 disabled={disabled}
                 value={source.kind === "builtin" ? "builtin" : source.assetId}
                 onChange={(event) => update(cue, event.currentTarget.value)}
               >
-                <option value="builtin">
-                  {cue === "reminder" ? "轻柔双音提示音" : "轻声督促音"}
-                </option>
+                <option value="builtin">{cue === "reminder" ? "轻柔双音提示音" : "轻声督促音"}</option>
                 {audio.assets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
                     {asset.fileName}

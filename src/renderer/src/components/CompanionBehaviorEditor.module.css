@@ -59,7 +59,9 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
   flex-shrink: 0;
 }
 
@@ -180,7 +182,9 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .popoverItem:hover .thumbBox {
@@ -238,4 +242,3 @@
     grid-template-columns: 1fr;
   }
 }
-

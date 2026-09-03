@@ -82,7 +82,9 @@
   border-radius: 8px;
   background: #ffffff;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .toggleDetailed:hover {

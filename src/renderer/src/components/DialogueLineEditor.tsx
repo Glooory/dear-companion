@@ -1,29 +1,29 @@
-import { type DialogueCategory } from '@shared/dialogue-catalog'
-import { ADDRESS_PLACEHOLDER } from '@shared/dialogue-settings'
-import React, { useRef } from 'react'
-import { clsx } from 'clsx'
-import styles from './DialogueLineEditor.module.css'
+import React, { useRef } from "react";
+import { clsx } from "clsx";
+import { type DialogueCategory } from "@shared/dialogue-catalog";
+import { ADDRESS_PLACEHOLDER } from "@shared/dialogue-settings";
+import styles from "./DialogueLineEditor.module.css";
 
 export interface DialogueLineRowModel {
-  readonly id: string
-  readonly category: DialogueCategory
-  readonly source: 'builtin' | 'custom'
-  readonly currentText: string
-  readonly defaultText?: string
-  readonly automaticEnabled: boolean
-  readonly isModified?: boolean
-  readonly issue?: string
+  readonly id: string;
+  readonly category: DialogueCategory;
+  readonly source: "builtin" | "custom";
+  readonly currentText: string;
+  readonly defaultText?: string;
+  readonly automaticEnabled: boolean;
+  readonly isModified?: boolean;
+  readonly issue?: string;
 }
 
 export interface DialogueLineEditorProps {
-  readonly row: DialogueLineRowModel
-  readonly address: string
-  readonly onTextChange: (text: string) => void
-  readonly onToggleAutomatic: (enabled: boolean) => void
-  readonly onRestore?: () => void
-  readonly onDelete?: () => void
-  readonly onInputFocus?: (el: HTMLInputElement) => void
-  readonly onBlur?: () => void
+  readonly row: DialogueLineRowModel;
+  readonly address: string;
+  readonly onTextChange: (text: string) => void;
+  readonly onToggleAutomatic: (enabled: boolean) => void;
+  readonly onRestore?: () => void;
+  readonly onDelete?: () => void;
+  readonly onInputFocus?: (el: HTMLInputElement) => void;
+  readonly onBlur?: () => void;
 }
 
 export function DialogueLineEditor({
@@ -34,19 +34,19 @@ export function DialogueLineEditor({
   onRestore,
   onDelete,
   onInputFocus,
-  onBlur
+  onBlur,
 }: DialogueLineEditorProps): React.JSX.Element {
-  const inputRef = useRef<HTMLInputElement | null>(null)
-  const inputId = `dialogue-input-${row.category}-${row.id}`
-  const errorId = `dialogue-error-${row.category}-${row.id}`
-  const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER)
-  const trimmedAddress = address.trim()
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputId = `dialogue-input-${row.category}-${row.id}`;
+  const errorId = `dialogue-error-${row.category}-${row.id}`;
+  const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER);
+  const trimmedAddress = address.trim();
 
   const badgeClass = clsx(
     styles.badge,
-    row.source === 'builtin' ? styles.badgeBuiltin : styles.badgeCustom,
+    row.source === "builtin" ? styles.badgeBuiltin : styles.badgeCustom,
     row.isModified && styles.badgeModified
-  )
+  );
 
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError)}>
@@ -71,21 +71,19 @@ export function DialogueLineEditor({
             onChange={(e) => onTextChange(e.target.value)}
             onFocus={() => {
               if (inputRef.current && onInputFocus) {
-                onInputFocus(inputRef.current)
+                onInputFocus(inputRef.current);
               }
             }}
             onBlur={onBlur}
             aria-invalid={Boolean(row.issue)}
             aria-describedby={row.issue ? errorId : undefined}
-            placeholder={row.source === 'builtin' ? row.defaultText : '输入对白内容'}
+            placeholder={row.source === "builtin" ? row.defaultText : "输入对白内容"}
           />
 
           {hasPlaceholder && (
             <div className={styles.preview}>
               {trimmedAddress.length === 0 ? (
-                <span className={styles.previewNotice}>
-                  设置称呼后，这句才会自动使用
-                </span>
+                <span className={styles.previewNotice}>设置称呼后，这句才会自动使用</span>
               ) : (
                 <span className={styles.previewText}>
                   预览：{row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}
@@ -103,14 +101,10 @@ export function DialogueLineEditor({
 
         <div className={styles.meta}>
           <span className={badgeClass}>
-            {row.source === 'builtin'
-              ? row.isModified
-                ? '内置 · 已修改'
-                : '内置'
-              : '我的'}
+            {row.source === "builtin" ? (row.isModified ? "内置 · 已修改" : "内置") : "我的"}
           </span>
 
-          {row.source === 'builtin' && row.isModified && onRestore && (
+          {row.source === "builtin" && row.isModified && onRestore && (
             <button
               type="button"
               className="ghost-button compact-button"
@@ -121,12 +115,12 @@ export function DialogueLineEditor({
             </button>
           )}
 
-          {row.source === 'custom' && onDelete && (
+          {row.source === "custom" && onDelete && (
             <button
               type="button"
               className="ghost-button compact-button danger"
               onClick={onDelete}
-              aria-label={`删除对白：${row.currentText || '未命名对白'}`}
+              aria-label={`删除对白：${row.currentText || "未命名对白"}`}
             >
               删除
             </button>
@@ -134,5 +128,5 @@ export function DialogueLineEditor({
         </div>
       </div>
     </div>
-  )
+  );
 }

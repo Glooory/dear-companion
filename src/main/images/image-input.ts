@@ -1,27 +1,27 @@
-import { analyzeAlphaChannel } from '../../shared/alpha-bounds'
+import { analyzeAlphaChannel } from "../../shared/alpha-bounds";
 import {
   MAX_PET_PACK_BYTES,
   type AlphaBounds,
   type ImageImportErrorCode,
-  type PetAssetFormat
-} from '../../shared/contracts'
+  type PetAssetFormat,
+} from "../../shared/contracts";
 
-export const MAX_IMAGE_BYTES = 20 * 1024 * 1024
-export const MAX_IMAGE_DIMENSION = 8192
-export { MAX_PET_PACK_BYTES }
+export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+export const MAX_IMAGE_DIMENSION = 8192;
+export { MAX_PET_PACK_BYTES };
 
 export interface DecodedImageInput {
-  width: number
-  height: number
-  bitmap: Uint8Array
-  stride?: number
-  alphaOffset?: number
+  width: number;
+  height: number;
+  bitmap: Uint8Array;
+  stride?: number;
+  alphaOffset?: number;
 }
 
 export interface ValidatedDecodedImage {
-  width: number
-  height: number
-  alphaBounds: AlphaBounds
+  width: number;
+  height: number;
+  alphaBounds: AlphaBounds;
 }
 
 export class ImageInputError extends Error {
@@ -29,8 +29,8 @@ export class ImageInputError extends Error {
     readonly code: ImageImportErrorCode,
     message: string
   ) {
-    super(message)
-    this.name = 'ImageInputError'
+    super(message);
+    this.name = "ImageInputError";
   }
 }
 
@@ -46,56 +46,46 @@ export function detectImageFormat(bytes: Uint8Array): PetAssetFormat | null {
     bytes[6] === 0x1a &&
     bytes[7] === 0x0a
   ) {
-    return 'png'
+    return "png";
   }
 
-  if (
-    bytes.length >= 12 &&
-    ascii(bytes, 0, 4) === 'RIFF' &&
-    ascii(bytes, 8, 12) === 'WEBP'
-  ) {
-    return 'webp'
+  if (bytes.length >= 12 && ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WEBP") {
+    return "webp";
   }
-  return null
+  return null;
 }
 
 export function validateImageFileSize(byteSize: number): void {
   if (!Number.isSafeInteger(byteSize) || byteSize < 1) {
-    throw new ImageInputError('empty-file', '图片文件为空')
+    throw new ImageInputError("empty-file", "图片文件为空");
   }
   if (byteSize > MAX_IMAGE_BYTES) {
-    throw new ImageInputError('file-too-large', '单张图片不能超过 20 MB')
+    throw new ImageInputError("file-too-large", "单张图片不能超过 20 MB");
   }
 }
 
 export function validateDecodedImage(input: DecodedImageInput): ValidatedDecodedImage {
   if (!Number.isInteger(input.width) || !Number.isInteger(input.height) || input.width < 1 || input.height < 1) {
-    throw new ImageInputError('decode-failed', '图片无法解码')
+    throw new ImageInputError("decode-failed", "图片无法解码");
   }
   if (input.width > MAX_IMAGE_DIMENSION || input.height > MAX_IMAGE_DIMENSION) {
-    throw new ImageInputError('dimensions-too-large', '图片宽高不能超过 8192 px')
+    throw new ImageInputError("dimensions-too-large", "图片宽高不能超过 8192 px");
   }
 
-  let analysis
+  let analysis;
   try {
-    analysis = analyzeAlphaChannel(
-      input.bitmap,
-      input.width,
-      input.height,
-      input.stride ?? 4,
-      input.alphaOffset ?? 3
-    )
+    analysis = analyzeAlphaChannel(input.bitmap, input.width, input.height, input.stride ?? 4, input.alphaOffset ?? 3);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('fully transparent')) {
-      throw new ImageInputError('fully-transparent', '图片内容完全透明')
+    if (error instanceof Error && error.message.includes("fully transparent")) {
+      throw new ImageInputError("fully-transparent", "图片内容完全透明");
     }
-    throw new ImageInputError('decode-failed', '图片解码结果无效')
+    throw new ImageInputError("decode-failed", "图片解码结果无效");
   }
 
   if (!analysis.hasTransparency) {
-    throw new ImageInputError('no-transparency', '图片必须包含透明背景')
+    throw new ImageInputError("no-transparency", "图片必须包含透明背景");
   }
-  return { width: input.width, height: input.height, alphaBounds: analysis.bounds }
+  return { width: input.width, height: input.height, alphaBounds: analysis.bounds };
 }
 
 export function validatePetPackSize(currentBytes: number, incomingBytes: number): void {
@@ -106,10 +96,10 @@ export function validatePetPackSize(currentBytes: number, incomingBytes: number)
     incomingBytes < 0 ||
     currentBytes + incomingBytes > MAX_PET_PACK_BYTES
   ) {
-    throw new ImageInputError('pack-too-large', '单个伙伴素材包不能超过 250 MB')
+    throw new ImageInputError("pack-too-large", "单个伙伴素材包不能超过 250 MB");
   }
 }
 
 function ascii(bytes: Uint8Array, start: number, end: number): string {
-  return String.fromCharCode(...bytes.subarray(start, end))
+  return String.fromCharCode(...bytes.subarray(start, end));
 }

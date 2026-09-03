@@ -157,12 +157,12 @@ pnpm vitest run src/shared/contracts.test.ts src/main/settings/settings-store.te
 
 ```ts
 interface ReminderScheduler {
-  start(): Promise<void>
-  refresh(): Promise<void>
-  snooze(occurrenceId: string, minutes: 5 | 10 | 15): void
-  resolvePrompt(occurrenceId: string): void
-  handleResume(now?: number): void
-  dispose(): void
+  start(): Promise<void>;
+  refresh(): Promise<void>;
+  snooze(occurrenceId: string, minutes: 5 | 10 | 15): void;
+  resolvePrompt(occurrenceId: string): void;
+  handleResume(now?: number): void;
+  dispose(): void;
 }
 ```
 
@@ -180,11 +180,11 @@ interface ReminderScheduler {
 
 ```ts
 interface RestSessionController {
-  startFromPrompt(prompt: ReminderPrompt): RestSessionSnapshot
-  endManually(): void
-  getSnapshot(): RestRuntimeSnapshot
-  handleResume(now?: number): void
-  dispose(): void
+  startFromPrompt(prompt: ReminderPrompt): RestSessionSnapshot;
+  endManually(): void;
+  getSnapshot(): RestRuntimeSnapshot;
+  handleResume(now?: number): void;
+  dispose(): void;
 }
 ```
 
@@ -240,20 +240,20 @@ pnpm vitest run src/main/reminders/reminder-scheduler.test.ts src/main/rest/rest
 
 ```ts
 interface RestSystemApi extends PetSystemApi {
-  getRestSystemSnapshot(): Promise<RestSystemSnapshot>
-  createReminder(input: CreateReminderInput): Promise<RestSystemSnapshot>
-  updateReminder(input: UpdateReminderInput): Promise<RestSystemSnapshot>
-  deleteReminder(reminderId: string): Promise<RestSystemSnapshot>
-  setReminderEnabled(reminderId: string, enabled: boolean): Promise<RestSystemSnapshot>
-  retryReminderService(): Promise<RestSystemSnapshot>
-  startPromptedRest(occurrenceId: string): Promise<RestSystemSnapshot>
-  snoozePrompt(occurrenceId: string, minutes: 5 | 10 | 15): Promise<RestSystemSnapshot>
-  endRestSession(): Promise<RestSystemSnapshot>
-  chooseAndImportAudio(): Promise<AudioImportResult>
-  updateAudioSources(input: AudioSourceInput): Promise<RestSystemSnapshot>
-  reportAudioPlaybackFailure(requestId: string, assetId: string | null): void
-  onRestSystemChanged(listener: (snapshot: RestSystemSnapshot) => void): () => void
-  onAudioPlaybackRequested(listener: (request: AudioPlaybackRequest) => void): () => void
+  getRestSystemSnapshot(): Promise<RestSystemSnapshot>;
+  createReminder(input: CreateReminderInput): Promise<RestSystemSnapshot>;
+  updateReminder(input: UpdateReminderInput): Promise<RestSystemSnapshot>;
+  deleteReminder(reminderId: string): Promise<RestSystemSnapshot>;
+  setReminderEnabled(reminderId: string, enabled: boolean): Promise<RestSystemSnapshot>;
+  retryReminderService(): Promise<RestSystemSnapshot>;
+  startPromptedRest(occurrenceId: string): Promise<RestSystemSnapshot>;
+  snoozePrompt(occurrenceId: string, minutes: 5 | 10 | 15): Promise<RestSystemSnapshot>;
+  endRestSession(): Promise<RestSystemSnapshot>;
+  chooseAndImportAudio(): Promise<AudioImportResult>;
+  updateAudioSources(input: AudioSourceInput): Promise<RestSystemSnapshot>;
+  reportAudioPlaybackFailure(requestId: string, assetId: string | null): void;
+  onRestSystemChanged(listener: (snapshot: RestSystemSnapshot) => void): () => void;
+  onAudioPlaybackRequested(listener: (request: AudioPlaybackRequest) => void): () => void;
 }
 ```
 

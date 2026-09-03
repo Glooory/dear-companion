@@ -21,10 +21,12 @@
 ### Task 1: Coordinate action completion with the photo return
 
 **Files:**
+
 - Modify: `src/renderer/src/windows/PetShell.tsx`
 - Modify: `src/renderer/src/components/PhotoTransition.tsx`
 
 **Interfaces:**
+
 - `PhotoTransition` consumes optional `onTransitionComplete?: (assetId: string) => void`.
 - `PhotoTransition` calls the callback after the requested asset is displayed and the reveal phase has completed, and also when the requested asset is already current.
 - `PetShell` keeps an asset-swap action active until the action duration has elapsed and the base asset transition has completed.
@@ -38,10 +40,12 @@
 ### Task 2: Remove competing animations and smooth geometry changes
 
 **Files:**
+
 - Modify: `src/renderer/src/components/PhotoTransition.tsx`
 - Modify: `src/renderer/src/styles/global.css`
 
 **Interfaces:**
+
 - Photo frame phase classes are `photo-idle`, `photo-outgoing`, and `photo-incoming`.
 - Idle frames have no photo-transition animation.
 

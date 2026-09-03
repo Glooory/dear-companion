@@ -1,9 +1,9 @@
-import type { ReleaseHardeningApi } from '@shared/contracts'
+import type { ReleaseHardeningApi } from "@shared/contracts";
 
 declare global {
   interface Window {
-    dearCompanion: ReleaseHardeningApi
+    dearCompanion: ReleaseHardeningApi;
   }
 }
 
-export {}
+export {};

@@ -29,17 +29,17 @@
   background: rgba(61, 115, 99, 0.38);
 }
 
-html[data-window='settings'],
-html[data-window='settings'] body,
-html[data-window='settings'] #root {
+html[data-window="settings"],
+html[data-window="settings"] body,
+html[data-window="settings"] #root {
   min-height: 100%;
   margin: 0;
   background: #faf8f5;
 }
 
-html[data-window='pet'],
-html[data-window='pet'] body,
-html[data-window='pet'] #root {
+html[data-window="pet"],
+html[data-window="pet"] body,
+html[data-window="pet"] #root {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -63,7 +63,11 @@ h4 {
 }
 
 button {
-  transition: background-color 150ms ease, border-color 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 100ms ease,
+    box-shadow 150ms ease;
 }
 
 button:active:not(:disabled) {
@@ -267,7 +271,7 @@ textarea:focus-visible {
 }
 
 /* System utilities */
-[data-native-drag-region='no-drag'] {
+[data-native-drag-region="no-drag"] {
   -webkit-app-region: no-drag;
 }
 

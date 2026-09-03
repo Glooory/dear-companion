@@ -117,25 +117,25 @@
 
 ```ts
 interface PetDialogueSettings {
-  address: string
-  categories: Partial<Record<DialogueCategory, DialogueCategorySettings>>
+  address: string;
+  categories: Partial<Record<DialogueCategory, DialogueCategorySettings>>;
 }
 
 interface DialogueCategorySettings {
-  builtInOverrides: readonly BuiltInDialogueOverride[]
-  customLines: readonly CustomDialogueLine[]
+  builtInOverrides: readonly BuiltInDialogueOverride[];
+  customLines: readonly CustomDialogueLine[];
 }
 
 interface BuiltInDialogueOverride {
-  lineId: string
-  automaticEnabled?: boolean
-  text?: string
+  lineId: string;
+  automaticEnabled?: boolean;
+  text?: string;
 }
 
 interface CustomDialogueLine {
-  id: string
-  automaticEnabled: boolean
-  text: string
+  id: string;
+  automaticEnabled: boolean;
+  text: string;
 }
 ```
 
