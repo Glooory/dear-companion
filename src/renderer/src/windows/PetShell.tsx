@@ -592,22 +592,22 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         </div>
       ) : (
         <div className={styles.emptyRuntime}>
-          <div className={styles.emptyCard} data-pet-interactive="true">
-            <div className={styles.emptySilhouette} aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                width="34"
-                height="34"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="8" r="4" />
-                <path d="M5.5 19.5c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 19.5" />
-              </svg>
-            </div>
+          <div className={styles.silhouetteContainer}>
+            <svg
+              className={styles.silhouetteSvg}
+              viewBox="0 0 180 216"
+              width="180"
+              height="216"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                className={styles.silhouetteBody}
+                d="M 90,12 A 44,44 0 0,1 134,56 C 134,74 126,90 114,98 C 122,102 138,108 148,116 A 11,11 0 1,1 138,136 C 134,140 136,150 136,162 C 136,174 133,188 130,196 C 128,203 124,206 112,206 C 100,206 96,203 95,196 C 94,190 92,186 90,186 C 88,186 86,190 85,196 C 84,203 80,206 68,206 C 56,206 52,203 50,196 C 47,188 44,174 44,162 C 44,150 46,140 42,136 A 11,11 0 1,1 32,116 C 42,108 58,102 66,98 C 54,90 46,74 46,56 A 44,44 0 0,1 90,12 Z"
+                data-pet-interactive="true"
+                data-pet-drag="true"
+              />
+            </svg>
             <button
               className={styles.emptyButton}
               type="button"
@@ -618,8 +618,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             >
               <svg
                 viewBox="0 0 16 16"
-                width="13"
-                height="13"
+                width="10"
+                height="10"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
