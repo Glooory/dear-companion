@@ -307,7 +307,7 @@ export function DialogueLineEditor({
           {row.source === "builtin" && row.isModified && onRestore && (
             <button
               type="button"
-              className="ghost-button compact-button"
+              className={clsx("ghost-button compact-button", styles.actionBtn)}
               onClick={onRestore}
               aria-label={`恢复原句：${row.defaultText ?? row.currentText}`}
             >
@@ -318,7 +318,7 @@ export function DialogueLineEditor({
           {row.source === "custom" && onDelete && (
             <button
               type="button"
-              className="ghost-button compact-button danger"
+              className={clsx("ghost-button compact-button danger", styles.actionBtn)}
               onClick={onDelete}
               aria-label={`删除对白：${row.currentText || "未命名对白"}`}
             >
