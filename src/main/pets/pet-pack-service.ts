@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { mkdir, open, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   createPetSystemSnapshot,
   DEFAULT_ACTION_TEMPLATES,
@@ -19,11 +19,20 @@ import {
   type PetSystemSnapshot,
 } from "../../shared/contracts";
 import { clonePetDialogueSettings, EMPTY_PET_DIALOGUE_SETTINGS } from "../../shared/dialogue-settings";
+import {
+  detectVoiceAudioFormat,
+  validateVoiceAudioFileSize,
+  VoiceAudioInputError,
+  type VoiceAudioFormat,
+} from "../audio/voice-audio-input";
 import type { ImageDecoder } from "../images/image-decoder";
 import { detectImageFormat, ImageInputError, validateImageFileSize, validatePetPackSize } from "../images/image-input";
 import type { SettingsStore } from "../settings/settings-store";
 
 type PetSettingsStore = Pick<SettingsStore, "load" | "update">;
+
+const ALLOWED_VOICE_EXTENSIONS = new Set<VoiceAudioFormat>(["webm", "ogg", "wav", "mp3", "m4a"]);
+const DELETING_DIRECTORY_PATTERN = /^\.deleting-[a-z0-9][a-z0-9-]{0,63}-[a-z0-9-]+$/;
 
 export class PetPackService {
   private mutationQueue: Promise<void> = Promise.resolve();
@@ -183,6 +192,12 @@ export class PetPackService {
         inputValue,
         existing.assets.map((asset) => asset.id)
       );
+      const voiceIds = collectVoiceAssetIds(input.dialogueSettings);
+      for (const voiceId of voiceIds) {
+        if (!(await this.resolveOwnedVoiceFilePath(input.id, voiceId))) {
+          throw new Error("对白声音不可用，请更换或删除后再保存");
+        }
+      }
       const settings = await this.settingsStore.update((latest) => {
         const pet = requirePet(latest, input.id);
         const latestAssetIds = pet.assets.map((asset) => asset.id);
@@ -206,6 +221,7 @@ export class PetPackService {
         };
         return { ...latest, pets: latest.pets.map((candidate) => (candidate.id === pet.id ? updatedPet : candidate)) };
       });
+      await this.cleanupUnreferencedVoiceAssetsExclusive(input.id, settings);
       return createPetSystemSnapshot(settings);
     });
   }
@@ -245,6 +261,155 @@ export class PetPackService {
     } catch {
       return null;
     }
+  }
+
+  async resolveVoiceAssetPath(petIdValue: unknown, voiceIdValue: unknown): Promise<string | null> {
+    const petId = parsePetIdentifier(petIdValue);
+    const voiceId = parsePetIdentifier(voiceIdValue);
+    const pet = (await this.settingsStore.load()).pets.find((candidate) => candidate.id === petId);
+    if (!pet) return null;
+
+    return this.resolveOwnedVoiceFilePath(pet.id, voiceId);
+  }
+
+  async saveVoiceAsset(petIdValue: unknown, buffer: Buffer, extensionValue: string): Promise<{ voiceId: string }> {
+    const petId = parsePetIdentifier(petIdValue);
+    const ext = extensionValue.toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
+    if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
+      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+    }
+    validateVoiceAudioFileSize(buffer.byteLength);
+    const detected = detectVoiceAudioFormat(buffer);
+    if (!detected) {
+      throw new Error("无法识别音频内容");
+    }
+    if (detected !== ext) {
+      throw new Error("音频内容与扩展名不匹配");
+    }
+
+    return this.enqueue(async () => {
+      const current = await this.settingsStore.load();
+      requirePet(current, petId);
+
+      const voiceId = await this.createUniqueVoiceId(petId);
+      const fileName = `${voiceId}.${ext}`;
+      const voicesDir = join(this.userDataPath, "pets", petId, "voices");
+      await mkdir(voicesDir, { recursive: true, mode: 0o700 });
+      const dest = join(voicesDir, fileName);
+      await writeFile(dest, buffer, { flag: "wx", mode: 0o600 });
+      return { voiceId };
+    });
+  }
+
+  async importVoiceAsset(petIdValue: unknown, sourcePath: string): Promise<{ voiceId: string }> {
+    const petId = parsePetIdentifier(petIdValue);
+    const ext = extname(sourcePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
+    if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
+      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+    }
+
+    const bytes = await readVoiceSourceFile(sourcePath);
+    const detected = detectVoiceAudioFormat(bytes);
+    if (!detected) {
+      throw new Error("无法识别音频内容");
+    }
+    if (detected !== ext) {
+      throw new Error("音频内容与扩展名不匹配");
+    }
+
+    return this.enqueue(async () => {
+      const current = await this.settingsStore.load();
+      requirePet(current, petId);
+
+      const voiceId = await this.createUniqueVoiceId(petId);
+      const fileName = `${voiceId}.${ext}`;
+      const voicesDir = join(this.userDataPath, "pets", petId, "voices");
+      await mkdir(voicesDir, { recursive: true, mode: 0o700 });
+      const dest = join(voicesDir, fileName);
+      await writeFile(dest, bytes, { flag: "wx", mode: 0o600 });
+      return { voiceId };
+    });
+  }
+
+  async deleteVoiceAsset(petIdValue: unknown, voiceIdValue: unknown): Promise<void> {
+    const petId = parsePetIdentifier(petIdValue);
+    const voiceId = parsePetIdentifier(voiceIdValue);
+
+    return this.enqueue(async () => {
+      const current = await this.settingsStore.load();
+      requirePet(current, petId);
+
+      const voicesDir = join(this.userDataPath, "pets", petId, "voices");
+      for (const ext of ALLOWED_VOICE_EXTENSIONS) {
+        const target = join(voicesDir, `${voiceId}.${ext}`);
+        await rm(target, { force: true }).catch(() => undefined);
+      }
+    });
+  }
+
+  cleanupUnreferencedVoiceAssets(petIdValue?: unknown): Promise<void> {
+    const petId = petIdValue === undefined ? undefined : parsePetIdentifier(petIdValue);
+    return this.enqueue(async () => {
+      const settings = await this.settingsStore.load();
+      if (petId) requirePet(settings, petId);
+      const targets = petId ? [petId] : settings.pets.map((pet) => pet.id);
+      for (const targetPetId of targets) {
+        await this.cleanupUnreferencedVoiceAssetsExclusive(targetPetId, settings);
+      }
+    });
+  }
+
+  async cleanupOrphanedPetDirectories(): Promise<void> {
+    const petsRoot = resolve(this.userDataPath, "pets");
+    const entries = await readdir(petsRoot, { withFileTypes: true }).catch(() => []);
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory() && DELETING_DIRECTORY_PATTERN.test(entry.name))
+        .map((entry) => rm(resolve(petsRoot, entry.name), { recursive: true, force: true }).catch(() => undefined))
+    );
+  }
+
+  private async cleanupUnreferencedVoiceAssetsExclusive(petId: string, settings: AppSettings): Promise<void> {
+    const pet = settings.pets.find((candidate) => candidate.id === petId);
+    if (!pet) return;
+    const referenced = collectVoiceAssetIds(pet.dialogueSettings);
+    const voicesDir = resolve(this.userDataPath, "pets", petId, "voices");
+    const entries = await readdir(voicesDir, { withFileTypes: true }).catch(() => []);
+    await Promise.all(
+      entries.map(async (entry) => {
+        const match = /^([a-z0-9][a-z0-9-]{0,63})\.(mp3|wav|ogg|webm|m4a)$/.exec(entry.name);
+        if (entry.isFile() && match && referenced.has(match[1]!)) return;
+        await rm(resolve(voicesDir, entry.name), { recursive: entry.isDirectory(), force: true }).catch(
+          () => undefined
+        );
+      })
+    );
+  }
+
+  private async resolveOwnedVoiceFilePath(petId: string, voiceId: string): Promise<string | null> {
+    const voicesRoot = resolve(this.userDataPath, "pets", petId, "voices");
+    for (const ext of ALLOWED_VOICE_EXTENSIONS) {
+      const candidate = resolve(voicesRoot, `${voiceId}.${ext}`);
+      if (!isPathInside(voicesRoot, candidate)) continue;
+      try {
+        const [canonicalRoot, canonicalCandidate, candidateStat] = await Promise.all([
+          realpath(voicesRoot),
+          realpath(candidate),
+          stat(candidate),
+        ]);
+        if (candidateStat.isFile() && isPathInside(canonicalRoot, canonicalCandidate)) return canonicalCandidate;
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  private async createUniqueVoiceId(petId: string): Promise<string> {
+    const voicesDir = resolve(this.userDataPath, "pets", petId, "voices");
+    const entries = await readdir(voicesDir).catch(() => []);
+    const usedIds = new Set(entries.map((entry) => entry.split(".", 1)[0]!).filter(isSafeIdentifier));
+    return this.createUniqueId(usedIds);
   }
 
   private async importAssetsExclusive(petId: string, sourcePaths: readonly string[]): Promise<ImageImportResult> {
@@ -352,6 +517,38 @@ async function readSourceFile(sourcePath: string): Promise<Buffer> {
   } finally {
     await file?.close().catch(() => undefined);
   }
+}
+
+async function readVoiceSourceFile(sourcePath: string): Promise<Buffer> {
+  let file;
+  try {
+    file = await open(sourcePath, "r");
+    const fileStat = await file.stat();
+    if (!fileStat.isFile()) throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+    validateVoiceAudioFileSize(fileStat.size);
+    const bytes = await file.readFile();
+    validateVoiceAudioFileSize(bytes.byteLength);
+    return bytes;
+  } catch (error) {
+    if (error instanceof VoiceAudioInputError) throw error;
+    throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+  } finally {
+    await file?.close().catch(() => undefined);
+  }
+}
+
+function collectVoiceAssetIds(settings: PetConfig["dialogueSettings"]): Set<string> {
+  const ids = new Set<string>();
+  for (const category of Object.values(settings.categories)) {
+    if (!category) continue;
+    for (const override of category.builtInOverrides) {
+      if (override.voiceAssetId) ids.add(override.voiceAssetId);
+    }
+    for (const line of category.customLines) {
+      if (line.voiceAssetId) ids.add(line.voiceAssetId);
+    }
+  }
+  return ids;
 }
 
 function requirePet(settings: AppSettings, petId: string): PetConfig {

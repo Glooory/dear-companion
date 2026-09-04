@@ -177,8 +177,8 @@ export interface CompanionSystemSnapshot {
   runtime: CompanionRuntimeSnapshot;
 }
 
-export interface AppSettingsV5 {
-  schemaVersion: 5;
+export interface AppSettingsV6 {
+  schemaVersion: 6;
   activePetId: string | null;
   petWindow: PetWindowSettings;
   autostartEnabled: boolean;
@@ -188,7 +188,7 @@ export interface AppSettingsV5 {
   pets: readonly PetConfig[];
 }
 
-export type AppSettings = AppSettingsV5;
+export type AppSettings = AppSettingsV6;
 
 export interface ReminderOccurrence {
   occurrenceId: string;
@@ -356,6 +356,9 @@ export interface PetSystemApi extends FoundationApi {
   deletePetAsset(petId: string, assetId: string): Promise<PetSystemSnapshot>;
   chooseAndImportPetAssets(petId: string): Promise<ImageImportResult>;
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>;
+  savePetVoice(petId: string, data: Uint8Array, extension: string): Promise<{ voiceId: string }>;
+  chooseAndImportPetVoice(petId: string): Promise<{ voiceId: string } | null>;
+  deletePetVoice(petId: string, voiceId: string): Promise<void>;
   setActivePet(petId: string): Promise<PetSystemSnapshot>;
   movePetBy(deltaX: number, deltaY: number): void;
   nudgePetBy(deltaX: number, deltaY: number): void;
@@ -443,7 +446,7 @@ export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
 });
 
 export const DEFAULT_APP_SETTINGS = Object.freeze({
-  schemaVersion: 5,
+  schemaVersion: 6,
   activePetId: null,
   petWindow: Object.freeze({
     x: null,
@@ -523,8 +526,11 @@ export function parsePetRendererStatus(value: unknown): PetRendererStatus {
 export function migrateAppSettings(value: unknown): SettingsMigrationResult {
   if (!isRecord(value)) throw new Error("Unsupported settings schema version");
 
+  if (value.schemaVersion === 6) {
+    return { migrated: false, settings: parseAppSettingsV6(value) };
+  }
   if (value.schemaVersion === 5) {
-    return { migrated: false, settings: parseAppSettingsV5(value) };
+    return { migrated: true, settings: parseAppSettingsV6(value, "Invalid schema v5 settings") };
   }
 
   throw new Error("Unsupported settings schema version");
@@ -716,11 +722,14 @@ export function createPetSystemSnapshot(settings: AppSettings): PetSystemSnapsho
   };
 }
 
-function parseAppSettingsV5(value: Record<string, unknown>): AppSettingsV5 {
+function parseAppSettingsV6(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v6 settings"
+): AppSettingsV6 {
   assertExactKeys(
     value,
     ["schemaVersion", "activePetId", "petWindow", "autostartEnabled", "audio", "reminders", "workSchedules", "pets"],
-    "Invalid schema v5 settings"
+    errorMessage
   );
   const foundation = parseCommonFoundationFields(value);
   if (!Array.isArray(value.pets)) throw new Error("Invalid pet collection");
@@ -745,7 +754,7 @@ function parseAppSettingsV5(value: Record<string, unknown>): AppSettingsV5 {
   );
   const audio = parseAudioSettings(value.audio);
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     activePetId,
     ...foundation,
     audio,

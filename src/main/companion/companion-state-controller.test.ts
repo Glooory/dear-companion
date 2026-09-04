@@ -35,7 +35,7 @@ function pet(): PetConfig {
     },
     companionPace: "natural",
     interactionBubblesEnabled: true,
-    dialogueSettings: { address: "", categories: {} },
+    dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
   };
 }
 

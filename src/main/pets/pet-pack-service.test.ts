@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -14,6 +14,7 @@ import { SettingsStore } from "../settings/settings-store";
 import { PetPackService } from "./pet-pack-service";
 
 const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+const wavBytes = Buffer.from("RIFFxxxxWAVEfmt ");
 const temporaryDirectories: string[] = [];
 
 async function createHarness(decoder: ImageDecoder = validDecoder()) {
@@ -45,7 +46,7 @@ describe("PetPackService", () => {
         lifeStates: DEFAULT_PET_LIFE_STATES,
         companionPace: "natural",
         interactionBubblesEnabled: true,
-        dialogueSettings: { address: "", categories: {} },
+        dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
       },
     ]);
     expect(snapshot.activePetId).toBeNull();
@@ -144,7 +145,7 @@ describe("PetPackService", () => {
       },
       companionPace: "lively",
       interactionBubblesEnabled: false,
-      dialogueSettings: { address: "小葡萄", categories: {} },
+      dialogueSettings: { address: "小葡萄", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
     };
 
     const updated = await service.updatePet(update);
@@ -288,6 +289,111 @@ describe("PetPackService", () => {
 
     expect(petB.dialogueSettings.address).toBe("");
     expect(petB.dialogueSettings.categories).toEqual({});
+  });
+
+  it("saves, resolves, and deletes voice assets for a pet", async () => {
+    const { service } = await createHarness();
+    const created = await service.createPet("Mochi");
+    const petId = created.pets[0]!.id;
+
+    const { voiceId } = await service.saveVoiceAsset(petId, wavBytes, "wav");
+    expect(voiceId).toBeDefined();
+
+    const resolved = await service.resolveVoiceAssetPath(petId, voiceId);
+    expect(resolved).not.toBeNull();
+    expect(resolved).toContain(`${voiceId}.wav`);
+
+    await service.deleteVoiceAsset(petId, voiceId);
+    const afterDelete = await service.resolveVoiceAssetPath(petId, voiceId);
+    expect(afterDelete).toBeNull();
+  });
+
+  it("rejects renamed or mismatched voice content", async () => {
+    const { service } = await createHarness();
+    await service.createPet("Mochi");
+
+    await expect(service.saveVoiceAsset("pet-1", Buffer.from("not audio"), "wav")).rejects.toThrow("无法识别");
+    await expect(service.saveVoiceAsset("pet-1", wavBytes, "mp3")).rejects.toThrow("扩展名");
+  });
+
+  it("keeps referenced voices and removes draft voices after cleanup", async () => {
+    const { service, userDataPath } = await createHarness();
+    await service.createPet("Mochi");
+    const referenced = await service.saveVoiceAsset("pet-1", wavBytes, "wav");
+    const draft = await service.saveVoiceAsset("pet-1", wavBytes, "wav");
+    const sourcePath = join(userDataPath, "source.png");
+    await writeFile(sourcePath, pngBytes);
+    const asset = (await service.importAssets("pet-1", [sourcePath])).imported[0]!;
+
+    await service.updatePet({
+      id: "pet-1",
+      name: "Mochi",
+      targetHeight: 180,
+      assets: [{ id: asset.id, normalization: asset.normalization, headHotspot: null }],
+      actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
+      actionTemplates: DEFAULT_ACTION_TEMPLATES,
+      lifeStates: DEFAULT_PET_LIFE_STATES,
+      companionPace: "natural",
+      interactionBubblesEnabled: true,
+      dialogueSettings: {
+        address: "",
+        voiceEnabled: true,
+        voiceVolume: 0.8,
+        categories: {
+          "daily:click": {
+            builtInOverrides: [{ lineId: "daily-click-here", voiceAssetId: referenced.voiceId }],
+            customLines: [],
+          },
+        },
+      },
+    });
+    await service.cleanupUnreferencedVoiceAssets("pet-1");
+
+    expect(await service.resolveVoiceAssetPath("pet-1", referenced.voiceId)).not.toBeNull();
+    expect(await service.resolveVoiceAssetPath("pet-1", draft.voiceId)).toBeNull();
+  });
+
+  it("rejects missing voice references without changing persisted settings", async () => {
+    const { service, userDataPath } = await createHarness();
+    await service.createPet("Mochi");
+    const sourcePath = join(userDataPath, "source.png");
+    await writeFile(sourcePath, pngBytes);
+    const asset = (await service.importAssets("pet-1", [sourcePath])).imported[0]!;
+    const update: PetUpdateInput = {
+      id: "pet-1",
+      name: "Mochi",
+      targetHeight: 180,
+      assets: [{ id: asset.id, normalization: asset.normalization, headHotspot: null }],
+      actionSlots: { ...EMPTY_ACTION_SLOTS, idle: [asset.id] },
+      actionTemplates: DEFAULT_ACTION_TEMPLATES,
+      lifeStates: DEFAULT_PET_LIFE_STATES,
+      companionPace: "natural",
+      interactionBubblesEnabled: true,
+      dialogueSettings: {
+        address: "",
+        voiceEnabled: true,
+        voiceVolume: 0.8,
+        categories: {
+          "daily:click": {
+            builtInOverrides: [{ lineId: "daily-click-here", voiceAssetId: "missing-voice" }],
+            customLines: [],
+          },
+        },
+      },
+    };
+
+    await expect(service.updatePet(update)).rejects.toThrow("声音不可用");
+    expect((await service.getSnapshot()).pets[0]?.dialogueSettings.categories).toEqual({});
+  });
+
+  it("removes the complete pet directory including voices", async () => {
+    const { service, userDataPath } = await createHarness();
+    await service.createPet("Mochi");
+    await service.saveVoiceAsset("pet-1", wavBytes, "wav");
+
+    await service.deletePet("pet-1");
+
+    await expect(stat(join(userDataPath, "pets", "pet-1"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
 

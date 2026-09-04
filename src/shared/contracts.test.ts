@@ -49,7 +49,7 @@ function createPet(): PetConfig {
     },
     companionPace: "natural",
     interactionBubblesEnabled: true,
-    dialogueSettings: { address: "", categories: {} },
+    dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
   };
 }
 
@@ -66,9 +66,9 @@ describe("settings contracts", () => {
     expect(resolvePetWindowSize(400)).toEqual({ width: 376, height: 344 });
   });
 
-  it("uses privacy-preserving schema v5 first-run defaults", () => {
+  it("uses privacy-preserving schema v6 first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 5,
+      schemaVersion: 6,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
@@ -90,7 +90,7 @@ describe("settings contracts", () => {
     expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow("Unsupported settings schema version");
   });
 
-  it("round-trips v5 into newly allocated nested values", () => {
+  it("round-trips v6 into newly allocated nested values", () => {
     const pet = createPet();
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] };
     const parsed = parseAppSettings(input);
@@ -101,6 +101,31 @@ describe("settings contracts", () => {
     expect(parsed.pets[0]?.assets).not.toBe(pet.assets);
     expect(parsed.pets[0]?.actionSlots).not.toBe(pet.actionSlots);
     expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings);
+  });
+
+  it("migrates v5 dialogue settings to explicit voice defaults", () => {
+    const pet = createPet();
+    const legacyPet = {
+      ...pet,
+      dialogueSettings: { address: "小葡萄", categories: {} },
+    };
+    const legacy = {
+      ...DEFAULT_APP_SETTINGS,
+      schemaVersion: 5,
+      activePetId: pet.id,
+      pets: [legacyPet],
+    };
+
+    const migration = migrateAppSettings(legacy);
+
+    expect(migration.migrated).toBe(true);
+    expect(migration.settings.schemaVersion).toBe(6);
+    expect(migration.settings.pets[0]?.dialogueSettings).toEqual({
+      address: "小葡萄",
+      voiceEnabled: false,
+      voiceVolume: 0.8,
+      categories: {},
+    });
   });
 
   it("rejects a stale active pet or active pet without idle", () => {
@@ -304,6 +329,8 @@ describe("settings contracts", () => {
       ...pet,
       dialogueSettings: {
         address: "",
+        voiceEnabled: false,
+        voiceVolume: 0.8,
         categories: {
           "daily:click": {
             builtInOverrides: [{ lineId: "stale-built-in-line", text: "旧版文字" }],

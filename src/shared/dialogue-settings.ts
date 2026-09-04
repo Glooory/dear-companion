@@ -16,12 +16,14 @@ export interface BuiltInDialogueOverride {
   readonly lineId: string;
   readonly automaticEnabled?: boolean;
   readonly text?: string;
+  readonly voiceAssetId?: string;
 }
 
 export interface CustomDialogueLine {
   readonly id: string;
   readonly automaticEnabled: boolean;
   readonly text: string;
+  readonly voiceAssetId?: string;
 }
 
 export interface DialogueCategorySettings {
@@ -32,6 +34,8 @@ export interface DialogueCategorySettings {
 export interface PetDialogueSettings {
   readonly address: string;
   readonly categories: Readonly<Partial<Record<DialogueCategory, DialogueCategorySettings>>>;
+  readonly voiceEnabled: boolean;
+  readonly voiceVolume: number;
 }
 
 export interface DialogueValidationIssue {
@@ -41,6 +45,8 @@ export interface DialogueValidationIssue {
 
 export const EMPTY_PET_DIALOGUE_SETTINGS: PetDialogueSettings = Object.freeze({
   address: "",
+  voiceEnabled: false,
+  voiceVolume: 0.8,
   categories: Object.freeze({}),
 });
 
@@ -65,6 +71,8 @@ export function clonePetDialogueSettings(settings: PetDialogueSettings): PetDial
   return {
     address: settings.address,
     categories: clonedCategories,
+    voiceEnabled: settings.voiceEnabled,
+    voiceVolume: settings.voiceVolume,
   };
 }
 
@@ -88,6 +96,20 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
         issues.push({ path: "address", message: "称呼最多 12 个字" });
       }
     }
+  }
+
+  if (value.voiceEnabled !== undefined && typeof value.voiceEnabled !== "boolean") {
+    issues.push({ path: "voiceEnabled", message: "Invalid voiceEnabled state" });
+  }
+
+  if (
+    value.voiceVolume !== undefined &&
+    (typeof value.voiceVolume !== "number" ||
+      !Number.isFinite(value.voiceVolume) ||
+      value.voiceVolume < 0 ||
+      value.voiceVolume > 1)
+  ) {
+    issues.push({ path: "voiceVolume", message: "音量必须在 0 到 1 之间" });
   }
 
   if (!isRecord(value.categories)) {
@@ -144,6 +166,12 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
         issues.push({ path: `${category}:${override.lineId}`, message: "Invalid automaticEnabled state" });
       }
 
+      if (override.voiceAssetId !== undefined) {
+        if (typeof override.voiceAssetId !== "string" || !isSafeIdentifier(override.voiceAssetId)) {
+          issues.push({ path: `${category}:${override.lineId}`, message: "Invalid voice identifier" });
+        }
+      }
+
       if (override.text !== undefined) {
         if (typeof override.text !== "string") {
           issues.push({ path: `${category}:${override.lineId}`, message: "对白内容必须是文本" });
@@ -183,6 +211,12 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
 
       if (typeof custom.automaticEnabled !== "boolean") {
         issues.push({ path: `${category}:${custom.id}`, message: "Invalid automaticEnabled state" });
+      }
+
+      if (custom.voiceAssetId !== undefined) {
+        if (typeof custom.voiceAssetId !== "string" || !isSafeIdentifier(custom.voiceAssetId)) {
+          issues.push({ path: `${category}:${custom.id}`, message: "Invalid voice identifier" });
+        }
       }
 
       if (typeof custom.text !== "string") {
@@ -229,7 +263,10 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
 
 export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
   if (!isRecord(value)) throw new Error("Invalid dialogue settings");
-  assertExactKeys(value, ["address", "categories"], "Invalid dialogue settings");
+  const allowedRootKeys = ["address", "categories"];
+  if ("voiceEnabled" in value) allowedRootKeys.push("voiceEnabled");
+  if ("voiceVolume" in value) allowedRootKeys.push("voiceVolume");
+  assertExactKeys(value, allowedRootKeys, "Invalid dialogue settings");
 
   const issues = getDialogueValidationIssues(value);
   if (issues.length > 0) {
@@ -237,6 +274,8 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
   }
 
   const address = (value.address as string).trim();
+  const voiceEnabled = typeof value.voiceEnabled === "boolean" ? value.voiceEnabled : false;
+  const voiceVolume = typeof value.voiceVolume === "number" ? Math.max(0, Math.min(1, value.voiceVolume)) : 0.8;
   const rawCategories = value.categories as Record<string, unknown>;
   const normalizedCategories: Partial<Record<DialogueCategory, DialogueCategorySettings>> = {};
 
@@ -254,6 +293,7 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
       const allowedKeys = ["lineId"];
       if ("automaticEnabled" in rawO) allowedKeys.push("automaticEnabled");
       if ("text" in rawO) allowedKeys.push("text");
+      if ("voiceAssetId" in rawO) allowedKeys.push("voiceAssetId");
       assertExactKeys(rawO, allowedKeys, "Invalid built-in override");
 
       const lineId = rawO.lineId as string;
@@ -261,6 +301,7 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
         lineId,
         ...(rawO.automaticEnabled !== undefined ? { automaticEnabled: rawO.automaticEnabled as boolean } : {}),
         ...(rawO.text !== undefined ? { text: (rawO.text as string).trim() } : {}),
+        ...(rawO.voiceAssetId !== undefined ? { voiceAssetId: rawO.voiceAssetId as string } : {}),
       };
       builtInOverrides.push(override);
     }
@@ -268,11 +309,14 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
     const customLines: CustomDialogueLine[] = [];
     for (const rawC of rawCustom) {
       if (!isRecord(rawC)) continue;
-      assertExactKeys(rawC, ["id", "automaticEnabled", "text"], "Invalid custom dialogue line");
+      const customAllowedKeys = ["id", "automaticEnabled", "text"];
+      if ("voiceAssetId" in rawC) customAllowedKeys.push("voiceAssetId");
+      assertExactKeys(rawC, customAllowedKeys, "Invalid custom dialogue line");
       customLines.push({
         id: rawC.id as string,
         automaticEnabled: rawC.automaticEnabled as boolean,
         text: (rawC.text as string).trim(),
+        ...(rawC.voiceAssetId !== undefined ? { voiceAssetId: rawC.voiceAssetId as string } : {}),
       });
     }
 
@@ -287,20 +331,28 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
   return {
     address,
     categories: Object.freeze(normalizedCategories),
+    voiceEnabled,
+    voiceVolume,
   };
 }
 
-export function resolveDialogueLines(
+export interface ResolvedDialogueCandidate {
+  readonly lineId: string;
+  readonly text: string;
+  readonly voiceAssetId?: string;
+}
+
+export function resolveDialogueCandidates(
   category: DialogueCategory,
   settings: PetDialogueSettings | null | undefined
-): readonly string[] {
+): readonly ResolvedDialogueCandidate[] {
   const meta = getDialogueTriggerMeta(category);
   const catSettings = settings?.categories[category];
   const address = settings?.address?.trim() ?? "";
 
   const overridesByLineId = new Map((catSettings?.builtInOverrides ?? []).map((o) => [o.lineId, o]));
 
-  const candidates: string[] = [];
+  const candidates: Array<{ lineId: string; template: string; voiceAssetId?: string }> = [];
 
   for (const builtIn of meta.builtIns) {
     const override = overridesByLineId.get(builtIn.id);
@@ -309,7 +361,7 @@ export function resolveDialogueLines(
     }
     const text = override?.text !== undefined ? override.text.trim() : builtIn.text;
     if (text.length > 0) {
-      candidates.push(text);
+      candidates.push({ lineId: builtIn.id, template: text, voiceAssetId: override?.voiceAssetId });
     }
   }
 
@@ -318,35 +370,54 @@ export function resolveDialogueLines(
       if (custom.automaticEnabled) {
         const text = custom.text.trim();
         if (text.length > 0) {
-          candidates.push(text);
+          candidates.push({ lineId: custom.id, template: text, voiceAssetId: custom.voiceAssetId });
         }
       }
     }
   }
 
-  const replaced: string[] = [];
-  for (const line of candidates) {
-    if (line.includes(ADDRESS_PLACEHOLDER)) {
+  const replaced: Array<{ lineId: string; text: string; voiceAssetId?: string }> = [];
+  for (const item of candidates) {
+    if (item.template.includes(ADDRESS_PLACEHOLDER)) {
       if (address.length === 0) {
         continue;
       }
-      replaced.push(line.replaceAll(ADDRESS_PLACEHOLDER, address));
+      replaced.push({
+        lineId: item.lineId,
+        text: item.template.replaceAll(ADDRESS_PLACEHOLDER, address),
+        voiceAssetId: item.voiceAssetId,
+      });
     } else {
-      replaced.push(line);
+      replaced.push({
+        lineId: item.lineId,
+        text: item.template,
+        voiceAssetId: item.voiceAssetId,
+      });
     }
   }
 
-  const result: string[] = [];
+  const result: ResolvedDialogueCandidate[] = [];
   const seen = new Set<string>();
-  for (const line of replaced) {
-    const trimmed = line.trim();
+  for (const item of replaced) {
+    const trimmed = item.text.trim();
     if (trimmed.length > 0 && !seen.has(trimmed)) {
       seen.add(trimmed);
-      result.push(trimmed);
+      result.push({
+        lineId: item.lineId,
+        text: trimmed,
+        ...(item.voiceAssetId ? { voiceAssetId: item.voiceAssetId } : {}),
+      });
     }
   }
 
   return Object.freeze(result);
+}
+
+export function resolveDialogueLines(
+  category: DialogueCategory,
+  settings: PetDialogueSettings | null | undefined
+): readonly string[] {
+  return resolveDialogueCandidates(category, settings).map((c) => c.text);
 }
 
 export function restoreBuiltInLine(
@@ -360,8 +431,12 @@ export function restoreBuiltInLine(
   const nextOverrides = catSettings.builtInOverrides
     .map((override) => {
       if (override.lineId !== lineId) return override;
-      if (override.automaticEnabled === false) {
-        return { lineId: override.lineId, automaticEnabled: false };
+      if (override.automaticEnabled === false || override.voiceAssetId) {
+        return {
+          lineId: override.lineId,
+          ...(override.automaticEnabled === false ? { automaticEnabled: false } : {}),
+          ...(override.voiceAssetId ? { voiceAssetId: override.voiceAssetId } : {}),
+        };
       }
       return null;
     })
@@ -380,6 +455,8 @@ export function restoreBuiltInLine(
   return {
     address: settings.address,
     categories: Object.freeze(nextCategories),
+    voiceEnabled: settings.voiceEnabled,
+    voiceVolume: settings.voiceVolume,
   };
 }
 
@@ -389,12 +466,15 @@ export function restoreBuiltInCategory(settings: PetDialogueSettings, category: 
     return settings;
   }
 
+  const restoredVoiceOverrides = catSettings.builtInOverrides
+    .filter((override) => override.voiceAssetId)
+    .map((override) => ({ lineId: override.lineId, voiceAssetId: override.voiceAssetId }));
   const nextCategories = { ...settings.categories };
-  if (catSettings.customLines.length === 0) {
+  if (catSettings.customLines.length === 0 && restoredVoiceOverrides.length === 0) {
     delete nextCategories[category];
   } else {
     nextCategories[category] = {
-      builtInOverrides: Object.freeze([]),
+      builtInOverrides: Object.freeze(restoredVoiceOverrides),
       customLines: catSettings.customLines,
     };
   }
@@ -402,6 +482,8 @@ export function restoreBuiltInCategory(settings: PetDialogueSettings, category: 
   return {
     address: settings.address,
     categories: Object.freeze(nextCategories),
+    voiceEnabled: settings.voiceEnabled,
+    voiceVolume: settings.voiceVolume,
   };
 }
 
