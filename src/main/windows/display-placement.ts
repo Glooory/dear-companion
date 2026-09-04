@@ -165,12 +165,15 @@ export interface BubbleWindowBounds {
   tailOffsetX: number;
 }
 
+export const DEFAULT_BUBBLE_WINDOW_GAP = 0;
+export const DEFAULT_BUBBLE_WINDOW_MARGIN = 8;
+
 export function resolveBubbleWindowBounds(
   petBounds: Rect,
   workArea: Rect,
   bubbleSize: Pick<Rect, "width" | "height"> = { width: BUBBLE_WINDOW_WIDTH, height: BUBBLE_WINDOW_HEIGHT },
-  gap = 8,
-  margin = 8
+  gap = DEFAULT_BUBBLE_WINDOW_GAP,
+  margin = DEFAULT_BUBBLE_WINDOW_MARGIN
 ): BubbleWindowBounds {
   const petCenterX = petBounds.x + petBounds.width / 2;
   const width = Math.min(bubbleSize.width, Math.max(1, workArea.width - margin * 2));
