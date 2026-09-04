@@ -47,6 +47,11 @@ export function DialogueLineEditor({
 }: DialogueLineEditorProps): React.JSX.Element {
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [failedVoiceId, setFailedVoiceId] = useState<string | null>(null);
+  const [prevVoiceAssetId, setPrevVoiceAssetId] = useState(row.voiceAssetId);
+  if (row.voiceAssetId !== prevVoiceAssetId) {
+    setPrevVoiceAssetId(row.voiceAssetId);
+    setFailedVoiceId(null);
+  }
   const [showRecorder, setShowRecorder] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -71,7 +76,7 @@ export function DialogueLineEditor({
         audioRef.current = null;
       }
     };
-  }, [row.voiceAssetId, row.voiceAvailable]);
+  }, [row.voiceAssetId]);
   const voiceUnavailable = row.voiceAvailable === false || failedVoiceId === row.voiceAssetId;
 
   const toggleVoiceAudition = (): void => {
@@ -98,7 +103,10 @@ export function DialogueLineEditor({
         setFailedVoiceId(null);
         setIsPlayingVoice(true);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         releaseAudition(audio);
         setFailedVoiceId(row.voiceAssetId ?? null);
       });

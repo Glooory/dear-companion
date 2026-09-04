@@ -11,7 +11,12 @@ export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: APP_SCHEME,
-      privileges: { standard: true, secure: true },
+      privileges: {
+        standard: true,
+        secure: true,
+        stream: true,
+        supportFetchAPI: true,
+      },
     },
   ]);
 }
@@ -19,7 +24,7 @@ export function registerAppScheme(): void {
 export type PetAssetResolver = (petId: string, assetId: string) => Promise<string | null>;
 export type AudioAssetResolver = (assetId: string) => Promise<string | null>;
 export type PetVoiceResolver = (petId: string, voiceId: string) => Promise<string | null>;
-type LocalFileFetcher = (canonicalPath: string) => Promise<Response>;
+type LocalFileFetcher = (canonicalPath: string, request?: Request) => Promise<Response>;
 
 export async function registerAppProtocol(
   rendererRoot: string,
@@ -29,8 +34,12 @@ export async function registerAppProtocol(
 ): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot);
   const localFileSession = session.fromPartition("app-local-resources", { cache: false });
-  const fetchLocalFile: LocalFileFetcher = (canonicalPath) =>
-    localFileSession.fetch(pathToFileURL(canonicalPath).toString());
+  const fetchLocalFile: LocalFileFetcher = (canonicalPath, request) => {
+    const headers = request?.headers ? Object.fromEntries(request.headers.entries()) : undefined;
+    return localFileSession.fetch(pathToFileURL(canonicalPath).toString(), {
+      headers,
+    });
+  };
 
   await protocol.handle(APP_SCHEME, async (request) => {
     try {
@@ -39,13 +48,13 @@ export async function registerAppProtocol(
 
       const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.html";
       if (relativePath.startsWith("pet-assets/")) {
-        return servePetAsset(relativePath, resolvePetAsset, fetchLocalFile);
+        return servePetAsset(relativePath, resolvePetAsset, fetchLocalFile, request);
       }
       if (relativePath.startsWith("pet-voices/")) {
-        return servePetVoice(relativePath, resolvePetVoice, fetchLocalFile);
+        return servePetVoice(relativePath, resolvePetVoice, fetchLocalFile, request);
       }
       if (relativePath.startsWith("audio-assets/")) {
-        return serveAudioAsset(relativePath, resolveAudioAsset, fetchLocalFile);
+        return serveAudioAsset(relativePath, resolveAudioAsset, fetchLocalFile, request);
       }
       const resolvedPath = resolve(resolvedRendererRoot, relativePath);
 
@@ -65,7 +74,7 @@ export async function registerAppProtocol(
       if (!isPathInside(canonicalRendererRoot, canonicalPath)) return forbiddenResponse();
 
       try {
-        return await fetchLocalFile(canonicalPath);
+        return await fetchLocalFile(canonicalPath, request);
       } catch {
         return notFoundResponse();
       }
@@ -78,7 +87,8 @@ export async function registerAppProtocol(
 async function serveAudioAsset(
   relativePath: string,
   resolveAudioAsset: AudioAssetResolver | undefined,
-  fetchLocalFile: LocalFileFetcher
+  fetchLocalFile: LocalFileFetcher,
+  request?: Request
 ): Promise<Response> {
   const segments = relativePath.split("/");
   if (segments.length !== 2 || segments[0] !== "audio-assets" || !isSafeIdentifier(segments[1])) {
@@ -89,7 +99,7 @@ async function serveAudioAsset(
     const path = await resolveAudioAsset(segments[1]);
     if (!path) return notFoundResponse();
     const canonicalPath = await realpath(path);
-    return await fetchLocalFile(canonicalPath);
+    return await fetchLocalFile(canonicalPath, request);
   } catch {
     return notFoundResponse();
   }
@@ -98,7 +108,8 @@ async function serveAudioAsset(
 async function servePetAsset(
   relativePath: string,
   resolvePetAsset: PetAssetResolver | undefined,
-  fetchLocalFile: LocalFileFetcher
+  fetchLocalFile: LocalFileFetcher,
+  request?: Request
 ): Promise<Response> {
   const segments = relativePath.split("/");
   if (
@@ -115,7 +126,7 @@ async function servePetAsset(
     const path = await resolvePetAsset(segments[1], segments[2]);
     if (!path) return notFoundResponse();
     const canonicalPath = await realpath(path);
-    return await fetchLocalFile(canonicalPath);
+    return await fetchLocalFile(canonicalPath, request);
   } catch {
     return notFoundResponse();
   }
@@ -124,7 +135,8 @@ async function servePetAsset(
 async function servePetVoice(
   relativePath: string,
   resolvePetVoice: PetVoiceResolver | undefined,
-  fetchLocalFile: LocalFileFetcher
+  fetchLocalFile: LocalFileFetcher,
+  request?: Request
 ): Promise<Response> {
   const segments = relativePath.split("/");
   if (
@@ -141,7 +153,7 @@ async function servePetVoice(
     const path = await resolvePetVoice(segments[1], segments[2]);
     if (!path) return notFoundResponse();
     const canonicalPath = await realpath(path);
-    return await fetchLocalFile(canonicalPath);
+    return await fetchLocalFile(canonicalPath, request);
   } catch {
     return notFoundResponse();
   }

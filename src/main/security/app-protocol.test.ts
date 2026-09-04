@@ -2,13 +2,14 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { protocol } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerAppProtocol } from "./app-protocol";
+import { registerAppProtocol, registerAppScheme } from "./app-protocol";
 
 const electronHarness = vi.hoisted(() => ({
   handler: undefined as ((request: Request) => Promise<Response>) | undefined,
   fetch: vi.fn<(url: string) => Promise<Response>>(),
-  localFetch: vi.fn<(url: string) => Promise<Response>>(),
+  localFetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
 }));
 
 vi.mock("electron", () => ({
@@ -34,10 +35,10 @@ async function createRendererRoot(): Promise<string> {
   return rendererRoot;
 }
 
-async function requestRenderer(url: string): Promise<Response> {
+async function requestRenderer(url: string, init?: RequestInit): Promise<Response> {
   const handler = electronHarness.handler;
   if (!handler) throw new Error("Application protocol handler was not registered");
-  return handler(new Request(url));
+  return handler(new Request(url, init));
 }
 
 beforeEach(() => {
@@ -206,5 +207,40 @@ describe("application protocol", () => {
     expect((await requestRenderer("app://renderer/pet-voices/pet-1/missing")).status).toBe(404);
     expect((await requestRenderer("app://renderer/pet-voices/pet-1/..%2Fsecret")).status).toBe(403);
     expect((await requestRenderer("app://renderer/pet-voices/pet_1/voice-1")).status).toBe(403);
+  });
+
+  it("registers app scheme with standard, secure, stream, and fetch privileges", () => {
+    registerAppScheme();
+    expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
+      {
+        scheme: "app",
+        privileges: {
+          standard: true,
+          secure: true,
+          stream: true,
+          supportFetchAPI: true,
+        },
+      },
+    ]);
+  });
+
+  it("forwards request headers including range when serving pet voice assets", async () => {
+    const rendererRoot = await createRendererRoot();
+    const voicePath = join(dirname(rendererRoot), "voice.wav");
+    await writeFile(voicePath, "voice audio bytes");
+    const voiceResolver = vi.fn(async (petId: string, voiceId: string) =>
+      petId === "pet-1" && voiceId === "voice-1" ? voicePath : null
+    );
+    await registerAppProtocol(rendererRoot, undefined, undefined, voiceResolver);
+    const response = await requestRenderer("app://renderer/pet-voices/pet-1/voice-1", {
+      headers: { range: "bytes=0-10" },
+    });
+    expect(response.status).toBe(200);
+    expect(electronHarness.localFetch).toHaveBeenCalledWith(
+      expect.stringContaining("voice.wav"),
+      expect.objectContaining({
+        headers: expect.objectContaining({ range: "bytes=0-10" }),
+      })
+    );
   });
 });
