@@ -29,6 +29,7 @@ export interface DialogueSettingsEditorProps {
   onSave?: () => void;
   isBusy?: boolean;
   saveSuccess?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 export function DialogueSettingsEditor({
@@ -43,10 +44,15 @@ export function DialogueSettingsEditor({
   onSave,
   isBusy,
   saveSuccess,
+  hasUnsavedChanges,
 }: DialogueSettingsEditorProps): React.JSX.Element {
   const [selectedGroupId, setSelectedGroupId] = useState<DialogueGroupId>("daily");
   const [confirmRestoreCategory, setConfirmRestoreCategory] = useState<DialogueCategory | null>(null);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set());
+  const [voiceAvailabilityState, setVoiceAvailabilityState] = useState<{
+    petId: string;
+    values: Record<string, boolean>;
+  } | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedInputRef = useRef<{
     category: DialogueCategory;
@@ -68,6 +74,37 @@ export function DialogueSettingsEditor({
   };
 
   const validationIssues = useMemo(() => getDialogueValidationIssues(settings), [settings]);
+  const voiceIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          Object.values(settings.categories).flatMap((category) => [
+            ...(category?.builtInOverrides.flatMap((line) => line.voiceAssetId ?? []) ?? []),
+            ...(category?.customLines.flatMap((line) => line.voiceAssetId ?? []) ?? []),
+          ])
+        ),
+      ].sort(),
+    [settings.categories]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    if (voiceIds.length === 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    void window.dearCompanion.getPetVoiceAvailability(petId, voiceIds).then(
+      (result) => {
+        if (!cancelled) setVoiceAvailabilityState({ petId, values: result });
+      },
+      () => undefined
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [petId, voiceIds]);
+  const voiceAvailability = voiceAvailabilityState?.petId === petId ? voiceAvailabilityState.values : {};
 
   const issueMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -78,6 +115,23 @@ export function DialogueSettingsEditor({
     }
     return map;
   }, [validationIssues]);
+  const addressIssue = isFieldTouched("address") ? issueMap.get("address") : undefined;
+
+  const focusIssue = (path: string): void => {
+    if (path === "address") {
+      document.getElementById("address-input")?.focus();
+      return;
+    }
+    const category = DIALOGUE_GROUPS.flatMap((group) => group.triggers).find((trigger) =>
+      path.startsWith(`${trigger.id}:`)
+    )?.id;
+    if (!category) return;
+    const group = DIALOGUE_GROUPS.find((candidate) => candidate.triggers.some((trigger) => trigger.id === category));
+    if (!group) return;
+    const lineId = path.slice(category.length + 1);
+    setSelectedGroupId(group.id);
+    setTimeout(() => document.getElementById(`dialogue-input-${category}-${lineId}`)?.focus(), 0);
+  };
 
   const prevValidationAttempt = useRef(validationAttempt);
   useEffect(() => {
@@ -355,7 +409,11 @@ export function DialogueSettingsEditor({
           </div>
           <ul className={styles.errorList}>
             {validationIssues.map((issue) => (
-              <li key={issue.path}>{issue.message}</li>
+              <li key={issue.path}>
+                <button type="button" className={styles.errorLink} onClick={() => focusIssue(issue.path)}>
+                  {issue.message}
+                </button>
+              </li>
             ))}
           </ul>
         </div>
@@ -377,10 +435,18 @@ export function DialogueSettingsEditor({
             maxLength={12}
             onChange={(e) => handleAddressChange(e.currentTarget.value)}
             onBlur={() => markFieldTouched("address")}
-            aria-invalid={isFieldTouched("address") && Boolean(issueMap.get("address"))}
+            aria-invalid={Boolean(addressIssue)}
+            aria-describedby={addressIssue ? "address-input-error" : "address-input-help"}
             placeholder="例如：小葡萄（可留空）"
           />
-          <p className={styles.supportingCopy}>在对白中插入“称呼”时使用；留空时不触发含称呼的对白。</p>
+          <p id="address-input-help" className={styles.supportingCopy}>
+            在对白中插入“称呼”时使用；留空时不触发含称呼的对白。
+          </p>
+          {addressIssue && (
+            <p id="address-input-error" className={styles.inlineError} role="alert">
+              {addressIssue}
+            </p>
+          )}
         </div>
 
         <div className={styles.controlCol}>
@@ -438,25 +504,44 @@ export function DialogueSettingsEditor({
       )}
 
       {/* Scenario Pill Tabs */}
-      <nav className={styles.scenarioNav} aria-label="生活场景分类">
+      <div className={styles.scenarioNav} role="tablist" aria-label="生活场景分类">
         {DIALOGUE_GROUPS.map((group) => {
           const isActive = group.id === selectedGroupId;
           return (
             <button
               key={group.id}
               type="button"
+              id={`dialogue-group-tab-${group.id}`}
+              role="tab"
+              aria-selected={isActive}
+              aria-controls={`dialogue-group-panel-${group.id}`}
+              tabIndex={isActive ? 0 : -1}
               className={clsx(styles.scenarioTab, isActive && styles.active)}
               onClick={() => setSelectedGroupId(group.id)}
+              onKeyDown={(event) => {
+                const currentIndex = DIALOGUE_GROUPS.findIndex((candidate) => candidate.id === group.id);
+                const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+                if (delta === 0) return;
+                event.preventDefault();
+                const next = DIALOGUE_GROUPS[(currentIndex + delta + DIALOGUE_GROUPS.length) % DIALOGUE_GROUPS.length]!;
+                setSelectedGroupId(next.id);
+                document.getElementById(`dialogue-group-tab-${next.id}`)?.focus();
+              }}
             >
               <span>{group.label}</span>
-              <span className={styles.countPill}>{group.triggers.length}</span>
+              <span className={styles.countPill}>{group.triggers.length} 个时机</span>
             </button>
           );
         })}
-      </nav>
+      </div>
 
       {/* Trigger Cards List */}
-      <div className={styles.triggerCards}>
+      <div
+        id={`dialogue-group-panel-${currentGroup.id}`}
+        className={styles.triggerCards}
+        role="tabpanel"
+        aria-labelledby={`dialogue-group-tab-${currentGroup.id}`}
+      >
         {currentGroup.triggers.map((trigger) => {
           const catSettings = settings.categories[trigger.id];
           const overrides = catSettings?.builtInOverrides ?? [];
@@ -476,6 +561,7 @@ export function DialogueSettingsEditor({
               automaticEnabled: override?.automaticEnabled ?? true,
               isModified,
               voiceAssetId: override?.voiceAssetId,
+              voiceAvailable: override?.voiceAssetId ? voiceAvailability[override.voiceAssetId] : undefined,
               issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
             };
           });
@@ -489,14 +575,13 @@ export function DialogueSettingsEditor({
               currentText: c.text,
               automaticEnabled: c.automaticEnabled,
               voiceAssetId: c.voiceAssetId,
+              voiceAvailable: c.voiceAssetId ? voiceAvailability[c.voiceAssetId] : undefined,
               issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
             };
           });
 
           const allRows = [...builtInRows, ...customRows];
-          const hasModifiedBuiltIns = overrides.some(
-            (o) => o.text !== undefined || o.automaticEnabled === false || o.voiceAssetId !== undefined
-          );
+          const hasModifiedBuiltIns = overrides.some((o) => o.text !== undefined || o.automaticEnabled === false);
 
           return (
             <section key={trigger.id} className={styles.triggerCard} aria-labelledby={`trigger-title-${trigger.id}`}>
@@ -511,7 +596,7 @@ export function DialogueSettingsEditor({
                 {hasModifiedBuiltIns &&
                   (confirmRestoreCategory === trigger.id ? (
                     <div className={styles.confirmBox}>
-                      <span className={styles.confirmText}>恢复默认原句？</span>
+                      <span className={styles.confirmText}>恢复原句并重新启用？配音和我的对白会保留。</span>
                       <button
                         type="button"
                         className="ghost-button compact-button"
@@ -593,6 +678,7 @@ export function DialogueSettingsEditor({
       {onSave && (
         <div className={styles.saveBar}>
           {saveSuccess && <span className={styles.saveNotice}>设置已保存</span>}
+          {!saveSuccess && hasUnsavedChanges && <span className={styles.unsavedNotice}>尚未保存</span>}
           <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
             {isBusy ? "保存中..." : "保存设置"}
           </button>

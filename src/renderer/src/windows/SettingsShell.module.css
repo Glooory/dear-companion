@@ -310,6 +310,45 @@
   color: #242220;
 }
 
+.petSubTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #f4efe8;
+  border: 1px solid #ede8e1;
+}
+
+.petSubTab {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #78736b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.petSubTab:hover {
+  color: #2d2a26;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.petSubTabActive {
+  background: #ffffff;
+  color: #24473d;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(45, 42, 38, 0.08);
+}
+
+.petSubTabPanel {
+  min-width: 0;
+}
+
 .basicFields {
   display: grid;
   grid-template-columns: minmax(150px, 1.2fr) minmax(180px, 1fr);

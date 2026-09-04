@@ -11,7 +11,8 @@
 }
 
 .main {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
   align-items: flex-start;
   gap: 10px;
 }
@@ -61,7 +62,7 @@
 }
 
 .previewNotice {
-  color: #8c877e;
+  color: #6b665e;
   font-style: italic;
 }
 
@@ -105,4 +106,118 @@
 .badgeCustom {
   background: #eff6f3;
   color: #24473d;
+}
+
+.voiceCapsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(61, 115, 99, 0.08);
+  border: 1px solid rgba(61, 115, 99, 0.2);
+  color: #2b5548;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.voicePlayBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 28px;
+  gap: 4px;
+  border-radius: 999px;
+  border: 0;
+  background: #3d7363;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 8px;
+  font: inherit;
+}
+
+.voicePlayBtn:hover {
+  background: #346355;
+}
+
+.voiceActionBtn {
+  border: 0;
+  background: transparent;
+  color: #6b665e;
+  cursor: pointer;
+  padding: 4px 8px;
+  min-height: 28px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+}
+
+.voiceActionBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #242220;
+}
+
+.voiceDeleteBtn {
+  border: 0;
+  background: transparent;
+  color: #6b665e;
+  cursor: pointer;
+  padding: 4px 8px;
+  min-height: 28px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+}
+
+.voiceDeleteBtn:hover {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.addVoiceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px dashed #dcd7cd;
+  border-radius: 6px;
+  background: transparent;
+  color: #716d66;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.addVoiceBtn:hover {
+  border-color: #3d7363;
+  color: #2f5c4f;
+  background: rgba(61, 115, 99, 0.04);
+}
+
+.voiceUnavailable {
+  border-color: #d4a29a;
+  background: #fff4f2;
+  color: #8f3025;
+}
+
+@media (max-width: 680px) {
+  .main {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .meta {
+    grid-column: 1 / -1;
+    padding-top: 2px;
+    flex-wrap: wrap;
+  }
 }

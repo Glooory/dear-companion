@@ -340,6 +340,11 @@ export function VoiceRecorderPopover({
         )}
 
         <div className={styles.recorderBody}>
+          {status === "saving" && !recordedBlob && (
+            <span className={styles.statusLabel} role="status">
+              正在导入声音…
+            </span>
+          )}
           {(status === "idle" || status === "requesting") && (
             <>
               <button
