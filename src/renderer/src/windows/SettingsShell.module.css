@@ -287,8 +287,44 @@
 }
 
 .editorPanel {
+  --editor-panel-padding: clamp(16px, 2.5vw, 24px);
   min-width: 0;
-  padding: clamp(16px, 2.5vw, 24px);
+  padding: var(--editor-panel-padding);
+}
+
+.saveBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #ede8e1;
+  padding: 12px var(--editor-panel-padding, 16px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px calc(-1 * var(--editor-panel-padding, 16px)) calc(-1 * var(--editor-panel-padding, 16px));
+  border-radius: 0 0 14px 14px;
+}
+
+.saveBarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.saveNotice {
+  font-size: 0.8125rem;
+  color: #3d7363;
+  font-weight: 600;
+}
+
+.unsavedNotice {
+  font-size: 0.8125rem;
+  color: #8a5a22;
+  font-weight: 650;
 }
 
 .titleWrap {

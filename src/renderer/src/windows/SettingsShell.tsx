@@ -912,24 +912,30 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                         />
                       </section>
 
-                      <div className="editor-actions">
+                      <div className={styles.saveBar}>
                         <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>
                           删除伙伴
                         </button>
-                        <Tooltip
-                          content="需先导入照片才可保存设置"
-                          position="top-end"
-                          disabled={selectedPet.assets.length > 0}
-                        >
-                          <button
-                            type="button"
-                            className={clsx("primary-button", saveSuccess && "saved")}
-                            disabled={isBusy || selectedPet.assets.length === 0}
-                            onClick={saveDraft}
+                        <div className={styles.saveBarRight}>
+                          {saveSuccess && <span className={styles.saveNotice}>设置已保存</span>}
+                          {!saveSuccess && hasUnsavedPetChanges && (
+                            <span className={styles.unsavedNotice}>尚未保存</span>
+                          )}
+                          <Tooltip
+                            content="需先导入照片才可保存设置"
+                            position="top-end"
+                            disabled={selectedPet.assets.length > 0}
                           >
-                            {saveSuccess ? "已保存 ✓" : "保存设置"}
-                          </button>
-                        </Tooltip>
+                            <button
+                              type="button"
+                              className={clsx("primary-button", saveSuccess && "saved")}
+                              disabled={isBusy || selectedPet.assets.length === 0}
+                              onClick={saveDraft}
+                            >
+                              {isBusy ? "保存中..." : saveSuccess ? "已保存 ✓" : "保存设置"}
+                            </button>
+                          </Tooltip>
+                        </div>
                       </div>
                     </>
                   )}
