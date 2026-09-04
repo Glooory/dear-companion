@@ -193,4 +193,18 @@ describe("application protocol", () => {
     expect((await requestRenderer("app://renderer/audio-assets/..%2Fsecret")).status).toBe(403);
     expect((await requestRenderer("app://renderer/audio-assets/sound_1")).status).toBe(403);
   });
+
+  it("serves only persisted pet voice asset identifiers through the pet voice resolver", async () => {
+    const rendererRoot = await createRendererRoot();
+    const voicePath = join(dirname(rendererRoot), "voice.wav");
+    await writeFile(voicePath, "voice audio bytes");
+    const voiceResolver = vi.fn(async (petId: string, voiceId: string) =>
+      petId === "pet-1" && voiceId === "voice-1" ? voicePath : null
+    );
+    await registerAppProtocol(rendererRoot, undefined, undefined, voiceResolver);
+    expect((await requestRenderer("app://renderer/pet-voices/pet-1/voice-1")).status).toBe(200);
+    expect((await requestRenderer("app://renderer/pet-voices/pet-1/missing")).status).toBe(404);
+    expect((await requestRenderer("app://renderer/pet-voices/pet-1/..%2Fsecret")).status).toBe(403);
+    expect((await requestRenderer("app://renderer/pet-voices/pet_1/voice-1")).status).toBe(403);
+  });
 });

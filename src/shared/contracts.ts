@@ -358,7 +358,8 @@ export interface PetSystemApi extends FoundationApi {
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>;
   savePetVoice(petId: string, data: Uint8Array, extension: string): Promise<{ voiceId: string }>;
   chooseAndImportPetVoice(petId: string): Promise<{ voiceId: string } | null>;
-  deletePetVoice(petId: string, voiceId: string): Promise<void>;
+  cleanupPetVoiceDrafts(petId: string): Promise<void>;
+  getPetVoiceAvailability(petId: string, voiceIds: readonly string[]): Promise<Record<string, boolean>>;
   setActivePet(petId: string): Promise<PetSystemSnapshot>;
   movePetBy(deltaX: number, deltaY: number): void;
   nudgePetBy(deltaX: number, deltaY: number): void;

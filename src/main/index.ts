@@ -197,10 +197,16 @@ if (!hasSingleInstanceLock) {
     const preloadPath = join(mainDirectory, "../preload/index.js");
     const rendererRoot = join(mainDirectory, "../renderer");
     const developmentOrigin = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
-    disposeNetworkPolicy = registerNetworkPolicy(
-      session.defaultSession,
-      developmentOrigin ? { developmentOrigin } : {}
-    );
+    disposeNetworkPolicy = registerNetworkPolicy(session.defaultSession, {
+      ...(developmentOrigin ? { developmentOrigin } : {}),
+      getWindowKind: (webContentsId) => {
+        try {
+          return windowManager?.getWindowKind(webContentsId) ?? null;
+        } catch {
+          return null;
+        }
+      },
+    });
 
     if (process.env.DEAR_COMPANION_BUILD_SMOKE === "1") {
       await registerAppProtocol(rendererRoot);
@@ -215,6 +221,8 @@ if (!hasSingleInstanceLock) {
     const launchIntent = app.isPackaged ? parseLaunchIntent(process.argv, loginItemSettings) : { autostart: false };
     if (!launchIntent.autostart) await autostartService.reconcilePersistedPreference();
     const petPackService = new PetPackService(app.getPath("userData"), store, new SharpImageDecoder());
+    await petPackService.cleanupOrphanedPetDirectories();
+    await petPackService.cleanupUnreferencedVoiceAssets();
     let runtimeManager: WindowManager | null = null;
     let runtimeTray: TrayController | null = null;
     let runtimeScheduler: ReminderScheduler | null = null;
@@ -254,7 +262,8 @@ if (!hasSingleInstanceLock) {
     await registerAppProtocol(
       rendererRoot,
       (petId, assetId) => petPackService.resolveAssetPath(petId, assetId),
-      (assetId) => localAudioService.resolveAssetPath(assetId)
+      (assetId) => localAudioService.resolveAssetPath(assetId),
+      (petId, voiceId) => petPackService.resolveVoiceAssetPath(petId, voiceId)
     );
     if (isQuitting) return;
 

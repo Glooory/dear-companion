@@ -1,7 +1,8 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { type DialogueCategory } from "@shared/dialogue-catalog";
 import { ADDRESS_PLACEHOLDER } from "@shared/dialogue-settings";
+import { VoiceRecorderPopover } from "./VoiceRecorderPopover";
 import styles from "./DialogueLineEditor.module.css";
 
 export interface DialogueLineRowModel {
@@ -12,14 +13,17 @@ export interface DialogueLineRowModel {
   readonly defaultText?: string;
   readonly automaticEnabled: boolean;
   readonly isModified?: boolean;
+  readonly voiceAssetId?: string;
   readonly issue?: string;
 }
 
 export interface DialogueLineEditorProps {
+  readonly petId: string;
   readonly row: DialogueLineRowModel;
   readonly address: string;
   readonly onTextChange: (text: string) => void;
   readonly onToggleAutomatic: (enabled: boolean) => void;
+  readonly onVoiceChange: (voiceAssetId: string | undefined) => void;
   readonly onRestore?: () => void;
   readonly onDelete?: () => void;
   readonly onInputFocus?: (el: HTMLInputElement) => void;
@@ -27,16 +31,51 @@ export interface DialogueLineEditorProps {
 }
 
 export function DialogueLineEditor({
+  petId,
   row,
   address,
   onTextChange,
   onToggleAutomatic,
+  onVoiceChange,
   onRestore,
   onDelete,
   onInputFocus,
   onBlur,
 }: DialogueLineEditorProps): React.JSX.Element {
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [showRecorder, setShowRecorder] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+    };
+  }, []);
+
+  const toggleVoiceAudition = (): void => {
+    if (!row.voiceAssetId) return;
+    if (isPlayingVoice && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlayingVoice(false);
+      return;
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    const url = `app://renderer/pet-voices/${encodeURIComponent(petId)}/${encodeURIComponent(row.voiceAssetId)}`;
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.onended = () => setIsPlayingVoice(false);
+    audio.onerror = () => setIsPlayingVoice(false);
+    void audio
+      .play()
+      .then(() => setIsPlayingVoice(true))
+      .catch(() => setIsPlayingVoice(false));
+  };
   const inputId = `dialogue-input-${row.category}-${row.id}`;
   const errorId = `dialogue-error-${row.category}-${row.id}`;
   const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER);
@@ -100,6 +139,93 @@ export function DialogueLineEditor({
         </div>
 
         <div className={styles.meta}>
+          {row.voiceAssetId ? (
+            <div className={styles.voiceCapsule}>
+              <button
+                type="button"
+                className={styles.voicePlayBtn}
+                onClick={toggleVoiceAudition}
+                aria-label={isPlayingVoice ? "暂停对白声音" : "试听对白声音"}
+                title={isPlayingVoice ? "暂停" : "试听"}
+              >
+                {isPlayingVoice ? (
+                  <svg viewBox="0 0 10 10" width="8" height="8" fill="currentColor">
+                    <rect x="1.5" y="1" width="2.5" height="8" rx="0.5" />
+                    <rect x="6" y="1" width="2.5" height="8" rx="0.5" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 10 10" width="8" height="8" fill="currentColor">
+                    <polygon points="2.5,1.5 8.5,5 2.5,8.5" />
+                  </svg>
+                )}
+              </button>
+              <span>已配音</span>
+              <button
+                type="button"
+                className={styles.voiceActionBtn}
+                onClick={() => setShowRecorder(true)}
+                title="重录或更换声音"
+                aria-label="更换声音"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  width="10"
+                  height="10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M1 8a7 7 0 1 1 2 4.9L1 15l2.1-2" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={styles.voiceDeleteBtn}
+                onClick={() => {
+                  onVoiceChange(undefined);
+                }}
+                title="移除声音"
+                aria-label="移除声音"
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  width="9"
+                  height="9"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <line x1="2" y1="2" x2="10" y2="10" />
+                  <line x1="10" y1="2" x2="2" y2="10" />
+                </svg>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.addVoiceBtn}
+              onClick={() => setShowRecorder(true)}
+              aria-label="添加声音"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="11"
+                height="11"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              >
+                <path d="M8 2a2 2 0 0 0-2 2v4a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2Z" />
+                <path d="M12 7v1a4 4 0 0 1-8 0V7" />
+                <line x1="8" y1="12" x2="8" y2="14" />
+              </svg>
+              <span>+ 声音</span>
+            </button>
+          )}
+
           <span className={badgeClass}>
             {row.source === "builtin" ? (row.isModified ? "内置 · 已修改" : "内置") : "我的"}
           </span>
@@ -127,6 +253,17 @@ export function DialogueLineEditor({
           )}
         </div>
       </div>
+
+      {showRecorder && (
+        <VoiceRecorderPopover
+          petId={petId}
+          dialogueText={row.currentText || row.defaultText || ""}
+          onSave={(voiceId) => {
+            onVoiceChange(voiceId);
+          }}
+          onClose={() => setShowRecorder(false)}
+        />
+      )}
     </div>
   );
 }

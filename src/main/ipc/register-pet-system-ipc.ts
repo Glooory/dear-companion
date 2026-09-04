@@ -14,7 +14,17 @@ import type { WindowManager } from "../windows/window-manager";
 interface PetSystemIpcDependencies {
   petPackService: Pick<
     PetPackService,
-    "getSnapshot" | "createPet" | "deletePet" | "deleteAsset" | "importAssets" | "updatePet" | "setActivePet"
+    | "getSnapshot"
+    | "createPet"
+    | "deletePet"
+    | "deleteAsset"
+    | "importAssets"
+    | "updatePet"
+    | "setActivePet"
+    | "saveVoiceAsset"
+    | "importVoiceAsset"
+    | "cleanupUnreferencedVoiceAssets"
+    | "getVoiceAssetAvailability"
   >;
   settingsStore: Pick<SettingsStore, "update">;
   windowManager: Pick<
@@ -56,6 +66,7 @@ export function registerPetSystemIpc({
 }: PetSystemIpcDependencies): () => void {
   let active = true;
   const handledChannels: string[] = [];
+  const voiceDraftOwners = new Set<number>();
 
   const broadcast = async (snapshot: PetSystemSnapshot): Promise<PetSystemSnapshot> => {
     await companionController?.refresh();
@@ -67,6 +78,15 @@ export function registerPetSystemIpc({
     if (windowManager.getWindowKind(senderId) !== "settings") {
       throw new Error("This operation is available only from settings");
     }
+  };
+
+  const trackVoiceDraftOwner = (sender: Electron.WebContents): void => {
+    if (voiceDraftOwners.has(sender.id)) return;
+    voiceDraftOwners.add(sender.id);
+    sender.once("destroyed", () => {
+      voiceDraftOwners.delete(sender.id);
+      void petPackService.cleanupUnreferencedVoiceAssets().catch(() => undefined);
+    });
   };
 
   const movePetListener = (event: IpcMainEvent, deltaX: unknown, deltaY: unknown): void => {
@@ -284,6 +304,49 @@ export function registerPetSystemIpc({
       const result = await petPackService.importAssets(validatedPetId, selection.filePaths);
       if (result.imported.length > 0) await broadcast(await petPackService.getSnapshot());
       return result;
+    });
+
+    handle(IPC_CHANNELS.savePetVoice, async (event, petId: unknown, data: unknown, extension: unknown) => {
+      requireSettingsSender(event.sender.id);
+      if (!(data instanceof Uint8Array)) {
+        throw new Error("Invalid audio buffer");
+      }
+      if (typeof extension !== "string") {
+        throw new Error("Invalid extension");
+      }
+      trackVoiceDraftOwner(event.sender);
+      return petPackService.saveVoiceAsset(petId, Buffer.from(data), extension);
+    });
+
+    handle(IPC_CHANNELS.importPetVoice, async (event, petId: unknown) => {
+      requireSettingsSender(event.sender.id);
+      const validatedPetId = parsePetIdentifier(petId);
+      const snapshot = await petPackService.getSnapshot();
+      if (!snapshot.pets.some((pet) => pet.id === validatedPetId)) {
+        throw new Error("Pet does not exist");
+      }
+      const owner = windowManager.getOwnedWindow(event.sender.id);
+      const selection = await dialog.showOpenDialog(owner, {
+        title: "导入对白声音",
+        properties: ["openFile"],
+        filters: [{ name: "音频文件", extensions: ["mp3", "wav", "m4a", "ogg", "webm"] }],
+      });
+      if (selection.canceled || selection.filePaths.length === 0) {
+        return null;
+      }
+      trackVoiceDraftOwner(event.sender);
+      return petPackService.importVoiceAsset(validatedPetId, selection.filePaths[0]!);
+    });
+
+    handle(IPC_CHANNELS.cleanupPetVoiceDrafts, async (event, petId: unknown) => {
+      requireSettingsSender(event.sender.id);
+      await petPackService.cleanupUnreferencedVoiceAssets(petId);
+    });
+
+    handle(IPC_CHANNELS.getPetVoiceAvailability, async (event, petId: unknown, voiceIds: unknown) => {
+      requireSettingsSender(event.sender.id);
+      if (!Array.isArray(voiceIds) || voiceIds.length > 128) throw new Error("Invalid voice identifiers");
+      return petPackService.getVoiceAssetAvailability(petId, voiceIds);
     });
 
     handle(IPC_CHANNELS.updatePet, async (event, input: unknown) => {

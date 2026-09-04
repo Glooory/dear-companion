@@ -1,8 +1,19 @@
 import type { CallbackResponse, OnBeforeRequestListenerDetails, Session } from "electron";
+import type { WindowKind } from "../../shared/contracts";
 
 export type ApplicationUrlDecision = "allow" | "deny";
 
 interface NetworkPolicyOptions {
+  developmentOrigin?: string;
+  getWindowKind?: (webContentsId: number) => WindowKind | null;
+}
+
+interface MicrophonePermissionInput {
+  permission: string;
+  requestingOrigin: string;
+  isMainFrame: boolean;
+  mediaTypes: readonly string[];
+  windowKind: WindowKind | null;
   developmentOrigin?: string;
 }
 
@@ -41,6 +52,26 @@ export function classifyApplicationUrl(
   return "deny";
 }
 
+export function classifyMicrophonePermission(input: MicrophonePermissionInput): ApplicationUrlDecision {
+  if (
+    input.permission !== "media" ||
+    input.windowKind !== "settings" ||
+    !input.isMainFrame ||
+    input.mediaTypes.length !== 1 ||
+    input.mediaTypes[0] !== "audio"
+  ) {
+    return "deny";
+  }
+
+  if (input.requestingOrigin === "app://renderer") return "allow";
+  if (!input.developmentOrigin) return "deny";
+  try {
+    return new URL(input.requestingOrigin).origin === new URL(input.developmentOrigin).origin ? "allow" : "deny";
+  } catch {
+    return "deny";
+  }
+}
+
 export function registerNetworkPolicy(targetSession: Session, options: NetworkPolicyOptions = {}): () => void {
   const onBeforeRequest = (
     details: OnBeforeRequestListenerDetails,
@@ -50,10 +81,31 @@ export function registerNetworkPolicy(targetSession: Session, options: NetworkPo
   };
 
   targetSession.webRequest.onBeforeRequest(REQUEST_FILTER, onBeforeRequest);
-  targetSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
+  targetSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const mediaTypes = "mediaTypes" in details ? (details.mediaTypes ?? []) : [];
+    callback(
+      classifyMicrophonePermission({
+        permission,
+        requestingOrigin: originOf(details.requestingUrl),
+        isMainFrame: details.isMainFrame,
+        mediaTypes,
+        windowKind: options.getWindowKind?.(webContents.id) ?? null,
+        ...(options.developmentOrigin ? { developmentOrigin: options.developmentOrigin } : {}),
+      }) === "allow"
+    );
   });
-  targetSession.setPermissionCheckHandler(() => false);
+  targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    return (
+      classifyMicrophonePermission({
+        permission,
+        requestingOrigin: originOf(requestingOrigin),
+        isMainFrame: details.isMainFrame,
+        mediaTypes: details.mediaType ? [details.mediaType] : [],
+        windowKind: webContents ? (options.getWindowKind?.(webContents.id) ?? null) : null,
+        ...(options.developmentOrigin ? { developmentOrigin: options.developmentOrigin } : {}),
+      }) === "allow"
+    );
+  });
 
   let active = true;
   return () => {
@@ -63,4 +115,12 @@ export function registerNetworkPolicy(targetSession: Session, options: NetworkPo
     targetSession.setPermissionRequestHandler(null);
     targetSession.setPermissionCheckHandler(null);
   };
+}
+
+function originOf(rawUrl: string): string {
+  try {
+    return new URL(rawUrl).origin;
+  } catch {
+    return "";
+  }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyApplicationUrl } from "./network-policy";
+import { classifyApplicationUrl, classifyMicrophonePermission } from "./network-policy";
 
 describe("classifyApplicationUrl", () => {
   it("allows only the owned application host", () => {
@@ -28,5 +28,42 @@ describe("classifyApplicationUrl", () => {
     "not a url",
   ])("denies remote, file, data, or malformed URL %s", (url) => {
     expect(classifyApplicationUrl(url)).toBe("deny");
+  });
+});
+
+describe("classifyMicrophonePermission", () => {
+  const allowed = {
+    permission: "media",
+    requestingOrigin: "app://renderer",
+    isMainFrame: true,
+    mediaTypes: ["audio"],
+    windowKind: "settings",
+  } as const;
+
+  it("allows only audio capture from the owned settings main frame", () => {
+    expect(classifyMicrophonePermission(allowed)).toBe("allow");
+    expect(classifyMicrophonePermission({ ...allowed, windowKind: "pet" })).toBe("deny");
+    expect(classifyMicrophonePermission({ ...allowed, isMainFrame: false })).toBe("deny");
+    expect(classifyMicrophonePermission({ ...allowed, mediaTypes: ["video"] })).toBe("deny");
+    expect(classifyMicrophonePermission({ ...allowed, mediaTypes: ["audio", "video"] })).toBe("deny");
+    expect(classifyMicrophonePermission({ ...allowed, permission: "notifications" })).toBe("deny");
+    expect(classifyMicrophonePermission({ ...allowed, requestingOrigin: "https://example.com" })).toBe("deny");
+  });
+
+  it("allows the exact configured development origin", () => {
+    expect(
+      classifyMicrophonePermission({
+        ...allowed,
+        requestingOrigin: "http://localhost:5173",
+        developmentOrigin: "http://localhost:5173",
+      })
+    ).toBe("allow");
+    expect(
+      classifyMicrophonePermission({
+        ...allowed,
+        requestingOrigin: "http://localhost:5173.evil.test",
+        developmentOrigin: "http://localhost:5173",
+      })
+    ).toBe("deny");
   });
 });

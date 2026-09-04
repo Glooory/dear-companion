@@ -57,30 +57,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [targetHeightText, setTargetHeightText] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<"pets" | "rest" | "work" | "system">("pets");
-  const [petEditorPage, setPetEditorPage] = useState<"details" | "dialogues">("details");
+  const [petSubTab, setPetSubTab] = useState<"appearance" | "dialogues">("appearance");
   const [dialogueValidationAttempt, setDialogueValidationAttempt] = useState(0);
 
   const selectedPet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
     [snapshot, selectedPetId]
   );
-
-  const dialogueSummary = useMemo(() => {
-    if (!draft || !selectedPet) return "当前使用内置对白";
-    const address = draft.dialogueSettings.address.trim();
-    let customCount = 0;
-    let overridesExist = false;
-    for (const cat of Object.values(draft.dialogueSettings.categories)) {
-      if (!cat) continue;
-      customCount += cat.customLines.length;
-      if (cat.builtInOverrides.length > 0) overridesExist = true;
-    }
-    const fragments: string[] = [];
-    if (address) fragments.push(`${selectedPet.name}称呼你为“${address}”`);
-    if (customCount > 0) fragments.push(`自定义 ${customCount} 句`);
-    if (overridesExist) fragments.push("已调整内置对白");
-    return fragments.length > 0 ? fragments.join(" · ") : "当前使用内置对白";
-  }, [draft, selectedPet]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +172,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setTargetHeightText(created ? String(created.targetHeight) : "");
       setNewPetName("");
       setIsCreatingPet(false);
-      setPetEditorPage("details");
+      setPetSubTab("appearance");
       toast.success(`已添加伙伴“${name}”`);
     });
   };
@@ -236,7 +219,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setSelectedPetId(replacement?.id ?? null);
       setDraft(replacement ? petToUpdateInput(replacement) : null);
       setTargetHeightText(replacement ? String(replacement.targetHeight) : "");
-      setPetEditorPage("details");
+      setPetSubTab("appearance");
       setSettings((current) =>
         current
           ? {
@@ -273,10 +256,13 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const selectPet = (pet: PetConfig): void => {
     if (pet.id === selectedPetId) return;
+    if (selectedPetId) {
+      void api.cleanupPetVoiceDrafts(selectedPetId).catch(() => undefined);
+    }
     setSelectedPetId(pet.id);
     setDraft(petToUpdateInput(pet));
     setTargetHeightText(String(pet.targetHeight));
-    setPetEditorPage("details");
+    setPetSubTab("appearance");
   };
 
   const saveDraft = (): void => {
@@ -287,7 +273,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     }
     const issues = getDialogueValidationIssues(draft.dialogueSettings);
     if (issues.length > 0) {
-      setPetEditorPage("dialogues");
+      setPetSubTab("dialogues");
       setDialogueValidationAttempt((prev) => prev + 1);
       toast.warning("对白设置中存在未填写的项目，请检查后再保存。");
       return;
@@ -749,162 +735,172 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
           <section className={styles.editorPanel}>
             {draft && selectedPet ? (
-              petEditorPage === "dialogues" ? (
-                <DialogueSettingsEditor
-                  petName={selectedPet.name}
-                  settings={draft.dialogueSettings}
-                  bubblesEnabled={draft.interactionBubblesEnabled}
-                  drowsyEnabled={draft.lifeStates.drowsy.enabled}
-                  sleepingEnabled={draft.lifeStates.sleeping.enabled}
-                  validationAttempt={dialogueValidationAttempt}
-                  onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
-                  onBack={() => setPetEditorPage("details")}
-                  onSave={saveDraft}
-                  isBusy={isBusy}
-                  saveSuccess={saveSuccess}
-                />
-              ) : (
-                <>
-                  <div className="editor-heading-row">
-                    <div className={styles.titleWrap}>
-                      <div className={styles.titleLine}>
-                        <h2>{selectedPet.name}</h2>
-                        {snapshot.activePetId === selectedPet.id && (
-                          <span className={styles.petActiveBadge}>当前使用</span>
-                        )}
-                      </div>
+              <>
+                <div className="editor-heading-row">
+                  <div className={styles.titleWrap}>
+                    <div className={styles.titleLine}>
+                      <h2>{selectedPet.name}</h2>
+                      {snapshot.activePetId === selectedPet.id && (
+                        <span className={styles.petActiveBadge}>当前使用</span>
+                      )}
                     </div>
                   </div>
-
-                  <div className={styles.basicFields}>
-                    <label>
-                      <span className="field-label-row">
-                        <span>伙伴名称</span>
-                      </span>
-                      <input
-                        value={draft.name}
-                        maxLength={80}
-                        onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })}
-                      />
-                    </label>
-                    <label>
-                      <span className="field-label-row">
-                        <span>显示高度</span>
-                        <InfoTooltip
-                          text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`}
-                        />
-                      </span>
-                      <div className={styles.unitWrap}>
-                        <input
-                          type="number"
-                          min={MIN_PET_TARGET_HEIGHT}
-                          max={MAX_PET_TARGET_HEIGHT}
-                          step={1}
-                          inputMode="numeric"
-                          value={targetHeightText}
-                          onChange={(event) => {
-                            const text = event.currentTarget.value;
-                            setTargetHeightText(text);
-                            const value = parseTargetHeight(text);
-                            if (value !== null) setDraft({ ...draft, targetHeight: value });
-                          }}
-                          onBlur={() => {
-                            const value = normalizeTargetHeight(targetHeightText);
-                            if (value === null) return;
-                            setTargetHeightText(String(value));
-                            setDraft({ ...draft, targetHeight: value });
-                          }}
-                        />
-                        <span className={styles.unitSuffix}>px</span>
-                      </div>
-                    </label>
+                  <div className={styles.petSubTabs}>
+                    <button
+                      type="button"
+                      className={clsx(styles.petSubTab, petSubTab === "appearance" && styles.petSubTabActive)}
+                      onClick={() => setPetSubTab("appearance")}
+                    >
+                      形象与动作
+                    </button>
+                    <button
+                      type="button"
+                      className={clsx(styles.petSubTab, petSubTab === "dialogues" && styles.petSubTabActive)}
+                      onClick={() => setPetSubTab("dialogues")}
+                    >
+                      对白与称呼
+                    </button>
                   </div>
+                </div>
 
-                  <section className="editor-section">
-                    <CompanionPreferences
-                      pace={draft.companionPace}
-                      bubblesEnabled={draft.interactionBubblesEnabled}
-                      onPaceChange={(companionPace) => setDraft({ ...draft, companionPace })}
-                      onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
-                      onPreview={(pace) => {
-                        void api.previewCompanionPace(pace).catch(() => toast.error("暂时无法预览，请稍后再试。"));
-                      }}
-                    />
-                  </section>
-
-                  <section className="editor-section">
-                    <div className={styles.dialogueSummaryCard}>
-                      <div className={styles.dialogueSummaryInfo}>
-                        <div className={styles.dialogueSummaryTitle}>对白与称呼</div>
-                        <div className={styles.dialogueSummaryCopy}>{dialogueSummary}</div>
-                      </div>
-                      <button type="button" className="ghost-button" onClick={() => setPetEditorPage("dialogues")}>
-                        编辑对白
-                      </button>
-                    </div>
-                  </section>
-
-                  <PetGalleryManager
+                {petSubTab === "dialogues" ? (
+                  <DialogueSettingsEditor
                     petId={selectedPet.id}
-                    assets={selectedPet.assets}
-                    targetHeight={draft.targetHeight}
-                    assetAdjustments={draft.assets}
-                    isActivePet={selectedPet.id === snapshot?.activePetId}
-                    onImport={importAssets}
-                    onDeleteAsset={deleteAsset}
+                    petName={selectedPet.name}
+                    settings={draft.dialogueSettings}
+                    bubblesEnabled={draft.interactionBubblesEnabled}
+                    drowsyEnabled={draft.lifeStates.drowsy.enabled}
+                    sleepingEnabled={draft.lifeStates.sleeping.enabled}
+                    validationAttempt={dialogueValidationAttempt}
+                    onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
+                    onSave={saveDraft}
                     isBusy={isBusy}
-                    onUpdateNormalization={(assetId, normalization) =>
-                      setDraft({
-                        ...draft,
-                        assets: draft.assets.map((entry) =>
-                          entry.id === assetId ? { ...entry, normalization } : entry
-                        ),
-                      })
-                    }
-                    onUpdateHeadHotspot={(assetId, headHotspot) =>
-                      setDraft({
-                        ...draft,
-                        assets: draft.assets.map((entry) => (entry.id === assetId ? { ...entry, headHotspot } : entry)),
-                      })
-                    }
+                    saveSuccess={saveSuccess}
                   />
-
-                  <section className="editor-section">
-                    <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                      <h2>日常姿态与场景</h2>
-                      <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
+                ) : (
+                  <>
+                    <div className={styles.basicFields}>
+                      <label>
+                        <span className="field-label-row">
+                          <span>伙伴名称</span>
+                        </span>
+                        <input
+                          value={draft.name}
+                          maxLength={80}
+                          onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })}
+                        />
+                      </label>
+                      <label>
+                        <span className="field-label-row">
+                          <span>显示高度</span>
+                          <InfoTooltip
+                            text={`桌面显示高度，建议 180–240 px（支持 ${MIN_PET_TARGET_HEIGHT}–${MAX_PET_TARGET_HEIGHT} px）。`}
+                          />
+                        </span>
+                        <div className={styles.unitWrap}>
+                          <input
+                            type="number"
+                            min={MIN_PET_TARGET_HEIGHT}
+                            max={MAX_PET_TARGET_HEIGHT}
+                            step={1}
+                            inputMode="numeric"
+                            value={targetHeightText}
+                            onChange={(event) => {
+                              const text = event.currentTarget.value;
+                              setTargetHeightText(text);
+                              const value = parseTargetHeight(text);
+                              if (value !== null) setDraft({ ...draft, targetHeight: value });
+                            }}
+                            onBlur={() => {
+                              const value = normalizeTargetHeight(targetHeightText);
+                              if (value === null) return;
+                              setTargetHeightText(String(value));
+                              setDraft({ ...draft, targetHeight: value });
+                            }}
+                          />
+                          <span className={styles.unitSuffix}>px</span>
+                        </div>
+                      </label>
                     </div>
-                    <CompanionBehaviorEditor
+
+                    <section className="editor-section">
+                      <CompanionPreferences
+                        pace={draft.companionPace}
+                        bubblesEnabled={draft.interactionBubblesEnabled}
+                        onPaceChange={(companionPace) => setDraft({ ...draft, companionPace })}
+                        onBubblesChange={(interactionBubblesEnabled) =>
+                          setDraft({ ...draft, interactionBubblesEnabled })
+                        }
+                        onPreview={(pace) => {
+                          void api.previewCompanionPace(pace).catch(() => toast.error("暂时无法预览，请稍后再试。"));
+                        }}
+                      />
+                    </section>
+
+                    <PetGalleryManager
                       petId={selectedPet.id}
                       assets={selectedPet.assets}
-                      slots={draft.actionSlots}
-                      lifeStates={draft.lifeStates}
-                      onSlotsChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
-                      onLifeStatesChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
+                      targetHeight={draft.targetHeight}
+                      assetAdjustments={draft.assets}
+                      isActivePet={selectedPet.id === snapshot?.activePetId}
+                      onImport={importAssets}
+                      onDeleteAsset={deleteAsset}
+                      isBusy={isBusy}
+                      onUpdateNormalization={(assetId, normalization) =>
+                        setDraft({
+                          ...draft,
+                          assets: draft.assets.map((entry) =>
+                            entry.id === assetId ? { ...entry, normalization } : entry
+                          ),
+                        })
+                      }
+                      onUpdateHeadHotspot={(assetId, headHotspot) =>
+                        setDraft({
+                          ...draft,
+                          assets: draft.assets.map((entry) =>
+                            entry.id === assetId ? { ...entry, headHotspot } : entry
+                          ),
+                        })
+                      }
                     />
-                  </section>
 
-                  <div className="editor-actions">
-                    <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>
-                      删除伙伴
-                    </button>
-                    <Tooltip
-                      content="需先导入照片才可保存设置"
-                      position="top-end"
-                      disabled={selectedPet.assets.length > 0}
-                    >
-                      <button
-                        type="button"
-                        className={clsx("primary-button", saveSuccess && "saved")}
-                        disabled={isBusy || selectedPet.assets.length === 0}
-                        onClick={saveDraft}
-                      >
-                        {saveSuccess ? "已保存 ✓" : "保存设置"}
+                    <section className="editor-section">
+                      <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
+                        <h2>日常姿态与场景</h2>
+                        <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
+                      </div>
+                      <CompanionBehaviorEditor
+                        petId={selectedPet.id}
+                        assets={selectedPet.assets}
+                        slots={draft.actionSlots}
+                        lifeStates={draft.lifeStates}
+                        onSlotsChange={(actionSlots) => setDraft({ ...draft, actionSlots })}
+                        onLifeStatesChange={(lifeStates) => setDraft({ ...draft, lifeStates })}
+                      />
+                    </section>
+
+                    <div className="editor-actions">
+                      <button type="button" className="danger-button" disabled={isBusy} onClick={deletePet}>
+                        删除伙伴
                       </button>
-                    </Tooltip>
-                  </div>
-                </>
-              )
+                      <Tooltip
+                        content="需先导入照片才可保存设置"
+                        position="top-end"
+                        disabled={selectedPet.assets.length > 0}
+                      >
+                        <button
+                          type="button"
+                          className={clsx("primary-button", saveSuccess && "saved")}
+                          disabled={isBusy || selectedPet.assets.length === 0}
+                          onClick={saveDraft}
+                        >
+                          {saveSuccess ? "已保存 ✓" : "保存设置"}
+                        </button>
+                      </Tooltip>
+                    </div>
+                  </>
+                )}
+              </>
             ) : (
               <div className={styles.emptyState}>请选择或新建一个伙伴。</div>
             )}

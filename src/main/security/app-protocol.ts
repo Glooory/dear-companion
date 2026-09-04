@@ -18,12 +18,14 @@ export function registerAppScheme(): void {
 
 export type PetAssetResolver = (petId: string, assetId: string) => Promise<string | null>;
 export type AudioAssetResolver = (assetId: string) => Promise<string | null>;
+export type PetVoiceResolver = (petId: string, voiceId: string) => Promise<string | null>;
 type LocalFileFetcher = (canonicalPath: string) => Promise<Response>;
 
 export async function registerAppProtocol(
   rendererRoot: string,
   resolvePetAsset?: PetAssetResolver,
-  resolveAudioAsset?: AudioAssetResolver
+  resolveAudioAsset?: AudioAssetResolver,
+  resolvePetVoice?: PetVoiceResolver
 ): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot);
   const localFileSession = session.fromPartition("app-local-resources", { cache: false });
@@ -38,6 +40,9 @@ export async function registerAppProtocol(
       const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, "") || "index.html";
       if (relativePath.startsWith("pet-assets/")) {
         return servePetAsset(relativePath, resolvePetAsset, fetchLocalFile);
+      }
+      if (relativePath.startsWith("pet-voices/")) {
+        return servePetVoice(relativePath, resolvePetVoice, fetchLocalFile);
       }
       if (relativePath.startsWith("audio-assets/")) {
         return serveAudioAsset(relativePath, resolveAudioAsset, fetchLocalFile);
@@ -108,6 +113,32 @@ async function servePetAsset(
 
   try {
     const path = await resolvePetAsset(segments[1], segments[2]);
+    if (!path) return notFoundResponse();
+    const canonicalPath = await realpath(path);
+    return await fetchLocalFile(canonicalPath);
+  } catch {
+    return notFoundResponse();
+  }
+}
+
+async function servePetVoice(
+  relativePath: string,
+  resolvePetVoice: PetVoiceResolver | undefined,
+  fetchLocalFile: LocalFileFetcher
+): Promise<Response> {
+  const segments = relativePath.split("/");
+  if (
+    segments.length !== 3 ||
+    segments[0] !== "pet-voices" ||
+    !isSafeIdentifier(segments[1]) ||
+    !isSafeIdentifier(segments[2])
+  ) {
+    return forbiddenResponse();
+  }
+  if (!resolvePetVoice) return notFoundResponse();
+
+  try {
+    const path = await resolvePetVoice(segments[1], segments[2]);
     if (!path) return notFoundResponse();
     const canonicalPath = await realpath(path);
     return await fetchLocalFile(canonicalPath);

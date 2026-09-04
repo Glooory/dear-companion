@@ -272,6 +272,21 @@ export class PetPackService {
     return this.resolveOwnedVoiceFilePath(pet.id, voiceId);
   }
 
+  async getVoiceAssetAvailability(
+    petIdValue: unknown,
+    voiceIdValues: readonly unknown[]
+  ): Promise<Record<string, boolean>> {
+    const petId = parsePetIdentifier(petIdValue);
+    const voiceIds = voiceIdValues.map(parsePetIdentifier);
+    const current = await this.settingsStore.load();
+    requirePet(current, petId);
+    const result: Record<string, boolean> = {};
+    for (const voiceId of voiceIds) {
+      result[voiceId] = Boolean(await this.resolveOwnedVoiceFilePath(petId, voiceId));
+    }
+    return result;
+  }
+
   async saveVoiceAsset(petIdValue: unknown, buffer: Buffer, extensionValue: string): Promise<{ voiceId: string }> {
     const petId = parsePetIdentifier(petIdValue);
     const ext = extensionValue.toLowerCase().replace(/^\./, "") as VoiceAudioFormat;

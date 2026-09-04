@@ -15,6 +15,8 @@ artifactName: Dear-Companion-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.lifestyle
   identity: null
+  extendInfo:
+    NSMicrophoneUsageDescription: Dear Companion uses the microphone only when you record a local companion dialogue voice.
   target:
     - dmg
 win:
