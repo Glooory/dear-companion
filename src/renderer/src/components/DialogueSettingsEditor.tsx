@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { clsx } from "clsx";
 import {
-  DIALOGUE_CATEGORIES,
   DIALOGUE_GROUPS,
   getDialogueTriggerMeta,
   type DialogueCategory,
@@ -12,13 +12,13 @@ import {
   MAX_CUSTOM_LINES_PER_CATEGORY,
   restoreBuiltInCategory,
   restoreBuiltInLine,
-  type DialogueValidationIssue,
   type PetDialogueSettings,
 } from "@shared/dialogue-settings";
 import { DialogueLineEditor, type DialogueLineRowModel } from "./DialogueLineEditor";
 import styles from "./DialogueSettingsEditor.module.css";
 
 export interface DialogueSettingsEditorProps {
+  petId: string;
   petName: string;
   settings: PetDialogueSettings;
   bubblesEnabled: boolean;
@@ -26,16 +26,13 @@ export interface DialogueSettingsEditorProps {
   sleepingEnabled: boolean;
   validationAttempt: number;
   onChange: (settings: PetDialogueSettings) => void;
-  onBack: () => void;
   onSave?: () => void;
   isBusy?: boolean;
   saveSuccess?: boolean;
 }
 
-type EditorView =
-  { type: "home" } | { type: "group"; groupId: DialogueGroupId } | { type: "trigger"; category: DialogueCategory };
-
 export function DialogueSettingsEditor({
+  petId,
   petName,
   settings,
   bubblesEnabled,
@@ -43,13 +40,12 @@ export function DialogueSettingsEditor({
   sleepingEnabled,
   validationAttempt,
   onChange,
-  onBack,
   onSave,
   isBusy,
   saveSuccess,
 }: DialogueSettingsEditorProps): React.JSX.Element {
-  const [view, setView] = useState<EditorView>({ type: "home" });
-  const [confirmingRestoreCategory, setConfirmingRestoreCategory] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<DialogueGroupId>("daily");
+  const [confirmRestoreCategory, setConfirmRestoreCategory] = useState<DialogueCategory | null>(null);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set());
   const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedInputRef = useRef<{
@@ -100,6 +96,20 @@ export function DialogueSettingsEditor({
     });
   };
 
+  const handleVoiceToggle = (voiceEnabled: boolean): void => {
+    onChange({
+      ...settings,
+      voiceEnabled,
+    });
+  };
+
+  const handleVolumeChange = (volume: number): void => {
+    onChange({
+      ...settings,
+      voiceVolume: volume,
+    });
+  };
+
   const updateLineText = (category: DialogueCategory, lineId: string, text: string): void => {
     const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
     const triggerMeta = getDialogueTriggerMeta(category);
@@ -111,12 +121,14 @@ export function DialogueSettingsEditor({
       const defaultText = triggerMeta.builtIns.find((b) => b.id === lineId)?.text;
       const isCustomText = text !== defaultText;
       const isAutomaticDisabled = existing?.automaticEnabled === false;
+      const hasVoice = existing?.voiceAssetId !== undefined;
 
-      if (isCustomText || isAutomaticDisabled) {
+      if (isCustomText || isAutomaticDisabled || hasVoice) {
         nextOverrides.push({
           lineId,
           ...(isAutomaticDisabled ? { automaticEnabled: false } : {}),
           ...(isCustomText ? { text } : {}),
+          ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
         });
       }
 
@@ -149,7 +161,7 @@ export function DialogueSettingsEditor({
     }
   };
 
-  const toggleAutomatic = (category: DialogueCategory, lineId: string, enabled: boolean): void => {
+  const updateLineAutomatic = (category: DialogueCategory, lineId: string, automaticEnabled: boolean): void => {
     const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
     const triggerMeta = getDialogueTriggerMeta(category);
     const isBuiltIn = triggerMeta.builtIns.some((b) => b.id === lineId);
@@ -157,14 +169,15 @@ export function DialogueSettingsEditor({
     if (isBuiltIn) {
       const existing = catSettings.builtInOverrides.find((o) => o.lineId === lineId);
       const nextOverrides = catSettings.builtInOverrides.filter((o) => o.lineId !== lineId);
-      const defaultText = triggerMeta.builtIns.find((b) => b.id === lineId)?.text;
-      const hasTextOverride = existing?.text !== undefined && existing.text !== defaultText;
+      const isCustomText = existing?.text !== undefined;
+      const hasVoice = existing?.voiceAssetId !== undefined;
 
-      if (!enabled || hasTextOverride) {
+      if (!automaticEnabled || isCustomText || hasVoice) {
         nextOverrides.push({
           lineId,
-          ...(hasTextOverride ? { text: existing.text } : {}),
-          ...(!enabled ? { automaticEnabled: false } : {}),
+          ...(!automaticEnabled ? { automaticEnabled: false } : {}),
+          ...(isCustomText ? { text: existing!.text } : {}),
+          ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
         });
       }
 
@@ -184,7 +197,7 @@ export function DialogueSettingsEditor({
       });
     } else {
       const nextCustom = catSettings.customLines.map((line) =>
-        line.id === lineId ? { ...line, automaticEnabled: enabled } : line
+        line.id === lineId ? { ...line, automaticEnabled } : line
       );
       onChange({
         ...settings,
@@ -199,447 +212,392 @@ export function DialogueSettingsEditor({
     }
   };
 
-  const handleRestoreLine = (category: DialogueCategory, lineId: string): void => {
-    onChange(restoreBuiltInLine(settings, category, lineId));
-  };
+  const updateLineVoice = (category: DialogueCategory, lineId: string, voiceAssetId: string | undefined): void => {
+    const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
+    const triggerMeta = getDialogueTriggerMeta(category);
+    const isBuiltIn = triggerMeta.builtIns.some((b) => b.id === lineId);
 
-  const handleRestoreCategory = (category: DialogueCategory): void => {
-    onChange(restoreBuiltInCategory(settings, category));
-    setConfirmingRestoreCategory(false);
+    if (isBuiltIn) {
+      const existing = catSettings.builtInOverrides.find((o) => o.lineId === lineId);
+      const nextOverrides = catSettings.builtInOverrides.filter((o) => o.lineId !== lineId);
+      const isCustomText = existing?.text !== undefined;
+      const isAutomaticDisabled = existing?.automaticEnabled === false;
+      const hasVoice = voiceAssetId !== undefined;
+
+      if (isCustomText || isAutomaticDisabled || hasVoice) {
+        nextOverrides.push({
+          lineId,
+          ...(isAutomaticDisabled ? { automaticEnabled: false } : {}),
+          ...(isCustomText ? { text: existing!.text } : {}),
+          ...(hasVoice ? { voiceAssetId } : {}),
+        });
+      }
+
+      const nextCategories = { ...settings.categories };
+      if (nextOverrides.length === 0 && catSettings.customLines.length === 0) {
+        delete nextCategories[category];
+      } else {
+        nextCategories[category] = {
+          builtInOverrides: nextOverrides,
+          customLines: catSettings.customLines,
+        };
+      }
+
+      onChange({
+        ...settings,
+        categories: nextCategories,
+      });
+    } else {
+      const nextCustom = catSettings.customLines.map((line) => (line.id === lineId ? { ...line, voiceAssetId } : line));
+      onChange({
+        ...settings,
+        categories: {
+          ...settings.categories,
+          [category]: {
+            ...catSettings,
+            customLines: nextCustom,
+          },
+        },
+      });
+    }
   };
 
   const handleAddCustomLine = (category: DialogueCategory): void => {
     const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
     if (catSettings.customLines.length >= MAX_CUSTOM_LINES_PER_CATEGORY) return;
-    const newLineId = crypto.randomUUID();
-    const nextCustom = [...catSettings.customLines, { id: newLineId, automaticEnabled: true, text: "" }];
+
+    const id = `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     onChange({
       ...settings,
       categories: {
         ...settings.categories,
         [category]: {
           ...catSettings,
-          customLines: nextCustom,
+          customLines: [...catSettings.customLines, { id, automaticEnabled: true, text: "" }],
         },
       },
     });
-
-    setTimeout(() => {
-      const el = document.getElementById(`dialogue-input-${category}-${newLineId}`) as HTMLInputElement | null;
-      el?.focus();
-    }, 50);
   };
 
   const handleDeleteCustomLine = (category: DialogueCategory, lineId: string): void => {
-    const catSettings = settings.categories[category];
-    if (!catSettings) return;
-    const nextCustom = catSettings.customLines.filter((line) => line.id !== lineId);
+    const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
+    const nextCustom = catSettings.customLines.filter((l) => l.id !== lineId);
+
     const nextCategories = { ...settings.categories };
     if (nextCustom.length === 0 && catSettings.builtInOverrides.length === 0) {
       delete nextCategories[category];
     } else {
       nextCategories[category] = {
-        ...catSettings,
+        builtInOverrides: catSettings.builtInOverrides,
         customLines: nextCustom,
       };
     }
+
     onChange({
       ...settings,
       categories: nextCategories,
     });
   };
 
-  const handleInsertAddress = (category: DialogueCategory): void => {
-    const lastFocused = lastFocusedInputRef.current;
-    if (lastFocused && lastFocused.category === category && document.body.contains(lastFocused.inputEl)) {
-      const el = lastFocused.inputEl;
-      const start = el.selectionStart ?? el.value.length;
-      const end = el.selectionEnd ?? el.value.length;
-      el.setRangeText(ADDRESS_PLACEHOLDER, start, end, "end");
-      updateLineText(category, lastFocused.lineId, el.value);
-      el.focus();
-      return;
-    }
+  const handleRestoreBuiltIn = (category: DialogueCategory, lineId: string): void => {
+    onChange(restoreBuiltInLine(settings, category, lineId));
+  };
 
-    const catSettings = settings.categories[category];
-    const customLines = catSettings?.customLines ?? [];
-    if (customLines.length > 0) {
-      const newest = customLines[customLines.length - 1]!;
-      const el = document.getElementById(`dialogue-input-${category}-${newest.id}`) as HTMLInputElement | null;
-      if (el) {
-        const start = el.selectionStart ?? el.value.length;
-        const end = el.selectionEnd ?? el.value.length;
-        el.setRangeText(ADDRESS_PLACEHOLDER, start, end, "end");
-        updateLineText(category, newest.id, el.value);
-        el.focus();
-        return;
+  const handleRestoreCategory = (category: DialogueCategory): void => {
+    onChange(restoreBuiltInCategory(settings, category));
+    setConfirmRestoreCategory(null);
+  };
+
+  const handleInsertPlaceholder = (category: DialogueCategory): void => {
+    let target =
+      lastFocusedInputRef.current && lastFocusedInputRef.current.category === category
+        ? lastFocusedInputRef.current
+        : null;
+
+    if (!target) {
+      const firstInput = document.querySelector<HTMLInputElement>(`input[id^="dialogue-input-${category}-"]`);
+      if (firstInput) {
+        const lineId = firstInput.id.replace(`dialogue-input-${category}-`, "");
+        target = { category, lineId, inputEl: firstInput };
+        lastFocusedInputRef.current = target;
       }
     }
 
-    // Otherwise insert into first available line
-    const meta = getDialogueTriggerMeta(category);
-    const firstBuiltIn = meta.builtIns[0]!;
-    const el = document.getElementById(`dialogue-input-${category}-${firstBuiltIn.id}`) as HTMLInputElement | null;
-    if (el) {
-      const start = el.selectionStart ?? el.value.length;
-      const end = el.selectionEnd ?? el.value.length;
-      el.setRangeText(ADDRESS_PLACEHOLDER, start, end, "end");
-      updateLineText(category, firstBuiltIn.id, el.value);
-      el.focus();
-    }
+    if (!target) return;
+    const { lineId, inputEl } = target;
+    const currentVal = inputEl.value;
+    const start = inputEl.selectionStart ?? currentVal.length;
+    const end = inputEl.selectionEnd ?? currentVal.length;
+    const newVal = currentVal.slice(0, start) + ADDRESS_PLACEHOLDER + currentVal.slice(end);
+    updateLineText(category, lineId, newVal);
+
+    setTimeout(() => {
+      inputEl.focus();
+      const nextPos = start + ADDRESS_PLACEHOLDER.length;
+      inputEl.setSelectionRange(nextPos, nextPos);
+    }, 0);
   };
 
-  const navigateToIssue = (issue: DialogueValidationIssue): void => {
-    if (issue.path === "address" || issue.path === "root" || issue.path === "categories") {
-      setView({ type: "home" });
-      setTimeout(() => {
-        document.getElementById("dialogue-input-address")?.focus();
-      }, 50);
-      return;
-    }
+  const currentGroup = DIALOGUE_GROUPS.find((g) => g.id === selectedGroupId) ?? DIALOGUE_GROUPS[0]!;
 
-    const category = DIALOGUE_CATEGORIES.find((cat) => issue.path === cat || issue.path.startsWith(`${cat}:`));
-
-    if (category) {
-      const lineId = issue.path.startsWith(`${category}:`) ? issue.path.slice(category.length + 1) : null;
-      setView({ type: "trigger", category });
-      setTimeout(() => {
-        if (lineId) {
-          const targetId = `dialogue-input-${category}-${lineId}`;
-          document.getElementById(targetId)?.focus();
-        }
-      }, 50);
-      return;
-    }
-
-    setView({ type: "home" });
-  };
-
-  const renderErrorSummary = (): React.JSX.Element | null => {
-    if (validationAttempt === 0 || validationIssues.length === 0) return null;
-    return (
-      <div ref={errorSummaryRef} tabIndex={-1} className={styles.errorSummary} role="alert" aria-label="输入错误摘要">
-        <div className={styles.errorSummaryTitle}>保存前请检查以下内容：</div>
-        <ul className={styles.errorList}>
-          {validationIssues.map((issue, index) => (
-            <li key={`${issue.path}-${index}`}>
-              <a
-                href={`#${issue.path}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigateToIssue(issue);
-                }}
-              >
-                {issue.message}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
-
-  const renderHome = (): React.JSX.Element => {
-    const addressIssue = issueMap.get("address");
-    return (
-      <div className={styles.view}>
-        <header className={styles.header}>
-          <button type="button" className="ghost-button back-button" onClick={onBack}>
-            ‹ 返回伙伴设置
-          </button>
-          <h2>{petName}的对白</h2>
-        </header>
-
-        {renderErrorSummary()}
-
-        {!bubblesEnabled && (
-          <div className={styles.notice} role="status">
-            日常对话气泡已关闭；设置会保留，重新开启后生效。
+  return (
+    <div className={styles.container}>
+      {validationIssues.length > 0 && (
+        <div
+          ref={errorSummaryRef}
+          className={styles.errorSummary}
+          tabIndex={-1}
+          role="alert"
+          aria-labelledby="dialogue-error-summary-title"
+        >
+          <div id="dialogue-error-summary-title" className={styles.errorSummaryTitle}>
+            请检查以下内容
           </div>
-        )}
+          <ul className={styles.errorList}>
+            {validationIssues.map((issue) => (
+              <li key={issue.path}>{issue.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        <section className={styles.section}>
-          <label htmlFor="dialogue-input-address" className={styles.label}>
-            对你的称呼
-          </label>
-          <div className={styles.supportingCopy}>在对白中插入“称呼”时使用；可以留空。最多 12 个字。</div>
+      {/* Top Controls: Nickname & Dialogue Voice */}
+      <div className={styles.topControlsCard}>
+        <div className={styles.controlCol}>
+          <div className={styles.labelRow}>
+            <label htmlFor="address-input" className={styles.label}>
+              {petName ? `${petName}对你的称呼` : "对你的称呼"}
+            </label>
+          </div>
           <input
-            id="dialogue-input-address"
+            id="address-input"
             type="text"
             className={styles.addressInput}
             value={settings.address}
-            onChange={(e) => handleAddressChange(e.target.value)}
+            maxLength={12}
+            onChange={(e) => handleAddressChange(e.currentTarget.value)}
             onBlur={() => markFieldTouched("address")}
-            aria-invalid={Boolean(isFieldTouched("address") && addressIssue)}
-            aria-describedby={isFieldTouched("address") && addressIssue ? "dialogue-error-address" : undefined}
-            placeholder="例如：小葡萄"
+            aria-invalid={isFieldTouched("address") && Boolean(issueMap.get("address"))}
+            placeholder="例如：小葡萄（可留空）"
           />
-          {isFieldTouched("address") && addressIssue && (
-            <div id="dialogue-error-address" className={styles.inlineError} role="alert">
-              {addressIssue}
-            </div>
-          )}
-        </section>
-
-        <section className={styles.section}>
-          <div className={styles.scenesList}>
-            {DIALOGUE_GROUPS.map((group) => {
-              const triggerCount = group.triggers.length;
-              let customCount = 0;
-              let hasOverrides = false;
-              for (const trigger of group.triggers) {
-                const catSettings = settings.categories[trigger.id];
-                if (catSettings) {
-                  customCount += catSettings.customLines.length;
-                  if (catSettings.builtInOverrides.length > 0) hasOverrides = true;
-                }
-              }
-
-              const detail =
-                customCount > 0 ? `自定义 ${customCount} 句` : hasOverrides ? "已调整内置对白" : "使用内置对白";
-
-              return (
-                <button
-                  key={group.id}
-                  type="button"
-                  className={styles.sceneRow}
-                  onClick={() => setView({ type: "group", groupId: group.id })}
-                >
-                  <div className={styles.sceneName}>{group.label}</div>
-                  <div className={styles.sceneMeta}>
-                    <span>
-                      {triggerCount} 个时机 · {detail}
-                    </span>
-                    <span className={styles.sceneChevron}>›</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <div className={styles.systemNotice}>休息提醒、倒计时和状态提示由程序管理。</div>
-
-        {onSave && (
-          <div className="editor-actions">
-            <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
-              {saveSuccess ? "已保存设置" : "保存设置"}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderGroup = (groupId: DialogueGroupId): React.JSX.Element => {
-    const groupMeta = DIALOGUE_GROUPS.find((g) => g.id === groupId)!;
-    const isDrowsyDisabled = groupId === "drowsy" && !drowsyEnabled;
-    const isSleepingDisabled = groupId === "sleeping" && !sleepingEnabled;
-    const isSceneDisabled = isDrowsyDisabled || isSleepingDisabled;
-
-    return (
-      <div className={styles.view}>
-        <header className={styles.header}>
-          <button type="button" className="ghost-button back-button" onClick={() => setView({ type: "home" })}>
-            ‹ 返回对白设置
-          </button>
-          <h2>{groupMeta.label}</h2>
-        </header>
-
-        {renderErrorSummary()}
-
-        {isSceneDisabled && (
-          <div className={styles.notice} role="status">
-            这个场景尚未启用，设置会保留。
-          </div>
-        )}
-
-        <section className={styles.section}>
-          <div className={styles.scenesList}>
-            {groupMeta.triggers.map((trigger) => {
-              const catSettings = settings.categories[trigger.id];
-              const customCount = catSettings?.customLines.length ?? 0;
-              const hasOverrides = (catSettings?.builtInOverrides.length ?? 0) > 0;
-              const detail =
-                customCount > 0 ? `自定义 ${customCount} 句` : hasOverrides ? "已调整内置对白" : "使用内置对白";
-
-              return (
-                <button
-                  key={trigger.id}
-                  type="button"
-                  className={styles.sceneRow}
-                  onClick={() => setView({ type: "trigger", category: trigger.id })}
-                >
-                  <div className={styles.sceneName}>{trigger.label}</div>
-                  <div className={styles.sceneMeta}>
-                    <span>{detail}</span>
-                    <span className={styles.sceneChevron}>›</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        {onSave && (
-          <div className="editor-actions">
-            <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
-              {saveSuccess ? "已保存设置" : "保存设置"}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderTrigger = (category: DialogueCategory): React.JSX.Element => {
-    const triggerMeta = getDialogueTriggerMeta(category);
-    const groupMeta = DIALOGUE_GROUPS.find((g) => g.id === triggerMeta.group)!;
-    const catSettings = settings.categories[category];
-    const builtInOverrides = catSettings?.builtInOverrides ?? [];
-    const customLines = catSettings?.customLines ?? [];
-
-    const rows: DialogueLineRowModel[] = [];
-
-    for (const builtIn of triggerMeta.builtIns) {
-      const override = builtInOverrides.find((o) => o.lineId === builtIn.id);
-      const currentText = override?.text !== undefined ? override.text : builtIn.text;
-      const automaticEnabled = override?.automaticEnabled !== false;
-      const isModified = override?.text !== undefined && override.text !== builtIn.text;
-      const rawIssue = issueMap.get(`${category}:${builtIn.id}`);
-      const issue = isFieldTouched(`${category}:${builtIn.id}`) ? rawIssue : undefined;
-
-      rows.push({
-        id: builtIn.id,
-        category,
-        source: "builtin",
-        currentText,
-        defaultText: builtIn.text,
-        automaticEnabled,
-        isModified,
-        issue,
-      });
-    }
-
-    for (const custom of customLines) {
-      const rawIssue = issueMap.get(`${category}:${custom.id}`);
-      const issue = isFieldTouched(`${category}:${custom.id}`) ? rawIssue : undefined;
-      rows.push({
-        id: custom.id,
-        category,
-        source: "custom",
-        currentText: custom.text,
-        automaticEnabled: custom.automaticEnabled,
-        issue,
-      });
-    }
-
-    const triggerLevelIssue = issueMap.get(category);
-    const canAddMore = customLines.length < MAX_CUSTOM_LINES_PER_CATEGORY;
-
-    return (
-      <div className={styles.view}>
-        <header className={styles.header}>
-          <button
-            type="button"
-            className="ghost-button back-button"
-            onClick={() => {
-              setConfirmingRestoreCategory(false);
-              setView({ type: "group", groupId: triggerMeta.group });
-            }}
-          >
-            ‹ 返回{groupMeta.label}
-          </button>
-          <h2>{triggerMeta.label}</h2>
-        </header>
-
-        {renderErrorSummary()}
-
-        {triggerLevelIssue && (
-          <div className={styles.inlineError} role="alert">
-            {triggerLevelIssue}
-          </div>
-        )}
-
-        <div className={styles.supportingCopy}>建议 4–12 个字，最多 30 个字。可自由停用或恢复内置对白。</div>
-
-        <div className={styles.linesList}>
-          {rows.map((row) => (
-            <DialogueLineEditor
-              key={`${row.source}-${row.id}`}
-              row={row}
-              address={settings.address}
-              onTextChange={(text) => updateLineText(category, row.id, text)}
-              onToggleAutomatic={(enabled) => toggleAutomatic(category, row.id, enabled)}
-              onRestore={row.source === "builtin" ? () => handleRestoreLine(category, row.id) : undefined}
-              onDelete={row.source === "custom" ? () => handleDeleteCustomLine(category, row.id) : undefined}
-              onInputFocus={(inputEl) => {
-                lastFocusedInputRef.current = {
-                  category,
-                  lineId: row.id,
-                  inputEl,
-                };
-              }}
-              onBlur={() => markFieldTouched(`${category}:${row.id}`)}
-            />
-          ))}
+          <p className={styles.supportingCopy}>在对白中插入“称呼”时使用；留空时不触发含称呼的对白。</p>
         </div>
 
-        <div className={styles.triggerActions}>
-          <button
-            type="button"
-            className="ghost-button compact-button"
-            disabled={!canAddMore}
-            onClick={() => handleAddCustomLine(category)}
-          >
-            ＋ 添加一句
-          </button>
+        <div className={styles.controlCol}>
+          <div className={styles.labelRow}>
+            <span className={styles.label}>对白声音</span>
+            <div className={styles.voiceToggleRow}>
+              <span className={styles.switchStatus}>{settings.voiceEnabled ? "已启用" : "未启用"}</span>
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(settings.voiceEnabled)}
+                  onChange={(e) => handleVoiceToggle(e.target.checked)}
+                  aria-label="启用对白声音"
+                />
+                <span className={styles.slider} />
+              </label>
+            </div>
+          </div>
+          <p className={styles.supportingCopy}>气泡弹出时播放录制或上传的声音；未配音的对白保持静音。</p>
 
-          <button type="button" className="ghost-button compact-button" onClick={() => handleInsertAddress(category)}>
-            插入称呼
-          </button>
+          {settings.voiceEnabled && (
+            <div className={styles.volumeWrap}>
+              <span className={styles.volumeLabel}>音量</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                className={styles.volumeSlider}
+                value={settings.voiceVolume ?? 0.8}
+                onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                aria-label="对白音量"
+              />
+              <span className={styles.volumePercent}>{Math.round((settings.voiceVolume ?? 0.8) * 100)}%</span>
+            </div>
+          )}
+        </div>
+      </div>
 
-          {!confirmingRestoreCategory ? (
+      {/* Status Notice if feature is off */}
+      {!bubblesEnabled && (
+        <div className={styles.notice} role="status">
+          日常对话气泡已关闭；对白设置会保留，重新开启气泡后生效。
+        </div>
+      )}
+      {selectedGroupId === "drowsy" && !drowsyEnabled && (
+        <div className={styles.notice} role="status">
+          有点困了场景尚未启用，对白设置会保留。
+        </div>
+      )}
+      {selectedGroupId === "sleeping" && !sleepingEnabled && (
+        <div className={styles.notice} role="status">
+          睡觉场景尚未启用，对白设置会保留。
+        </div>
+      )}
+
+      {/* Scenario Pill Tabs */}
+      <nav className={styles.scenarioNav} aria-label="生活场景分类">
+        {DIALOGUE_GROUPS.map((group) => {
+          const isActive = group.id === selectedGroupId;
+          return (
             <button
+              key={group.id}
               type="button"
-              className="ghost-button compact-button"
-              onClick={() => setConfirmingRestoreCategory(true)}
+              className={clsx(styles.scenarioTab, isActive && styles.active)}
+              onClick={() => setSelectedGroupId(group.id)}
             >
-              恢复内置对白
+              <span>{group.label}</span>
+              <span className={styles.countPill}>{group.triggers.length}</span>
             </button>
-          ) : (
-            <div className={styles.confirmBox}>
-              <span className={styles.confirmText}>内置对白将恢复原文并重新启用，你添加的对白不会改变。</span>
-              <button
-                type="button"
-                className="ghost-button compact-button danger"
-                onClick={() => handleRestoreCategory(category)}
-              >
-                确认恢复
-              </button>
-              <button
-                type="button"
-                className="ghost-button compact-button"
-                onClick={() => setConfirmingRestoreCategory(false)}
-              >
-                取消
-              </button>
-            </div>
-          )}
-        </div>
+          );
+        })}
+      </nav>
 
-        {onSave && (
-          <div className="editor-actions">
-            <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
-              {saveSuccess ? "已保存设置" : "保存设置"}
-            </button>
-          </div>
-        )}
+      {/* Trigger Cards List */}
+      <div className={styles.triggerCards}>
+        {currentGroup.triggers.map((trigger) => {
+          const catSettings = settings.categories[trigger.id];
+          const overrides = catSettings?.builtInOverrides ?? [];
+          const customLines = catSettings?.customLines ?? [];
+          const overrideMap = new Map(overrides.map((o) => [o.lineId, o]));
+
+          const builtInRows: DialogueLineRowModel[] = trigger.builtIns.map((b) => {
+            const override = overrideMap.get(b.id);
+            const isModified = override?.text !== undefined && override.text !== b.text;
+            const issueKey = `${trigger.id}:${b.id}`;
+            return {
+              id: b.id,
+              category: trigger.id,
+              source: "builtin",
+              currentText: override?.text ?? b.text,
+              defaultText: b.text,
+              automaticEnabled: override?.automaticEnabled ?? true,
+              isModified,
+              voiceAssetId: override?.voiceAssetId,
+              issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
+            };
+          });
+
+          const customRows: DialogueLineRowModel[] = customLines.map((c) => {
+            const issueKey = `${trigger.id}:${c.id}`;
+            return {
+              id: c.id,
+              category: trigger.id,
+              source: "custom",
+              currentText: c.text,
+              automaticEnabled: c.automaticEnabled,
+              voiceAssetId: c.voiceAssetId,
+              issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
+            };
+          });
+
+          const allRows = [...builtInRows, ...customRows];
+          const hasModifiedBuiltIns = overrides.some(
+            (o) => o.text !== undefined || o.automaticEnabled === false || o.voiceAssetId !== undefined
+          );
+
+          return (
+            <section key={trigger.id} className={styles.triggerCard} aria-labelledby={`trigger-title-${trigger.id}`}>
+              <div className={styles.triggerHeader}>
+                <div className={styles.triggerTitleWrap}>
+                  <h4 id={`trigger-title-${trigger.id}`} className={styles.triggerTitle}>
+                    {trigger.label}
+                  </h4>
+                  <span className={styles.countPill}>{allRows.length} 句</span>
+                </div>
+
+                {hasModifiedBuiltIns &&
+                  (confirmRestoreCategory === trigger.id ? (
+                    <div className={styles.confirmBox}>
+                      <span className={styles.confirmText}>恢复默认原句？</span>
+                      <button
+                        type="button"
+                        className="ghost-button compact-button"
+                        onClick={() => handleRestoreCategory(trigger.id)}
+                      >
+                        确认
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button compact-button"
+                        onClick={() => setConfirmRestoreCategory(null)}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ghost-button compact-button"
+                      onClick={() => setConfirmRestoreCategory(trigger.id)}
+                    >
+                      恢复内置对白
+                    </button>
+                  ))}
+              </div>
+
+              <div className={styles.triggerLines}>
+                {allRows.map((row) => (
+                  <DialogueLineEditor
+                    key={row.id}
+                    petId={petId}
+                    row={row}
+                    address={settings.address}
+                    voiceVolume={settings.voiceVolume}
+                    onTextChange={(text) => updateLineText(trigger.id, row.id, text)}
+                    onToggleAutomatic={(auto) => updateLineAutomatic(trigger.id, row.id, auto)}
+                    onVoiceChange={(voiceId) => updateLineVoice(trigger.id, row.id, voiceId)}
+                    onRestore={
+                      row.source === "builtin" && row.isModified
+                        ? () => handleRestoreBuiltIn(trigger.id, row.id)
+                        : undefined
+                    }
+                    onDelete={row.source === "custom" ? () => handleDeleteCustomLine(trigger.id, row.id) : undefined}
+                    onInputFocus={(el) => {
+                      lastFocusedInputRef.current = { category: trigger.id, lineId: row.id, inputEl: el };
+                    }}
+                    onBlur={() => markFieldTouched(`${trigger.id}:${row.id}`)}
+                  />
+                ))}
+              </div>
+
+              <div className={styles.triggerFooter}>
+                <div className={styles.addActions}>
+                  {customLines.length < MAX_CUSTOM_LINES_PER_CATEGORY && (
+                    <button
+                      type="button"
+                      className="ghost-button compact-button"
+                      onClick={() => handleAddCustomLine(trigger.id)}
+                    >
+                      + 添加一句
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="ghost-button compact-button"
+                    onClick={() => handleInsertPlaceholder(trigger.id)}
+                    title="在当前编辑的对白光标处插入 [称呼]"
+                  >
+                    插入称呼
+                  </button>
+                </div>
+              </div>
+            </section>
+          );
+        })}
       </div>
-    );
-  };
 
-  if (view.type === "trigger") return renderTrigger(view.category);
-  if (view.type === "group") return renderGroup(view.groupId);
-  return renderHome();
+      {/* Save bar */}
+      {onSave && (
+        <div className={styles.saveBar}>
+          {saveSuccess && <span className={styles.saveNotice}>设置已保存</span>}
+          <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
+            {isBusy ? "保存中..." : "保存设置"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

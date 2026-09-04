@@ -34,4 +34,16 @@ describe("DialogueSelector", () => {
     selector.reset();
     expect(selector.select({ category: "daily:click", lines, now: 1_000, random: () => 0 })).toBe("a");
   });
+
+  it("returns the selected entry without reverse-matching its text", () => {
+    const selector = new DialogueSelector();
+    const entries = [
+      { id: "line-a", text: "same" },
+      { id: "line-b", text: "same" },
+    ];
+
+    expect(
+      selector.selectEntry({ category: "x", entries, getText: (entry) => entry.text, now: 0, random: () => 0.99 })
+    ).toBe(entries[1]);
+  });
 });

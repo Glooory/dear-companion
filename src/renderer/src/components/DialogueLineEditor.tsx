@@ -21,6 +21,7 @@ export interface DialogueLineEditorProps {
   readonly petId: string;
   readonly row: DialogueLineRowModel;
   readonly address: string;
+  readonly voiceVolume: number;
   readonly onTextChange: (text: string) => void;
   readonly onToggleAutomatic: (enabled: boolean) => void;
   readonly onVoiceChange: (voiceAssetId: string | undefined) => void;
@@ -34,6 +35,7 @@ export function DialogueLineEditor({
   petId,
   row,
   address,
+  voiceVolume,
   onTextChange,
   onToggleAutomatic,
   onVoiceChange,
@@ -258,6 +260,8 @@ export function DialogueLineEditor({
         <VoiceRecorderPopover
           petId={petId}
           dialogueText={row.currentText || row.defaultText || ""}
+          mode={row.voiceAssetId ? "replace" : "add"}
+          volume={voiceVolume}
           onSave={(voiceId) => {
             onVoiceChange(voiceId);
           }}
