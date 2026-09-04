@@ -487,6 +487,72 @@ export function restoreBuiltInCategory(settings: PetDialogueSettings, category: 
   };
 }
 
+export function toggleCategoryAutomatic(
+  settings: PetDialogueSettings,
+  category: DialogueCategory,
+  automaticEnabled: boolean
+): PetDialogueSettings {
+  const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
+  const triggerMeta = getDialogueTriggerMeta(category);
+
+  const existingMap = new Map(catSettings.builtInOverrides.map((o) => [o.lineId, o]));
+  const nextOverrides: BuiltInDialogueOverride[] = [];
+
+  for (const builtIn of triggerMeta.builtIns) {
+    const existing = existingMap.get(builtIn.id);
+    const isCustomText = existing?.text !== undefined;
+    const hasVoice = existing?.voiceAssetId !== undefined;
+
+    if (!automaticEnabled) {
+      nextOverrides.push({
+        lineId: builtIn.id,
+        automaticEnabled: false,
+        ...(isCustomText ? { text: existing!.text } : {}),
+        ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+      });
+    } else {
+      if (isCustomText || hasVoice) {
+        nextOverrides.push({
+          lineId: builtIn.id,
+          ...(isCustomText ? { text: existing!.text } : {}),
+          ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+        });
+      }
+    }
+  }
+
+  for (const [lineId, existing] of existingMap) {
+    if (!triggerMeta.builtIns.some((b) => b.id === lineId)) {
+      nextOverrides.push({
+        ...existing,
+        ...(automaticEnabled ? {} : { automaticEnabled: false }),
+      });
+    }
+  }
+
+  const nextCustom = catSettings.customLines.map((line) => ({
+    ...line,
+    automaticEnabled,
+  }));
+
+  const nextCategories = { ...settings.categories };
+  if (nextOverrides.length === 0 && nextCustom.length === 0) {
+    delete nextCategories[category];
+  } else {
+    nextCategories[category] = {
+      builtInOverrides: Object.freeze(nextOverrides),
+      customLines: Object.freeze(nextCustom),
+    };
+  }
+
+  return {
+    address: settings.address,
+    categories: Object.freeze(nextCategories),
+    voiceEnabled: settings.voiceEnabled,
+    voiceVolume: settings.voiceVolume,
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

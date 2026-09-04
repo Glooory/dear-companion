@@ -511,7 +511,6 @@ export function DialogueSettingsEditor({
               }}
             >
               <span>{group.label}</span>
-              <span className={styles.countPill}>{group.triggers.length} 个时机</span>
             </button>
           );
         })}
@@ -572,7 +571,6 @@ export function DialogueSettingsEditor({
                   <h4 id={`trigger-title-${trigger.id}`} className={styles.triggerTitle}>
                     {trigger.label}
                   </h4>
-                  <span className={styles.countPill}>{allRows.length} 句</span>
                 </div>
 
                 {hasModifiedBuiltIns &&

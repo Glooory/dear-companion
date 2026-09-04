@@ -130,9 +130,9 @@ export function DialogueLineEditor({
             type="checkbox"
             checked={row.automaticEnabled}
             onChange={(e) => onToggleAutomatic(e.target.checked)}
-            aria-label="自动使用"
+            aria-label="启用"
           />
-          <span className={styles.toggleLabel}>自动使用</span>
+          <span className={styles.toggleLabel}>启用</span>
         </label>
 
         <div className={styles.inputWrapper}>
@@ -157,7 +157,7 @@ export function DialogueLineEditor({
           {hasPlaceholder && (
             <div className={styles.preview}>
               {trimmedAddress.length === 0 ? (
-                <span className={styles.previewNotice}>设置称呼后，这句才会自动使用</span>
+                <span className={styles.previewNotice}>设置称呼后，这句才会生效</span>
               ) : (
                 <span className={styles.previewText}>
                   预览：{row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}

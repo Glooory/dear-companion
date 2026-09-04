@@ -8,6 +8,7 @@ import {
   resolveDialogueLines,
   restoreBuiltInCategory,
   restoreBuiltInLine,
+  toggleCategoryAutomatic,
 } from "./dialogue-settings";
 
 describe("dialogue catalog coverage", () => {
@@ -473,5 +474,61 @@ describe("dialogue voice settings and candidates", () => {
       voiceAssetId: "voice-abc",
     });
     expect(candidates).toContainEqual({ lineId: "custom-1", text: "主人好", voiceAssetId: "voice-custom" });
+  });
+
+  test("toggleCategoryAutomatic disables all lines and empty candidates are returned", () => {
+    const initial = parsePetDialogueSettings({
+      address: "小葡萄",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "改过的文本", voiceAssetId: "voice-v1" }],
+          customLines: [{ id: "custom-1", automaticEnabled: true, text: "我的自定义", voiceAssetId: "voice-v2" }],
+        },
+      },
+    });
+
+    const disabled = toggleCategoryAutomatic(initial, "daily:click", false);
+    const cat = disabled.categories["daily:click"];
+    expect(cat).toBeDefined();
+    // All built-ins have automaticEnabled: false
+    const meta = getDialogueTriggerMeta("daily:click");
+    expect(cat?.builtInOverrides).toHaveLength(meta.builtIns.length);
+    for (const b of cat!.builtInOverrides) {
+      expect(b.automaticEnabled).toBe(false);
+    }
+    // Preserved custom text and voiceAssetId
+    const override = cat?.builtInOverrides.find((b) => b.lineId === "daily-click-here");
+    expect(override?.text).toBe("改过的文本");
+    expect(override?.voiceAssetId).toBe("voice-v1");
+    // Custom line disabled
+    expect(cat?.customLines[0]?.automaticEnabled).toBe(false);
+    expect(cat?.customLines[0]?.text).toBe("我的自定义");
+
+    // Runtime candidates are completely empty
+    expect(resolveDialogueCandidates("daily:click", disabled)).toEqual([]);
+
+    // Re-enable
+    const reEnabled = toggleCategoryAutomatic(disabled, "daily:click", true);
+    const reCat = reEnabled.categories["daily:click"];
+    // BuiltIns with no custom text or voice are dropped from overrides
+    expect(reCat?.builtInOverrides).toHaveLength(1);
+    expect(reCat?.builtInOverrides[0]).toEqual({
+      lineId: "daily-click-here",
+      text: "改过的文本",
+      voiceAssetId: "voice-v1",
+    });
+    expect(reCat?.customLines[0]?.automaticEnabled).toBe(true);
+    expect(resolveDialogueCandidates("daily:click", reEnabled).length).toBeGreaterThan(0);
+  });
+
+  test("toggleCategoryAutomatic on clean default resets to empty categories when re-enabled", () => {
+    const clean = parsePetDialogueSettings({ address: "", categories: {} });
+    const disabled = toggleCategoryAutomatic(clean, "daily:click", false);
+    expect(disabled.categories["daily:click"]?.builtInOverrides.length).toBeGreaterThan(0);
+    expect(resolveDialogueCandidates("daily:click", disabled)).toEqual([]);
+
+    const restored = toggleCategoryAutomatic(disabled, "daily:click", true);
+    expect(restored.categories["daily:click"]).toBeUndefined();
+    expect(resolveDialogueCandidates("daily:click", restored).length).toBeGreaterThan(0);
   });
 });

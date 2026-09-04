@@ -195,22 +195,6 @@
   background: #3d7363;
 }
 
-.countPill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.06);
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-
-.scenarioTab.active .countPill {
-  background: rgba(61, 115, 99, 0.12);
-  color: #24473d;
-}
-
 .notice {
   padding: 10px 14px;
   background: #f8fafc;
