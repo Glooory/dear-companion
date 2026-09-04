@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyApplicationUrl, classifyMicrophonePermission } from "./network-policy";
+import { classifyApplicationUrl, classifyMicrophonePermission, normalizePermissionOrigin } from "./network-policy";
 
 describe("classifyApplicationUrl", () => {
   it("allows only the owned application host", () => {
@@ -65,5 +65,11 @@ describe("classifyMicrophonePermission", () => {
         developmentOrigin: "http://localhost:5173",
       })
     ).toBe("deny");
+  });
+
+  it("normalizes the privileged custom-scheme origin without collapsing it to null", () => {
+    expect(normalizePermissionOrigin("app://renderer/settings")).toBe("app://renderer");
+    expect(normalizePermissionOrigin("https://example.com/path")).toBe("https://example.com");
+    expect(normalizePermissionOrigin("not a url")).toBe("");
   });
 });

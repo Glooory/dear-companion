@@ -25,20 +25,49 @@ export function detectVoiceAudioFormat(bytes: Uint8Array): VoiceAudioFormat | nu
   if (bytes.length >= 3 && ascii(bytes, 0, 3) === "ID3") return "mp3";
   if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0) return "mp3";
   if (bytes.length >= 12 && ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WAVE") return "wav";
-  if (bytes.length >= 4 && ascii(bytes, 0, 4) === "OggS") return "ogg";
+  if (bytes.length >= 4 && ascii(bytes, 0, 4) === "OggS") {
+    const content = ascii(bytes, 4, Math.min(bytes.length - 4, 4096));
+    if (content.includes("theora")) return null;
+    if (
+      content.includes("OpusHead") ||
+      content.includes("vorbis") ||
+      content.includes("speex") ||
+      content.includes("FLAC")
+    ) {
+      return "ogg";
+    }
+    return null;
+  }
   if (
     bytes.length >= 8 &&
     bytes[0] === 0x1a &&
     bytes[1] === 0x45 &&
     bytes[2] === 0xdf &&
-    bytes[3] === 0xa3 &&
-    ascii(bytes, 4, Math.min(bytes.length - 4, 64)).includes("webm")
+    bytes[3] === 0xa3
   ) {
-    return "webm";
+    const content = ascii(bytes, 4, Math.min(bytes.length - 4, 4096));
+    if (content.includes("webm") || content.includes("matroska")) {
+      if (content.includes("V_")) return null;
+      if (content.includes("A_")) return "webm";
+    }
+    return null;
   }
   if (bytes.length >= 12 && ascii(bytes, 4, 4) === "ftyp") {
+    const content = ascii(bytes, 8, Math.min(bytes.length - 8, 4096));
+    if (
+      content.includes("avc1") ||
+      content.includes("hev1") ||
+      content.includes("hvc1") ||
+      content.includes("vp09") ||
+      content.includes("av01")
+    ) {
+      return null;
+    }
     const brand = ascii(bytes, 8, 4).toLowerCase();
-    if (brand === "m4a " || brand === "m4a\0" || brand === "isom" || brand === "mp42") return "m4a";
+    const isM4aBrand = brand === "m4a " || brand === "m4a\0" || brand === "isom" || brand === "mp42";
+    if (isM4aBrand && (content.includes("mp4a") || brand === "m4a " || brand === "m4a\0")) {
+      return "m4a";
+    }
   }
   return null;
 }

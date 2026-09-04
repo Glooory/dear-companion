@@ -86,7 +86,7 @@ export function registerNetworkPolicy(targetSession: Session, options: NetworkPo
     callback(
       classifyMicrophonePermission({
         permission,
-        requestingOrigin: originOf(details.requestingUrl),
+        requestingOrigin: normalizePermissionOrigin(details.requestingUrl),
         isMainFrame: details.isMainFrame,
         mediaTypes,
         windowKind: options.getWindowKind?.(webContents.id) ?? null,
@@ -98,7 +98,7 @@ export function registerNetworkPolicy(targetSession: Session, options: NetworkPo
     return (
       classifyMicrophonePermission({
         permission,
-        requestingOrigin: originOf(requestingOrigin),
+        requestingOrigin: normalizePermissionOrigin(requestingOrigin),
         isMainFrame: details.isMainFrame,
         mediaTypes: details.mediaType ? [details.mediaType] : [],
         windowKind: webContents ? (options.getWindowKind?.(webContents.id) ?? null) : null,
@@ -117,9 +117,16 @@ export function registerNetworkPolicy(targetSession: Session, options: NetworkPo
   };
 }
 
-function originOf(rawUrl: string): string {
+export function normalizePermissionOrigin(rawUrl: string): string {
   try {
-    return new URL(rawUrl).origin;
+    const url = new URL(rawUrl);
+    if (url.origin && url.origin !== "null") {
+      return url.origin;
+    }
+    if (url.protocol === "app:" && url.host) {
+      return `${url.protocol}//${url.host}`;
+    }
+    return "";
   } catch {
     return "";
   }
