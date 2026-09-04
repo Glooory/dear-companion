@@ -1,5 +1,8 @@
 import { BrowserWindow, screen, type Event as ElectronEvent } from "electron";
 import {
+  BUBBLE_DIALOGUE_WINDOW_HEIGHT,
+  BUBBLE_REST_WINDOW_HEIGHT,
+  BUBBLE_WINDOW_WIDTH,
   resolvePetWindowSize,
   type AudioPlaybackRequest,
   type BubbleSystemSnapshot,
@@ -259,7 +262,11 @@ export class WindowManager {
 
     const petBounds = this.petWindow.getBounds();
     const display = screen.getDisplayMatching(petBounds);
-    const bubbleBounds = resolveBubbleWindowBounds(petBounds, display.workArea);
+    const targetHeight = isRestActive ? BUBBLE_REST_WINDOW_HEIGHT : BUBBLE_DIALOGUE_WINDOW_HEIGHT;
+    const bubbleBounds = resolveBubbleWindowBounds(petBounds, display.workArea, {
+      width: BUBBLE_WINDOW_WIDTH,
+      height: targetHeight,
+    });
 
     this.bubbleWindow.setBounds({
       x: bubbleBounds.x,
@@ -307,7 +314,15 @@ export class WindowManager {
   getBubbleSystemSnapshot(): BubbleSystemSnapshot {
     const petBounds = this.petWindow && !this.petWindow.isDestroyed() ? this.petWindow.getBounds() : null;
     const display = petBounds ? screen.getDisplayMatching(petBounds) : null;
-    const bubbleBounds = petBounds && display ? resolveBubbleWindowBounds(petBounds, display.workArea) : null;
+    const isRestActive = Boolean(this.lastRestSnapshot?.runtime.prompt || this.lastRestSnapshot?.runtime.session);
+    const targetHeight = isRestActive ? BUBBLE_REST_WINDOW_HEIGHT : BUBBLE_DIALOGUE_WINDOW_HEIGHT;
+    const bubbleBounds =
+      petBounds && display
+        ? resolveBubbleWindowBounds(petBounds, display.workArea, {
+            width: BUBBLE_WINDOW_WIDTH,
+            height: targetHeight,
+          })
+        : null;
     return {
       dialogue: this.bubbleDialogue,
       placement: bubbleBounds?.placement ?? "top",

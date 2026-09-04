@@ -8,6 +8,7 @@ import {
   resolveSettingsWindowBounds,
   type DisplaySnapshot,
 } from "./display-placement";
+import { BUBBLE_DIALOGUE_WINDOW_HEIGHT, BUBBLE_REST_WINDOW_HEIGHT, BUBBLE_WINDOW_WIDTH } from "../../shared/contracts";
 
 const displays: readonly DisplaySnapshot[] = [
   {
@@ -150,6 +151,26 @@ describe("display placement", () => {
       expect(result.placement).toBe("bottom");
       expect(result.y).toBe(10 + 240 + 0); // 250
       expect(result.x).toBe(450);
+    });
+
+    it("allows bubble on top for dialogue (80px) when headroom cannot fit rest prompt (140px)", () => {
+      // Headroom above pet is 120px (workArea.y = 0, margin = 8).
+      // Rest prompt requires 140 + 8 = 148px -> flips to bottom.
+      // Dialogue requires 80 + 8 = 88px -> fits cleanly on top!
+      const petBounds = { x: 500, y: 120, width: 220, height: 240 };
+      const restBounds = resolveBubbleWindowBounds(petBounds, workArea, {
+        width: BUBBLE_WINDOW_WIDTH,
+        height: BUBBLE_REST_WINDOW_HEIGHT,
+      });
+      const dialogueBounds = resolveBubbleWindowBounds(petBounds, workArea, {
+        width: BUBBLE_WINDOW_WIDTH,
+        height: BUBBLE_DIALOGUE_WINDOW_HEIGHT,
+      });
+
+      expect(restBounds.placement).toBe("bottom");
+      expect(restBounds.y).toBe(120 + 240); // 360
+      expect(dialogueBounds.placement).toBe("top");
+      expect(dialogueBounds.y).toBe(120 - 80); // 40
     });
 
     it("keeps bubble above when pet is near screen bottom (贴底场景)", () => {
