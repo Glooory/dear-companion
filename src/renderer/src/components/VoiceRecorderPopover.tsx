@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { clsx } from "clsx";
+import { extractPcmFromAudioBuffer, PcmAudioData, sliceAndEncodeWav } from "../dialogues/audio-encoder";
+import { computeWaveformBars } from "../dialogues/audio-waveform";
+import { AudioWaveformTrimmer } from "./AudioWaveformTrimmer";
 import styles from "./VoiceRecorderPopover.module.css";
 
 export interface VoiceRecorderPopoverProps {
@@ -7,24 +11,43 @@ export interface VoiceRecorderPopoverProps {
   dialogueText: string;
   mode: "add" | "replace";
   volume: number;
-  onSave: (voiceId: string) => void;
+  initialVoiceAssetId?: string;
+  initialTrimStart?: number;
+  initialTrimEnd?: number;
+  onSave: (voiceId: string, trimStart?: number, trimEnd?: number) => void;
   onClose: () => void;
 }
 
 type RecorderStatus = "idle" | "requesting" | "recording" | "recorded" | "saving";
 const MAX_RECORD_SECONDS = 8;
 
+interface AudioEditorData {
+  audioBuffer: AudioBuffer;
+  pcm: PcmAudioData;
+  bars: number[];
+  duration: number;
+  trimStart: number;
+  trimEnd: number;
+  sourceType: "recorded" | "imported" | "existing";
+  rawBytes?: Uint8Array;
+  rawExt?: string;
+}
+
 export function VoiceRecorderPopover({
   petId,
   dialogueText,
   mode,
   volume,
+  initialVoiceAssetId,
+  initialTrimStart,
+  initialTrimEnd,
   onSave,
   onClose,
 }: VoiceRecorderPopoverProps): React.JSX.Element {
-  const [status, setStatus] = useState<RecorderStatus>("idle");
+  const [status, setStatus] = useState<RecorderStatus>(initialVoiceAssetId ? "saving" : "idle");
   const [elapsed, setElapsed] = useState(0);
-  const [recordedBlob, setRecordedBlob] = useState<{ blob: Blob; ext: string; duration: number } | null>(null);
+  const [editorData, setEditorData] = useState<AudioEditorData | null>(null);
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -34,15 +57,19 @@ export function VoiceRecorderPopover({
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const playbackAudioRef = useRef<HTMLAudioElement | null>(null);
-  const activeBlobUrlRef = useRef<string | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const playbackSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const rafRef = useRef<number | null>(null);
   const operationRef = useRef(0);
   const mountedRef = useRef(true);
 
-  const revokeActiveBlobUrl = (): void => {
-    if (!activeBlobUrlRef.current) return;
-    URL.revokeObjectURL(activeBlobUrlRef.current);
-    activeBlobUrlRef.current = null;
+  const getAudioContext = (): AudioContext => {
+    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+      const AudioContextClass =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      audioCtxRef.current = new AudioContextClass();
+    }
+    return audioCtxRef.current;
   };
 
   const stopStream = (stream = streamRef.current): void => {
@@ -51,16 +78,23 @@ export function VoiceRecorderPopover({
   };
 
   const stopPlayback = (): void => {
-    const audio = playbackAudioRef.current;
-    playbackAudioRef.current = null;
-    if (audio) {
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-      audio.src = "";
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-    revokeActiveBlobUrl();
-    if (mountedRef.current) setIsPlaying(false);
+    if (playbackSourceRef.current) {
+      try {
+        playbackSourceRef.current.onended = null;
+        playbackSourceRef.current.stop();
+        playbackSourceRef.current.disconnect();
+      } catch {
+        // ignore already stopped source
+      }
+      playbackSourceRef.current = null;
+    }
+    if (mountedRef.current) {
+      setIsPlaying(false);
+    }
   };
 
   const releaseRecorder = (): void => {
@@ -104,19 +138,61 @@ export function VoiceRecorderPopover({
       }
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
-      const audio = playbackAudioRef.current;
-      playbackAudioRef.current = null;
-      if (audio) {
-        audio.onended = null;
-        audio.onerror = null;
-        audio.pause();
-        audio.src = "";
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (playbackSourceRef.current) {
+        try {
+          playbackSourceRef.current.onended = null;
+          playbackSourceRef.current.stop();
+          playbackSourceRef.current.disconnect();
+        } catch {
+          // ignore
+        }
+        playbackSourceRef.current = null;
       }
-      if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
-      activeBlobUrlRef.current = null;
+      audioCtxRef.current?.close().catch(() => undefined);
+      audioCtxRef.current = null;
       opener?.focus();
     };
   }, []);
+
+  useEffect(() => {
+    if (!initialVoiceAssetId) return;
+    const operation = ++operationRef.current;
+    void window.dearCompanion
+      .getPetVoice(petId, initialVoiceAssetId)
+      .then(async (result) => {
+        if (!result) throw new Error("voice-not-found");
+        if (!mountedRef.current || operation !== operationRef.current) return;
+        const copy = new Uint8Array(result.data.byteLength);
+        copy.set(result.data);
+        const ctx = getAudioContext();
+        if (ctx.state === "suspended") await ctx.resume();
+        const audioBuffer = await ctx.decodeAudioData(copy.buffer);
+        const pcm = extractPcmFromAudioBuffer(audioBuffer);
+        const bars = computeWaveformBars(pcm.channels, { barCount: 64 });
+        const dur = audioBuffer.duration;
+        if (!mountedRef.current || operation !== operationRef.current) return;
+        const start = Math.max(0, Math.min(dur, initialTrimStart ?? 0));
+        const end = Math.max(start + 0.05, Math.min(dur, initialTrimEnd ?? dur));
+
+        setEditorData({
+          audioBuffer,
+          pcm,
+          bars,
+          duration: dur,
+          trimStart: start,
+          trimEnd: end,
+          sourceType: "existing",
+        });
+        setCurrentPlaybackTime(start);
+        setStatus("recorded");
+      })
+      .catch(() => {
+        if (!mountedRef.current || operation !== operationRef.current) return;
+        setErrorMessage("无法加载现有声音，您可以重新录制或选择新音频。");
+        setStatus("idle");
+      });
+  }, [initialTrimEnd, initialTrimStart, initialVoiceAssetId, petId]);
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === "Escape") {
@@ -152,7 +228,7 @@ export function VoiceRecorderPopover({
     setStatus("requesting");
     setErrorMessage(null);
     stopPlayback();
-    setRecordedBlob(null);
+    setEditorData(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (!mountedRef.current || operation !== operationRef.current) {
@@ -177,7 +253,7 @@ export function VoiceRecorderPopover({
         setStatus("idle");
         setErrorMessage("录音没有完成，请再试一次，或从电脑选择音频文件。");
       };
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
         if (timerRef.current) clearInterval(timerRef.current);
         timerRef.current = null;
         stopStream(stream);
@@ -189,9 +265,36 @@ export function VoiceRecorderPopover({
           setErrorMessage("没有录到声音，请再试一次。");
           return;
         }
-        const duration = Math.min(MAX_RECORD_SECONDS, Math.max(0.1, (Date.now() - startTime) / 1000));
-        setRecordedBlob({ blob, ext: format.ext, duration: Number(duration.toFixed(1)) });
-        setStatus("recorded");
+
+        try {
+          const arrayBuffer = await blob.arrayBuffer();
+          const ctx = getAudioContext();
+          if (ctx.state === "suspended") await ctx.resume();
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+          const pcm = extractPcmFromAudioBuffer(audioBuffer);
+          const bars = computeWaveformBars(pcm.channels, { barCount: 64 });
+          const dur = audioBuffer.duration;
+
+          if (!mountedRef.current || operation !== operationRef.current) return;
+          const fullWavBytes = sliceAndEncodeWav(pcm, 0);
+          setEditorData({
+            audioBuffer,
+            pcm,
+            bars,
+            duration: dur,
+            trimStart: 0,
+            trimEnd: dur,
+            sourceType: "recorded",
+            rawBytes: fullWavBytes,
+            rawExt: "wav",
+          });
+          setCurrentPlaybackTime(0);
+          setStatus("recorded");
+        } catch {
+          if (!mountedRef.current || operation !== operationRef.current) return;
+          setErrorMessage("解析录音失败，请再试一次。");
+          setStatus("idle");
+        }
       };
 
       recorder.start(100);
@@ -211,69 +314,215 @@ export function VoiceRecorderPopover({
   };
 
   const handleToggleAudition = (): void => {
-    if (!recordedBlob) return;
+    if (!editorData) return;
     if (isPlaying) {
       stopPlayback();
       return;
     }
+
     stopPlayback();
-    const url = URL.createObjectURL(recordedBlob.blob);
-    activeBlobUrlRef.current = url;
-    const audio = new Audio(url);
-    audio.volume = Math.max(0, Math.min(1, volume));
-    playbackAudioRef.current = audio;
-    audio.onended = stopPlayback;
-    audio.onerror = () => {
-      stopPlayback();
-      setErrorMessage("试听失败，请重新录制。");
-    };
-    void audio
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch(() => {
+    const ctx = getAudioContext();
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+
+    // Determine start offset
+    let startOffset = currentPlaybackTime;
+    if (startOffset < editorData.trimStart || startOffset >= editorData.trimEnd - 0.05) {
+      startOffset = editorData.trimStart;
+      setCurrentPlaybackTime(startOffset);
+    }
+
+    const durationToPlay = Math.max(0.05, editorData.trimEnd - startOffset);
+    const source = ctx.createBufferSource();
+    source.buffer = editorData.audioBuffer;
+
+    const gain = ctx.createGain();
+    gain.gain.value = Math.max(0, Math.min(1, volume));
+
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    playbackSourceRef.current = source;
+
+    const playbackStartTime = ctx.currentTime;
+    setIsPlaying(true);
+
+    const updateFrame = (): void => {
+      if (!mountedRef.current) return;
+      const progress = ctx.currentTime - playbackStartTime;
+      const currentPos = startOffset + progress;
+
+      if (currentPos >= editorData.trimEnd) {
         stopPlayback();
-        setErrorMessage("试听失败，请重新录制。");
-      });
+        setCurrentPlaybackTime(editorData.trimStart);
+      } else {
+        setCurrentPlaybackTime(currentPos);
+        rafRef.current = requestAnimationFrame(updateFrame);
+      }
+    };
+
+    source.onended = () => {
+      stopPlayback();
+      setCurrentPlaybackTime(editorData.trimStart);
+    };
+
+    try {
+      source.start(0, startOffset, durationToPlay);
+      rafRef.current = requestAnimationFrame(updateFrame);
+    } catch {
+      stopPlayback();
+      setErrorMessage("试听失败，请重新录制或选择音频。");
+    }
+  };
+
+  const handleSeek = (time: number): void => {
+    if (!editorData) return;
+    const clamped = Math.max(editorData.trimStart, Math.min(editorData.trimEnd, time));
+    setCurrentPlaybackTime(clamped);
+    if (isPlaying) {
+      stopPlayback();
+      // Restart playback from new seek point
+      setTimeout(() => {
+        if (!mountedRef.current) return;
+        const ctx = getAudioContext();
+        if (ctx.state === "suspended") void ctx.resume();
+        const durationToPlay = Math.max(0.05, editorData.trimEnd - clamped);
+        const source = ctx.createBufferSource();
+        source.buffer = editorData.audioBuffer;
+        const gain = ctx.createGain();
+        gain.gain.value = Math.max(0, Math.min(1, volume));
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        playbackSourceRef.current = source;
+
+        const startTime = ctx.currentTime;
+        setIsPlaying(true);
+
+        const updateFrame = (): void => {
+          if (!mountedRef.current) return;
+          const currentPos = clamped + (ctx.currentTime - startTime);
+          if (currentPos >= editorData.trimEnd) {
+            stopPlayback();
+            setCurrentPlaybackTime(editorData.trimStart);
+          } else {
+            setCurrentPlaybackTime(currentPos);
+            rafRef.current = requestAnimationFrame(updateFrame);
+          }
+        };
+
+        source.onended = () => {
+          stopPlayback();
+          setCurrentPlaybackTime(editorData.trimStart);
+        };
+
+        source.start(0, clamped, durationToPlay);
+        rafRef.current = requestAnimationFrame(updateFrame);
+      }, 20);
+    }
+  };
+
+  const handleTrimChange = (start: number, end: number): void => {
+    if (!editorData) return;
+    setEditorData({
+      ...editorData,
+      trimStart: start,
+      trimEnd: end,
+    });
+    if (currentPlaybackTime < start || currentPlaybackTime > end) {
+      setCurrentPlaybackTime(start);
+    }
+    if (isPlaying) {
+      stopPlayback();
+    }
+  };
+
+  const handleResetTrim = (): void => {
+    if (!editorData) return;
+    setEditorData({
+      ...editorData,
+      trimStart: 0,
+      trimEnd: editorData.duration,
+    });
+    setCurrentPlaybackTime(0);
+    if (isPlaying) {
+      stopPlayback();
+    }
   };
 
   const handleSave = async (): Promise<void> => {
-    if (!recordedBlob || status === "saving") return;
+    if (!editorData || status === "saving") return;
     const operation = ++operationRef.current;
     setStatus("saving");
     setErrorMessage(null);
     stopPlayback();
+
+    const isStartTrimmed = editorData.trimStart > 0.02;
+    const isEndTrimmed = editorData.trimEnd < editorData.duration - 0.02;
+    const trimStart = isStartTrimmed ? Math.round(editorData.trimStart * 100) / 100 : undefined;
+    const trimEnd = isEndTrimmed ? Math.round(editorData.trimEnd * 100) / 100 : undefined;
+
     try {
-      const buffer = new Uint8Array(await recordedBlob.blob.arrayBuffer());
+      let voiceId = initialVoiceAssetId;
+      if (editorData.sourceType !== "existing") {
+        if (!editorData.rawBytes || !editorData.rawExt) {
+          throw new Error("Missing audio source data");
+        }
+        const saved = await window.dearCompanion.savePetVoice(petId, editorData.rawBytes, editorData.rawExt);
+        voiceId = saved.voiceId;
+      }
+      if (!voiceId) {
+        throw new Error("No voice ID resolved");
+      }
       if (!mountedRef.current || operation !== operationRef.current) return;
-      const { voiceId } = await window.dearCompanion.savePetVoice(petId, buffer, recordedBlob.ext);
-      if (!mountedRef.current || operation !== operationRef.current) return;
-      onSave(voiceId);
+      onSave(voiceId, trimStart, trimEnd);
       onClose();
     } catch {
       if (!mountedRef.current || operation !== operationRef.current) return;
-      setErrorMessage("保存声音失败，录音仍在这里，可以再试一次。");
+      setErrorMessage("保存声音失败，截取片段仍在这里，可以再试一次。");
       setStatus("recorded");
     }
   };
 
   const handleChooseFile = async (): Promise<void> => {
-    if (status !== "idle") return;
+    if (status !== "idle" && status !== "recorded") return;
     const operation = ++operationRef.current;
     setStatus("saving");
     setErrorMessage(null);
+    stopPlayback();
     try {
-      const result = await window.dearCompanion.chooseAndImportPetVoice(petId);
+      const result = await window.dearCompanion.pickPetVoiceSource(petId);
       if (!mountedRef.current || operation !== operationRef.current) return;
-      if (result?.voiceId) {
-        onSave(result.voiceId);
-        onClose();
+      if (result?.data) {
+        const ctx = getAudioContext();
+        if (ctx.state === "suspended") await ctx.resume();
+        const copy = new Uint8Array(result.data.byteLength);
+        copy.set(result.data);
+        const audioBuffer = await ctx.decodeAudioData(copy.buffer);
+        const pcm = extractPcmFromAudioBuffer(audioBuffer);
+        const bars = computeWaveformBars(pcm.channels, { barCount: 64 });
+        const dur = audioBuffer.duration;
+
+        if (!mountedRef.current || operation !== operationRef.current) return;
+        setEditorData({
+          audioBuffer,
+          pcm,
+          bars,
+          duration: dur,
+          trimStart: 0,
+          trimEnd: dur,
+          sourceType: "imported",
+          rawBytes: result.data,
+          rawExt: result.ext,
+        });
+        setCurrentPlaybackTime(0);
+        setStatus("recorded");
       } else {
-        setStatus("idle");
+        setStatus(editorData ? "recorded" : "idle");
       }
     } catch {
       if (!mountedRef.current || operation !== operationRef.current) return;
       setErrorMessage("导入失败。请选择不超过 5 MB 的 MP3、WAV、OGG、WebM 或 M4A 音频。");
-      setStatus("idle");
+      setStatus(editorData ? "recorded" : "idle");
     }
   };
 
@@ -281,7 +530,7 @@ export function VoiceRecorderPopover({
     operationRef.current += 1;
     releaseRecorder();
     stopPlayback();
-    setRecordedBlob(null);
+    setEditorData(null);
     setElapsed(0);
     setErrorMessage(null);
     setStatus("idle");
@@ -290,9 +539,9 @@ export function VoiceRecorderPopover({
   const remainingSeconds = Math.max(0, MAX_RECORD_SECONDS - Math.floor(elapsed));
   const progress = Math.min(1, elapsed / MAX_RECORD_SECONDS);
   const circumference = 2 * Math.PI * 42;
-  const title = mode === "replace" ? "更换对白声音" : "添加对白声音";
+  const title = mode === "replace" ? "编辑对白声音" : "添加对白声音";
 
-  return (
+  const modalContent = (
     <div className={styles.overlay} onMouseDown={(event) => event.target === event.currentTarget && close()}>
       <div
         ref={modalRef}
@@ -340,11 +589,12 @@ export function VoiceRecorderPopover({
         )}
 
         <div className={styles.recorderBody}>
-          {status === "saving" && !recordedBlob && (
+          {status === "saving" && !editorData && (
             <span className={styles.statusLabel} role="status">
-              正在导入声音…
+              正在加载声音…
             </span>
           )}
+
           {(status === "idle" || status === "requesting") && (
             <>
               <button
@@ -416,21 +666,20 @@ export function VoiceRecorderPopover({
             </>
           )}
 
-          {(status === "recorded" || status === "saving") && recordedBlob && (
-            <div className={styles.auditionCard}>
-              <button
-                type="button"
-                className={styles.playToggle}
-                onClick={handleToggleAudition}
-                disabled={status === "saving"}
-              >
-                {isPlaying ? "暂停试听" : "试听录音"}
-              </button>
-              <div className={styles.auditionInfo}>
-                <span className={styles.auditionTitle}>录音完成</span>
-                <span className={styles.auditionMeta}>约 {recordedBlob.duration} 秒</span>
-              </div>
-            </div>
+          {(status === "recorded" || status === "saving") && editorData && (
+            <AudioWaveformTrimmer
+              waveformBars={editorData.bars}
+              duration={editorData.duration}
+              trimStart={editorData.trimStart}
+              trimEnd={editorData.trimEnd}
+              currentTime={currentPlaybackTime}
+              isPlaying={isPlaying}
+              disabled={status === "saving"}
+              onTrimChange={handleTrimChange}
+              onSeek={handleSeek}
+              onTogglePlay={handleToggleAudition}
+              onResetTrim={handleResetTrim}
+            />
           )}
         </div>
 
@@ -443,7 +692,7 @@ export function VoiceRecorderPopover({
           </div>
         )}
 
-        {(status === "recorded" || status === "saving") && (
+        {(status === "recorded" || status === "saving") && editorData && (
           <div className={styles.footerActions}>
             <button
               type="button"
@@ -451,7 +700,7 @@ export function VoiceRecorderPopover({
               disabled={status === "saving"}
               onClick={handleResetRecording}
             >
-              重新录制
+              重新录制或更换
             </button>
             <button
               type="button"
@@ -459,13 +708,15 @@ export function VoiceRecorderPopover({
               disabled={status === "saving"}
               onClick={() => void handleSave()}
             >
-              {status === "saving" ? "保存声音中…" : "使用这段录音"}
+              {status === "saving" ? "保存声音中…" : "使用这段声音"}
             </button>
           </div>
         )}
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
 
 function selectRecorderFormat(): { mimeType: string; ext: string } | null {

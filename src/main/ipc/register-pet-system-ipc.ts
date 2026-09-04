@@ -23,6 +23,8 @@ interface PetSystemIpcDependencies {
     | "setActivePet"
     | "saveVoiceAsset"
     | "importVoiceAsset"
+    | "readVoiceSourceAsset"
+    | "readVoiceAsset"
     | "cleanupUnreferencedVoiceAssets"
     | "getVoiceAssetAvailability"
   >;
@@ -336,6 +338,33 @@ export function registerPetSystemIpc({
       }
       trackVoiceDraftOwner(event.sender);
       return petPackService.importVoiceAsset(validatedPetId, selection.filePaths[0]!);
+    });
+
+    handle(IPC_CHANNELS.pickPetVoiceSource, async (event, petId: unknown) => {
+      requireSettingsSender(event.sender.id);
+      const validatedPetId = parsePetIdentifier(petId);
+      const snapshot = await petPackService.getSnapshot();
+      if (!snapshot.pets.some((pet) => pet.id === validatedPetId)) {
+        throw new Error("Pet does not exist");
+      }
+      const owner = windowManager.getOwnedWindow(event.sender.id);
+      const selection = await dialog.showOpenDialog(owner, {
+        title: "选择对白声音",
+        properties: ["openFile"],
+        filters: [{ name: "音频文件", extensions: ["mp3", "wav", "m4a", "ogg", "webm"] }],
+      });
+      if (selection.canceled || selection.filePaths.length === 0) {
+        return null;
+      }
+      const result = await petPackService.readVoiceSourceAsset(selection.filePaths[0]!);
+      return { data: new Uint8Array(result.buffer), ext: result.ext };
+    });
+
+    handle(IPC_CHANNELS.getPetVoice, async (event, petId: unknown, voiceId: unknown) => {
+      requireSettingsSender(event.sender.id);
+      const validatedPetId = parsePetIdentifier(petId);
+      const validatedVoiceId = parsePetIdentifier(voiceId);
+      return petPackService.readVoiceAsset(validatedPetId, validatedVoiceId);
     });
 
     handle(IPC_CHANNELS.cleanupPetVoiceDrafts, async (event, petId: unknown) => {

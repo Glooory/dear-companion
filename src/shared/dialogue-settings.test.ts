@@ -420,15 +420,32 @@ describe("restore operations", () => {
 });
 
 describe("dialogue voice settings and candidates", () => {
-  test("parses voiceEnabled, voiceVolume and voiceAssetId correctly", () => {
+  test("parses voiceEnabled, voiceVolume, voiceAssetId, and voiceTrimStart/voiceTrimEnd correctly", () => {
     const settings = parsePetDialogueSettings({
       address: "小葡萄",
       voiceEnabled: true,
       voiceVolume: 0.65,
       categories: {
         "daily:click": {
-          builtInOverrides: [{ lineId: "daily-click-here", text: "在呢", voiceAssetId: "voice-123" }],
-          customLines: [{ id: "custom-1", automaticEnabled: true, text: "来啦", voiceAssetId: "voice-456" }],
+          builtInOverrides: [
+            {
+              lineId: "daily-click-here",
+              text: "在呢",
+              voiceAssetId: "voice-123",
+              voiceTrimStart: 0.25,
+              voiceTrimEnd: 1.8,
+            },
+          ],
+          customLines: [
+            {
+              id: "custom-1",
+              automaticEnabled: true,
+              text: "来啦",
+              voiceAssetId: "voice-456",
+              voiceTrimStart: 0.5,
+              voiceTrimEnd: 2.1,
+            },
+          ],
         },
       },
     });
@@ -436,7 +453,11 @@ describe("dialogue voice settings and candidates", () => {
     expect(settings.voiceEnabled).toBe(true);
     expect(settings.voiceVolume).toBe(0.65);
     expect(settings.categories["daily:click"]?.builtInOverrides[0]?.voiceAssetId).toBe("voice-123");
+    expect(settings.categories["daily:click"]?.builtInOverrides[0]?.voiceTrimStart).toBe(0.25);
+    expect(settings.categories["daily:click"]?.builtInOverrides[0]?.voiceTrimEnd).toBe(1.8);
     expect(settings.categories["daily:click"]?.customLines[0]?.voiceAssetId).toBe("voice-456");
+    expect(settings.categories["daily:click"]?.customLines[0]?.voiceTrimStart).toBe(0.5);
+    expect(settings.categories["daily:click"]?.customLines[0]?.voiceTrimEnd).toBe(2.1);
   });
 
   test("validates voiceVolume range and invalid voiceAssetId identifier", () => {
@@ -455,14 +476,71 @@ describe("dialogue voice settings and candidates", () => {
     expect(issues.some((i) => i.path === "daily:click:daily-click-here")).toBe(true);
   });
 
-  test("resolveDialogueCandidates returns text and bound voiceAssetId", () => {
+  test("validates voiceTrimStart and voiceTrimEnd boundaries and dependencies", () => {
+    // voiceTrimStart negative
+    const issues1 = getDialogueValidationIssues({
+      address: "小葡萄",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", voiceAssetId: "voice-1", voiceTrimStart: -1 }],
+          customLines: [],
+        },
+      },
+    });
+    expect(issues1.some((i) => i.message === "Invalid voiceTrimStart")).toBe(true);
+
+    // voiceTrimEnd <= voiceTrimStart
+    const issues2 = getDialogueValidationIssues({
+      address: "小葡萄",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [
+            { lineId: "daily-click-here", voiceAssetId: "voice-1", voiceTrimStart: 1.5, voiceTrimEnd: 1.2 },
+          ],
+          customLines: [],
+        },
+      },
+    });
+    expect(issues2.some((i) => i.message === "Invalid voiceTrimEnd")).toBe(true);
+
+    // trim without voiceAssetId
+    const issues3 = getDialogueValidationIssues({
+      address: "小葡萄",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", voiceTrimStart: 0.5 }],
+          customLines: [],
+        },
+      },
+    });
+    expect(issues3.some((i) => i.message === "Voice trim requires voiceAssetId")).toBe(true);
+  });
+
+  test("resolveDialogueCandidates returns text and bound voiceAssetId with trim metadata", () => {
     const settings = parsePetDialogueSettings({
       address: "小葡萄",
       voiceEnabled: true,
       categories: {
         "daily:click": {
-          builtInOverrides: [{ lineId: "daily-click-here", text: "[称呼]，我在呢", voiceAssetId: "voice-abc" }],
-          customLines: [{ id: "custom-1", automaticEnabled: true, text: "主人好", voiceAssetId: "voice-custom" }],
+          builtInOverrides: [
+            {
+              lineId: "daily-click-here",
+              text: "[称呼]，我在呢",
+              voiceAssetId: "voice-abc",
+              voiceTrimStart: 0.3,
+              voiceTrimEnd: 1.5,
+            },
+          ],
+          customLines: [
+            {
+              id: "custom-1",
+              automaticEnabled: true,
+              text: "主人好",
+              voiceAssetId: "voice-custom",
+              voiceTrimStart: 0.1,
+              voiceTrimEnd: 2.0,
+            },
+          ],
         },
       },
     });
@@ -472,8 +550,16 @@ describe("dialogue voice settings and candidates", () => {
       lineId: "daily-click-here",
       text: "小葡萄，我在呢",
       voiceAssetId: "voice-abc",
+      voiceTrimStart: 0.3,
+      voiceTrimEnd: 1.5,
     });
-    expect(candidates).toContainEqual({ lineId: "custom-1", text: "主人好", voiceAssetId: "voice-custom" });
+    expect(candidates).toContainEqual({
+      lineId: "custom-1",
+      text: "主人好",
+      voiceAssetId: "voice-custom",
+      voiceTrimStart: 0.1,
+      voiceTrimEnd: 2.0,
+    });
   });
 
   test("toggleCategoryAutomatic disables all lines and empty candidates are returned", () => {
@@ -530,5 +616,41 @@ describe("dialogue voice settings and candidates", () => {
     const restored = toggleCategoryAutomatic(disabled, "daily:click", true);
     expect(restored.categories["daily:click"]).toBeUndefined();
     expect(resolveDialogueCandidates("daily:click", restored).length).toBeGreaterThan(0);
+  });
+
+  test("restoreBuiltInLine and restoreBuiltInCategory retain voiceAssetId and trim bounds", () => {
+    const initial = parsePetDialogueSettings({
+      address: "小葡萄",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [
+            {
+              lineId: "daily-click-here",
+              text: "改过的文本",
+              voiceAssetId: "voice-1",
+              voiceTrimStart: 0.2,
+              voiceTrimEnd: 1.5,
+            },
+          ],
+          customLines: [],
+        },
+      },
+    });
+
+    const restoredLine = restoreBuiltInLine(initial, "daily:click", "daily-click-here");
+    expect(restoredLine.categories["daily:click"]?.builtInOverrides[0]).toEqual({
+      lineId: "daily-click-here",
+      voiceAssetId: "voice-1",
+      voiceTrimStart: 0.2,
+      voiceTrimEnd: 1.5,
+    });
+
+    const restoredCat = restoreBuiltInCategory(initial, "daily:click");
+    expect(restoredCat.categories["daily:click"]?.builtInOverrides[0]).toEqual({
+      lineId: "daily-click-here",
+      voiceAssetId: "voice-1",
+      voiceTrimStart: 0.2,
+      voiceTrimEnd: 1.5,
+    });
   });
 });

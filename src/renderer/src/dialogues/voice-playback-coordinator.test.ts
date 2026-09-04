@@ -84,4 +84,40 @@ describe("VoicePlaybackCoordinator", () => {
     coordinator.dispose();
     vi.useRealTimers();
   });
+
+  it("sets currentTime to trimStart and releases when reaching trimEnd", async () => {
+    vi.useFakeTimers();
+    const audio = {
+      volume: 1,
+      src: "trimmed-voice",
+      currentTime: 0,
+      onended: null,
+      onerror: null,
+      ontimeupdate: null as ((event: Event) => unknown) | null,
+      play: vi.fn(async () => undefined),
+      pause: vi.fn(),
+    } satisfies VoiceAudioHandle;
+
+    const coordinator = new VoicePlaybackCoordinator(() => audio);
+    coordinator.schedule("trimmed-voice", 1, 0, 0.5, 2.0);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(audio.currentTime).toBe(0.5);
+    expect(audio.play).toHaveBeenCalledOnce();
+    expect(audio.ontimeupdate).toBeTypeOf("function");
+
+    // Progress before trimEnd does not release
+    audio.currentTime = 1.8;
+    audio.ontimeupdate?.(new Event("timeupdate"));
+    expect(audio.src).toBe("trimmed-voice");
+
+    // Progress at or past trimEnd releases
+    audio.currentTime = 2.0;
+    audio.ontimeupdate?.(new Event("timeupdate"));
+    expect(audio.pause).toHaveBeenCalledOnce();
+    expect(audio.src).toBe("");
+
+    coordinator.dispose();
+    vi.useRealTimers();
+  });
 });

@@ -358,6 +358,8 @@ export interface PetSystemApi extends FoundationApi {
   updatePet(input: PetUpdateInput): Promise<PetSystemSnapshot>;
   savePetVoice(petId: string, data: Uint8Array, extension: string): Promise<{ voiceId: string }>;
   chooseAndImportPetVoice(petId: string): Promise<{ voiceId: string } | null>;
+  pickPetVoiceSource(petId: string): Promise<{ data: Uint8Array; ext: string } | null>;
+  getPetVoice(petId: string, voiceId: string): Promise<{ data: Uint8Array; ext: string } | null>;
   cleanupPetVoiceDrafts(petId: string): Promise<void>;
   getPetVoiceAvailability(petId: string, voiceIds: readonly string[]): Promise<Record<string, boolean>>;
   setActivePet(petId: string): Promise<PetSystemSnapshot>;

@@ -219,6 +219,8 @@ export function DialogueSettingsEditor({
           ...(isAutomaticDisabled ? { automaticEnabled: false } : {}),
           ...(isCustomText ? { text } : {}),
           ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+          ...(hasVoice && existing?.voiceTrimStart !== undefined ? { voiceTrimStart: existing.voiceTrimStart } : {}),
+          ...(hasVoice && existing?.voiceTrimEnd !== undefined ? { voiceTrimEnd: existing.voiceTrimEnd } : {}),
         });
       }
 
@@ -268,6 +270,8 @@ export function DialogueSettingsEditor({
           ...(!automaticEnabled ? { automaticEnabled: false } : {}),
           ...(isCustomText ? { text: existing!.text } : {}),
           ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+          ...(hasVoice && existing?.voiceTrimStart !== undefined ? { voiceTrimStart: existing.voiceTrimStart } : {}),
+          ...(hasVoice && existing?.voiceTrimEnd !== undefined ? { voiceTrimEnd: existing.voiceTrimEnd } : {}),
         });
       }
 
@@ -302,7 +306,13 @@ export function DialogueSettingsEditor({
     }
   };
 
-  const updateLineVoice = (category: DialogueCategory, lineId: string, voiceAssetId: string | undefined): void => {
+  const updateLineVoice = (
+    category: DialogueCategory,
+    lineId: string,
+    voiceAssetId: string | undefined,
+    voiceTrimStart?: number,
+    voiceTrimEnd?: number
+  ): void => {
     const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
     const triggerMeta = getDialogueTriggerMeta(category);
     const isBuiltIn = triggerMeta.builtIns.some((b) => b.id === lineId);
@@ -320,6 +330,8 @@ export function DialogueSettingsEditor({
           ...(isAutomaticDisabled ? { automaticEnabled: false } : {}),
           ...(isCustomText ? { text: existing!.text } : {}),
           ...(hasVoice ? { voiceAssetId } : {}),
+          ...(hasVoice && voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
+          ...(hasVoice && voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
         });
       }
 
@@ -338,7 +350,22 @@ export function DialogueSettingsEditor({
         categories: nextCategories,
       });
     } else {
-      const nextCustom = catSettings.customLines.map((line) => (line.id === lineId ? { ...line, voiceAssetId } : line));
+      const nextCustom = catSettings.customLines.map((line) => {
+        if (line.id !== lineId) return line;
+        const next = { ...line };
+        if (voiceAssetId) {
+          next.voiceAssetId = voiceAssetId;
+          if (voiceTrimStart !== undefined) next.voiceTrimStart = voiceTrimStart;
+          else delete next.voiceTrimStart;
+          if (voiceTrimEnd !== undefined) next.voiceTrimEnd = voiceTrimEnd;
+          else delete next.voiceTrimEnd;
+        } else {
+          delete next.voiceAssetId;
+          delete next.voiceTrimStart;
+          delete next.voiceTrimEnd;
+        }
+        return next;
+      });
       onChange({
         ...settings,
         categories: {
@@ -606,6 +633,8 @@ export function DialogueSettingsEditor({
               automaticEnabled: override?.automaticEnabled ?? true,
               isModified,
               voiceAssetId: override?.voiceAssetId,
+              voiceTrimStart: override?.voiceTrimStart,
+              voiceTrimEnd: override?.voiceTrimEnd,
               voiceAvailable: override?.voiceAssetId ? voiceAvailability[override.voiceAssetId] : undefined,
               issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
             };
@@ -620,6 +649,8 @@ export function DialogueSettingsEditor({
               currentText: c.text,
               automaticEnabled: c.automaticEnabled,
               voiceAssetId: c.voiceAssetId,
+              voiceTrimStart: c.voiceTrimStart,
+              voiceTrimEnd: c.voiceTrimEnd,
               voiceAvailable: c.voiceAssetId ? voiceAvailability[c.voiceAssetId] : undefined,
               issue: isFieldTouched(issueKey) ? issueMap.get(issueKey) : undefined,
             };
@@ -691,7 +722,9 @@ export function DialogueSettingsEditor({
                     voiceVolume={settings.voiceVolume}
                     onTextChange={(text) => updateLineText(trigger.id, row.id, text)}
                     onToggleAutomatic={(auto) => updateLineAutomatic(trigger.id, row.id, auto)}
-                    onVoiceChange={(voiceId) => updateLineVoice(trigger.id, row.id, voiceId)}
+                    onVoiceChange={(voiceId, trimStart, trimEnd) =>
+                      updateLineVoice(trigger.id, row.id, voiceId, trimStart, trimEnd)
+                    }
                     onRestore={
                       row.source === "builtin" && row.isModified
                         ? () => handleRestoreBuiltIn(trigger.id, row.id)

@@ -17,6 +17,8 @@ export interface BuiltInDialogueOverride {
   readonly automaticEnabled?: boolean;
   readonly text?: string;
   readonly voiceAssetId?: string;
+  readonly voiceTrimStart?: number;
+  readonly voiceTrimEnd?: number;
 }
 
 export interface CustomDialogueLine {
@@ -24,6 +26,8 @@ export interface CustomDialogueLine {
   readonly automaticEnabled: boolean;
   readonly text: string;
   readonly voiceAssetId?: string;
+  readonly voiceTrimStart?: number;
+  readonly voiceTrimEnd?: number;
 }
 
 export interface DialogueCategorySettings {
@@ -172,6 +176,31 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
         }
       }
 
+      if (override.voiceTrimStart !== undefined) {
+        if (
+          typeof override.voiceTrimStart !== "number" ||
+          !Number.isFinite(override.voiceTrimStart) ||
+          override.voiceTrimStart < 0
+        ) {
+          issues.push({ path: `${category}:${override.lineId}`, message: "Invalid voiceTrimStart" });
+        }
+      }
+
+      if (override.voiceTrimEnd !== undefined) {
+        const start = typeof override.voiceTrimStart === "number" ? override.voiceTrimStart : 0;
+        if (
+          typeof override.voiceTrimEnd !== "number" ||
+          !Number.isFinite(override.voiceTrimEnd) ||
+          override.voiceTrimEnd <= start
+        ) {
+          issues.push({ path: `${category}:${override.lineId}`, message: "Invalid voiceTrimEnd" });
+        }
+      }
+
+      if ((override.voiceTrimStart !== undefined || override.voiceTrimEnd !== undefined) && !override.voiceAssetId) {
+        issues.push({ path: `${category}:${override.lineId}`, message: "Voice trim requires voiceAssetId" });
+      }
+
       if (override.text !== undefined) {
         if (typeof override.text !== "string") {
           issues.push({ path: `${category}:${override.lineId}`, message: "对白内容必须是文本" });
@@ -217,6 +246,31 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
         if (typeof custom.voiceAssetId !== "string" || !isSafeIdentifier(custom.voiceAssetId)) {
           issues.push({ path: `${category}:${custom.id}`, message: "Invalid voice identifier" });
         }
+      }
+
+      if (custom.voiceTrimStart !== undefined) {
+        if (
+          typeof custom.voiceTrimStart !== "number" ||
+          !Number.isFinite(custom.voiceTrimStart) ||
+          custom.voiceTrimStart < 0
+        ) {
+          issues.push({ path: `${category}:${custom.id}`, message: "Invalid voiceTrimStart" });
+        }
+      }
+
+      if (custom.voiceTrimEnd !== undefined) {
+        const start = typeof custom.voiceTrimStart === "number" ? custom.voiceTrimStart : 0;
+        if (
+          typeof custom.voiceTrimEnd !== "number" ||
+          !Number.isFinite(custom.voiceTrimEnd) ||
+          custom.voiceTrimEnd <= start
+        ) {
+          issues.push({ path: `${category}:${custom.id}`, message: "Invalid voiceTrimEnd" });
+        }
+      }
+
+      if ((custom.voiceTrimStart !== undefined || custom.voiceTrimEnd !== undefined) && !custom.voiceAssetId) {
+        issues.push({ path: `${category}:${custom.id}`, message: "Voice trim requires voiceAssetId" });
       }
 
       if (typeof custom.text !== "string") {
@@ -294,6 +348,8 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
       if ("automaticEnabled" in rawO) allowedKeys.push("automaticEnabled");
       if ("text" in rawO) allowedKeys.push("text");
       if ("voiceAssetId" in rawO) allowedKeys.push("voiceAssetId");
+      if ("voiceTrimStart" in rawO) allowedKeys.push("voiceTrimStart");
+      if ("voiceTrimEnd" in rawO) allowedKeys.push("voiceTrimEnd");
       assertExactKeys(rawO, allowedKeys, "Invalid built-in override");
 
       const lineId = rawO.lineId as string;
@@ -302,6 +358,8 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
         ...(rawO.automaticEnabled !== undefined ? { automaticEnabled: rawO.automaticEnabled as boolean } : {}),
         ...(rawO.text !== undefined ? { text: (rawO.text as string).trim() } : {}),
         ...(rawO.voiceAssetId !== undefined ? { voiceAssetId: rawO.voiceAssetId as string } : {}),
+        ...(rawO.voiceTrimStart !== undefined ? { voiceTrimStart: rawO.voiceTrimStart as number } : {}),
+        ...(rawO.voiceTrimEnd !== undefined ? { voiceTrimEnd: rawO.voiceTrimEnd as number } : {}),
       };
       builtInOverrides.push(override);
     }
@@ -311,12 +369,16 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
       if (!isRecord(rawC)) continue;
       const customAllowedKeys = ["id", "automaticEnabled", "text"];
       if ("voiceAssetId" in rawC) customAllowedKeys.push("voiceAssetId");
+      if ("voiceTrimStart" in rawC) customAllowedKeys.push("voiceTrimStart");
+      if ("voiceTrimEnd" in rawC) customAllowedKeys.push("voiceTrimEnd");
       assertExactKeys(rawC, customAllowedKeys, "Invalid custom dialogue line");
       customLines.push({
         id: rawC.id as string,
         automaticEnabled: rawC.automaticEnabled as boolean,
         text: (rawC.text as string).trim(),
         ...(rawC.voiceAssetId !== undefined ? { voiceAssetId: rawC.voiceAssetId as string } : {}),
+        ...(rawC.voiceTrimStart !== undefined ? { voiceTrimStart: rawC.voiceTrimStart as number } : {}),
+        ...(rawC.voiceTrimEnd !== undefined ? { voiceTrimEnd: rawC.voiceTrimEnd as number } : {}),
       });
     }
 
@@ -340,6 +402,8 @@ export interface ResolvedDialogueCandidate {
   readonly lineId: string;
   readonly text: string;
   readonly voiceAssetId?: string;
+  readonly voiceTrimStart?: number;
+  readonly voiceTrimEnd?: number;
 }
 
 export function resolveDialogueCandidates(
@@ -352,7 +416,13 @@ export function resolveDialogueCandidates(
 
   const overridesByLineId = new Map((catSettings?.builtInOverrides ?? []).map((o) => [o.lineId, o]));
 
-  const candidates: Array<{ lineId: string; template: string; voiceAssetId?: string }> = [];
+  const candidates: Array<{
+    lineId: string;
+    template: string;
+    voiceAssetId?: string;
+    voiceTrimStart?: number;
+    voiceTrimEnd?: number;
+  }> = [];
 
   for (const builtIn of meta.builtIns) {
     const override = overridesByLineId.get(builtIn.id);
@@ -361,7 +431,13 @@ export function resolveDialogueCandidates(
     }
     const text = override?.text !== undefined ? override.text.trim() : builtIn.text;
     if (text.length > 0) {
-      candidates.push({ lineId: builtIn.id, template: text, voiceAssetId: override?.voiceAssetId });
+      candidates.push({
+        lineId: builtIn.id,
+        template: text,
+        voiceAssetId: override?.voiceAssetId,
+        voiceTrimStart: override?.voiceTrimStart,
+        voiceTrimEnd: override?.voiceTrimEnd,
+      });
     }
   }
 
@@ -370,13 +446,25 @@ export function resolveDialogueCandidates(
       if (custom.automaticEnabled) {
         const text = custom.text.trim();
         if (text.length > 0) {
-          candidates.push({ lineId: custom.id, template: text, voiceAssetId: custom.voiceAssetId });
+          candidates.push({
+            lineId: custom.id,
+            template: text,
+            voiceAssetId: custom.voiceAssetId,
+            voiceTrimStart: custom.voiceTrimStart,
+            voiceTrimEnd: custom.voiceTrimEnd,
+          });
         }
       }
     }
   }
 
-  const replaced: Array<{ lineId: string; text: string; voiceAssetId?: string }> = [];
+  const replaced: Array<{
+    lineId: string;
+    text: string;
+    voiceAssetId?: string;
+    voiceTrimStart?: number;
+    voiceTrimEnd?: number;
+  }> = [];
   for (const item of candidates) {
     if (item.template.includes(ADDRESS_PLACEHOLDER)) {
       if (address.length === 0) {
@@ -386,12 +474,16 @@ export function resolveDialogueCandidates(
         lineId: item.lineId,
         text: item.template.replaceAll(ADDRESS_PLACEHOLDER, address),
         voiceAssetId: item.voiceAssetId,
+        voiceTrimStart: item.voiceTrimStart,
+        voiceTrimEnd: item.voiceTrimEnd,
       });
     } else {
       replaced.push({
         lineId: item.lineId,
         text: item.template,
         voiceAssetId: item.voiceAssetId,
+        voiceTrimStart: item.voiceTrimStart,
+        voiceTrimEnd: item.voiceTrimEnd,
       });
     }
   }
@@ -406,6 +498,8 @@ export function resolveDialogueCandidates(
         lineId: item.lineId,
         text: trimmed,
         ...(item.voiceAssetId ? { voiceAssetId: item.voiceAssetId } : {}),
+        ...(item.voiceTrimStart !== undefined ? { voiceTrimStart: item.voiceTrimStart } : {}),
+        ...(item.voiceTrimEnd !== undefined ? { voiceTrimEnd: item.voiceTrimEnd } : {}),
       });
     }
   }
@@ -436,6 +530,12 @@ export function restoreBuiltInLine(
           lineId: override.lineId,
           ...(override.automaticEnabled === false ? { automaticEnabled: false } : {}),
           ...(override.voiceAssetId ? { voiceAssetId: override.voiceAssetId } : {}),
+          ...(override.voiceAssetId && override.voiceTrimStart !== undefined
+            ? { voiceTrimStart: override.voiceTrimStart }
+            : {}),
+          ...(override.voiceAssetId && override.voiceTrimEnd !== undefined
+            ? { voiceTrimEnd: override.voiceTrimEnd }
+            : {}),
         };
       }
       return null;
@@ -468,7 +568,12 @@ export function restoreBuiltInCategory(settings: PetDialogueSettings, category: 
 
   const restoredVoiceOverrides = catSettings.builtInOverrides
     .filter((override) => override.voiceAssetId)
-    .map((override) => ({ lineId: override.lineId, voiceAssetId: override.voiceAssetId }));
+    .map((override) => ({
+      lineId: override.lineId,
+      voiceAssetId: override.voiceAssetId,
+      ...(override.voiceTrimStart !== undefined ? { voiceTrimStart: override.voiceTrimStart } : {}),
+      ...(override.voiceTrimEnd !== undefined ? { voiceTrimEnd: override.voiceTrimEnd } : {}),
+    }));
   const nextCategories = { ...settings.categories };
   if (catSettings.customLines.length === 0 && restoredVoiceOverrides.length === 0) {
     delete nextCategories[category];
@@ -502,6 +607,8 @@ export function toggleCategoryAutomatic(
     const existing = existingMap.get(builtIn.id);
     const isCustomText = existing?.text !== undefined;
     const hasVoice = existing?.voiceAssetId !== undefined;
+    const voiceTrimStart = existing?.voiceTrimStart;
+    const voiceTrimEnd = existing?.voiceTrimEnd;
 
     if (!automaticEnabled) {
       nextOverrides.push({
@@ -509,6 +616,8 @@ export function toggleCategoryAutomatic(
         automaticEnabled: false,
         ...(isCustomText ? { text: existing!.text } : {}),
         ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+        ...(hasVoice && voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
+        ...(hasVoice && voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
       });
     } else {
       if (isCustomText || hasVoice) {
@@ -516,6 +625,8 @@ export function toggleCategoryAutomatic(
           lineId: builtIn.id,
           ...(isCustomText ? { text: existing!.text } : {}),
           ...(hasVoice ? { voiceAssetId: existing!.voiceAssetId } : {}),
+          ...(hasVoice && voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
+          ...(hasVoice && voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
         });
       }
     }

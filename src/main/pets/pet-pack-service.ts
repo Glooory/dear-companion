@@ -272,6 +272,23 @@ export class PetPackService {
     return this.resolveOwnedVoiceFilePath(pet.id, voiceId);
   }
 
+  async readVoiceAsset(
+    petIdValue: unknown,
+    voiceIdValue: unknown
+  ): Promise<{ data: Uint8Array; ext: VoiceAudioFormat } | null> {
+    const petId = parsePetIdentifier(petIdValue);
+    const voiceId = parsePetIdentifier(voiceIdValue);
+    const current = await this.settingsStore.load();
+    requirePet(current, petId);
+
+    const filePath = await this.resolveOwnedVoiceFilePath(petId, voiceId);
+    if (!filePath) return null;
+
+    const ext = extname(filePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
+    const bytes = await readVoiceSourceFile(filePath);
+    return { data: new Uint8Array(bytes), ext };
+  }
+
   async getVoiceAssetAvailability(
     petIdValue: unknown,
     voiceIdValues: readonly unknown[]
@@ -314,6 +331,23 @@ export class PetPackService {
       await writeFile(dest, buffer, { flag: "wx", mode: 0o600 });
       return { voiceId };
     });
+  }
+
+  async readVoiceSourceAsset(sourcePath: string): Promise<{ buffer: Buffer; ext: VoiceAudioFormat }> {
+    const ext = extname(sourcePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
+    if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
+      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+    }
+
+    const bytes = await readVoiceSourceFile(sourcePath);
+    const detected = detectVoiceAudioFormat(bytes);
+    if (!detected) {
+      throw new Error("无法识别音频内容");
+    }
+    if (detected !== ext) {
+      throw new Error("音频内容与扩展名不匹配");
+    }
+    return { buffer: bytes, ext: detected };
   }
 
   async importVoiceAsset(petIdValue: unknown, sourcePath: string): Promise<{ voiceId: string }> {

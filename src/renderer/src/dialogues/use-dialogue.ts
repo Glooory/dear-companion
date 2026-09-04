@@ -104,7 +104,10 @@ export function useDialogue(
         const volume = Math.max(0, Math.min(1, dialogueSettings.voiceVolume ?? 0.8));
         voicePlayback.schedule(
           `app://renderer/pet-voices/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`,
-          volume
+          volume,
+          80,
+          selectedCandidate.voiceTrimStart,
+          selectedCandidate.voiceTrimEnd
         );
       }
 

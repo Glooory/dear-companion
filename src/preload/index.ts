@@ -25,6 +25,8 @@ const api: ReleaseHardeningApi = {
   updatePet: (input) => ipcRenderer.invoke(IPC_CHANNELS.updatePet, input),
   savePetVoice: (petId, data, extension) => ipcRenderer.invoke(IPC_CHANNELS.savePetVoice, petId, data, extension),
   chooseAndImportPetVoice: (petId) => ipcRenderer.invoke(IPC_CHANNELS.importPetVoice, petId),
+  pickPetVoiceSource: (petId) => ipcRenderer.invoke(IPC_CHANNELS.pickPetVoiceSource, petId),
+  getPetVoice: (petId, voiceId) => ipcRenderer.invoke(IPC_CHANNELS.getPetVoice, petId, voiceId),
   cleanupPetVoiceDrafts: (petId) => ipcRenderer.invoke(IPC_CHANNELS.cleanupPetVoiceDrafts, petId),
   getPetVoiceAvailability: (petId, voiceIds) =>
     ipcRenderer.invoke(IPC_CHANNELS.getPetVoiceAvailability, petId, voiceIds),

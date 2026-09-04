@@ -14,6 +14,8 @@ export interface DialogueLineRowModel {
   readonly automaticEnabled: boolean;
   readonly isModified?: boolean;
   readonly voiceAssetId?: string;
+  readonly voiceTrimStart?: number;
+  readonly voiceTrimEnd?: number;
   readonly voiceAvailable?: boolean;
   readonly issue?: string;
 }
@@ -25,7 +27,7 @@ export interface DialogueLineEditorProps {
   readonly voiceVolume: number;
   readonly onTextChange: (text: string) => void;
   readonly onToggleAutomatic: (enabled: boolean) => void;
-  readonly onVoiceChange: (voiceAssetId: string | undefined) => void;
+  readonly onVoiceChange: (voiceAssetId: string | undefined, trimStart?: number, trimEnd?: number) => void;
   readonly onRestore?: () => void;
   readonly onDelete?: () => void;
   readonly onInputFocus?: (el: HTMLInputElement) => void;
@@ -54,10 +56,15 @@ export function DialogueLineEditor({
   }
   const [showRecorder, setShowRecorder] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const releaseAudition = (audio = audioRef.current): void => {
     if (!audio) return;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     if (audioRef.current === audio) audioRef.current = null;
     audio.onended = null;
     audio.onerror = null;
@@ -68,6 +75,10 @@ export function DialogueLineEditor({
 
   useEffect(() => {
     return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       if (audioRef.current) {
         audioRef.current.onended = null;
         audioRef.current.onerror = null;
@@ -92,16 +103,38 @@ export function DialogueLineEditor({
     const audio = new Audio(url);
     audio.volume = Math.max(0, Math.min(1, voiceVolume));
     audioRef.current = audio;
+
+    const trimStart = row.voiceTrimStart ?? 0;
+    const trimEnd = row.voiceTrimEnd;
+
+    const checkTrim = (): void => {
+      if (!audioRef.current || audioRef.current !== audio) return;
+      if (trimEnd !== undefined && audio.currentTime >= trimEnd) {
+        releaseAudition(audio);
+        return;
+      }
+      rafRef.current = requestAnimationFrame(checkTrim);
+    };
+
     audio.onended = () => releaseAudition(audio);
     audio.onerror = () => {
       releaseAudition(audio);
       setFailedVoiceId(row.voiceAssetId ?? null);
     };
+    if (trimStart > 0) {
+      audio.currentTime = trimStart;
+    }
     void audio
       .play()
       .then(() => {
+        if (trimStart > 0 && audio.currentTime < trimStart) {
+          audio.currentTime = trimStart;
+        }
         setFailedVoiceId(null);
         setIsPlayingVoice(true);
+        if (trimEnd !== undefined) {
+          rafRef.current = requestAnimationFrame(checkTrim);
+        }
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") {
@@ -125,10 +158,7 @@ export function DialogueLineEditor({
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError)}>
       <div className={styles.main}>
-        <label
-          className={styles.toggle}
-          title={row.automaticEnabled ? "点击停用" : "点击启用"}
-        >
+        <label className={styles.toggle} title={row.automaticEnabled ? "点击停用" : "点击启用"}>
           <input
             type="checkbox"
             checked={row.automaticEnabled}
@@ -201,15 +231,15 @@ export function DialogueLineEditor({
                 type="button"
                 className={styles.voiceActionBtn}
                 onClick={() => setShowRecorder(true)}
-                aria-label="更换声音"
+                aria-label="编辑声音"
               >
-                更换
+                编辑
               </button>
               <button
                 type="button"
                 className={styles.voiceDeleteBtn}
                 onClick={() => {
-                  onVoiceChange(undefined);
+                  onVoiceChange(undefined, undefined, undefined);
                 }}
                 aria-label="删除声音"
               >
@@ -274,8 +304,11 @@ export function DialogueLineEditor({
           dialogueText={row.currentText || row.defaultText || ""}
           mode={row.voiceAssetId ? "replace" : "add"}
           volume={voiceVolume}
-          onSave={(voiceId) => {
-            onVoiceChange(voiceId);
+          initialVoiceAssetId={row.voiceAssetId}
+          initialTrimStart={row.voiceTrimStart}
+          initialTrimEnd={row.voiceTrimEnd}
+          onSave={(voiceId, trimStart, trimEnd) => {
+            onVoiceChange(voiceId, trimStart, trimEnd);
           }}
           onClose={() => setShowRecorder(false)}
         />

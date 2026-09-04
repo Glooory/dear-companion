@@ -316,6 +316,28 @@ describe("PetPackService", () => {
     await expect(service.saveVoiceAsset("pet-1", wavBytes, "mp3")).rejects.toThrow("扩展名");
   });
 
+  it("reads and verifies voice source asset", async () => {
+    const { service, userDataPath } = await createHarness();
+    const filePath = join(userDataPath, "test.wav");
+    await writeFile(filePath, wavBytes);
+    const result = await service.readVoiceSourceAsset(filePath);
+    expect(result.ext).toBe("wav");
+    expect(result.buffer).toEqual(wavBytes);
+  });
+
+  it("reads existing voice asset by id", async () => {
+    const { service } = await createHarness();
+    await service.createPet("Mochi");
+    const { voiceId } = await service.saveVoiceAsset("pet-1", wavBytes, "wav");
+    const result = await service.readVoiceAsset("pet-1", voiceId);
+    expect(result).not.toBeNull();
+    expect(result?.ext).toBe("wav");
+    expect(result?.data).toEqual(new Uint8Array(wavBytes));
+
+    const missing = await service.readVoiceAsset("pet-1", "non-existent");
+    expect(missing).toBeNull();
+  });
+
   it("keeps referenced voices and removes draft voices after cleanup", async () => {
     const { service, userDataPath } = await createHarness();
     await service.createPet("Mochi");

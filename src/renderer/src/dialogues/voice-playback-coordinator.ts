@@ -1,8 +1,10 @@
 export interface VoiceAudioHandle {
   volume: number;
   src: string;
+  currentTime?: number;
   onended: ((event: Event) => unknown) | null;
   onerror: ((event: Event) => unknown) | null;
+  ontimeupdate?: ((event: Event) => unknown) | null;
   play(): Promise<void>;
   pause(): void;
 }
@@ -17,7 +19,7 @@ export class VoicePlaybackCoordinator {
 
   constructor(private readonly createAudio: (src: string) => VoiceAudioHandle) {}
 
-  schedule(src: string, volume: number, delayMs = 80): void {
+  schedule(src: string, volume: number, delayMs = 80, trimStart?: number, trimEnd?: number): void {
     this.stop();
     this.startTimer = setTimeout(
       () => {
@@ -26,8 +28,29 @@ export class VoicePlaybackCoordinator {
         audio.volume = clampVolume(volume);
         audio.onended = () => this.release(audio);
         audio.onerror = () => this.release(audio);
+
+        const start = trimStart !== undefined && trimStart > 0 ? trimStart : 0;
+        if (start > 0 && typeof audio.currentTime === "number") {
+          audio.currentTime = start;
+        }
+
+        if (trimEnd !== undefined && trimEnd > 0) {
+          audio.ontimeupdate = () => {
+            if (typeof audio.currentTime === "number" && audio.currentTime >= trimEnd) {
+              this.release(audio);
+            }
+          };
+        }
+
         this.activeAudio = audio;
-        void audio.play().catch(() => this.release(audio));
+        void audio
+          .play()
+          .then(() => {
+            if (start > 0 && typeof audio.currentTime === "number" && audio.currentTime < start) {
+              audio.currentTime = start;
+            }
+          })
+          .catch(() => this.release(audio));
       },
       Math.max(0, delayMs)
     );
@@ -71,6 +94,7 @@ export class VoicePlaybackCoordinator {
     if (this.activeAudio === audio) this.activeAudio = null;
     audio.onended = null;
     audio.onerror = null;
+    if (audio.ontimeupdate) audio.ontimeupdate = null;
     audio.pause();
     audio.src = "";
   }

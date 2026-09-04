@@ -38,13 +38,7 @@ export function detectVoiceAudioFormat(bytes: Uint8Array): VoiceAudioFormat | nu
     }
     return null;
   }
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x1a &&
-    bytes[1] === 0x45 &&
-    bytes[2] === 0xdf &&
-    bytes[3] === 0xa3
-  ) {
+  if (bytes.length >= 8 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
     const content = ascii(bytes, 4, Math.min(bytes.length - 4, 4096));
     if (content.includes("webm") || content.includes("matroska")) {
       if (content.includes("V_")) return null;

@@ -11,6 +11,8 @@ export const IPC_CHANNELS = {
   updatePet: "pet-system:update-pet",
   savePetVoice: "pet-system:save-voice",
   importPetVoice: "pet-system:import-voice",
+  pickPetVoiceSource: "pet-system:pick-voice-source",
+  getPetVoice: "pet-system:get-voice",
   cleanupPetVoiceDrafts: "pet-system:cleanup-voice-drafts",
   getPetVoiceAvailability: "pet-system:get-voice-availability",
   setActivePet: "pet-system:set-active-pet",
