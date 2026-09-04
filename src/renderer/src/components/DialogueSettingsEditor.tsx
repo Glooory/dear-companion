@@ -12,10 +12,41 @@ import {
   MAX_CUSTOM_LINES_PER_CATEGORY,
   restoreBuiltInCategory,
   restoreBuiltInLine,
+  toggleCategoryAutomatic,
   type PetDialogueSettings,
 } from "@shared/dialogue-settings";
 import { DialogueLineEditor, type DialogueLineRowModel } from "./DialogueLineEditor";
 import styles from "./DialogueSettingsEditor.module.css";
+
+interface GroupCheckboxProps {
+  id: string;
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: (checked: boolean) => void;
+  ariaLabel: string;
+}
+
+function GroupCheckbox({ id, checked, indeterminate, onChange, ariaLabel }: GroupCheckboxProps): React.JSX.Element {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={inputRef}
+      id={id}
+      type="checkbox"
+      className={styles.groupCheckbox}
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      aria-label={ariaLabel}
+    />
+  );
+}
 
 export interface DialogueSettingsEditorProps {
   petId: string;
@@ -563,13 +594,25 @@ export function DialogueSettingsEditor({
 
           const allRows = [...builtInRows, ...customRows];
           const hasModifiedBuiltIns = overrides.some((o) => o.text !== undefined || o.automaticEnabled === false);
+          const enabledCount = allRows.filter((r) => r.automaticEnabled).length;
+          const isAllEnabled = allRows.length > 0 && enabledCount === allRows.length;
+          const isPartiallyEnabled = enabledCount > 0 && enabledCount < allRows.length;
 
           return (
             <section key={trigger.id} className={styles.triggerCard} aria-labelledby={`trigger-title-${trigger.id}`}>
               <div className={styles.triggerHeader}>
                 <div className={styles.triggerTitleWrap}>
+                  <GroupCheckbox
+                    id={`group-checkbox-${trigger.id}`}
+                    checked={isAllEnabled}
+                    indeterminate={isPartiallyEnabled}
+                    onChange={(checked) => onChange(toggleCategoryAutomatic(settings, trigger.id, checked))}
+                    ariaLabel={`启用全部${trigger.label}对白`}
+                  />
                   <h4 id={`trigger-title-${trigger.id}`} className={styles.triggerTitle}>
-                    {trigger.label}
+                    <label htmlFor={`group-checkbox-${trigger.id}`} className={styles.triggerTitleLabel}>
+                      {trigger.label}
+                    </label>
                   </h4>
                 </div>
 

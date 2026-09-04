@@ -18,24 +18,27 @@
 }
 
 .toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   cursor: pointer;
-  padding-top: 6px;
+  min-width: 28px;
+  height: 32px;
   flex-shrink: 0;
+  border-radius: 4px;
+  transition: background 120ms ease;
+}
+
+.toggle:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .toggle input {
   cursor: pointer;
   accent-color: #3d7363;
-}
-
-.toggleLabel {
-  font-size: 0.75rem;
-  color: #55514b;
-  font-weight: 500;
-  white-space: nowrap;
+  width: 15px;
+  height: 15px;
+  margin: 0;
 }
 
 .inputWrapper {

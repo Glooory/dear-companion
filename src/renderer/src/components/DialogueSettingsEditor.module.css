@@ -235,11 +235,30 @@
   gap: 8px;
 }
 
+.groupCheckbox {
+  cursor: pointer;
+  accent-color: #3d7363;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
 .triggerTitle {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 700;
   color: #2d2a26;
+}
+
+.triggerTitleLabel {
+  cursor: pointer;
+  user-select: none;
+  transition: color 120ms ease;
+}
+
+.triggerTitleLabel:hover {
+  color: #24473d;
 }
 
 .triggerLines {

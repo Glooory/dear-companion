@@ -125,14 +125,16 @@ export function DialogueLineEditor({
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError)}>
       <div className={styles.main}>
-        <label className={styles.toggle}>
+        <label
+          className={styles.toggle}
+          title={row.automaticEnabled ? "点击停用" : "点击启用"}
+        >
           <input
             type="checkbox"
             checked={row.automaticEnabled}
             onChange={(e) => onToggleAutomatic(e.target.checked)}
-            aria-label="启用"
+            aria-label="启用这句对白"
           />
-          <span className={styles.toggleLabel}>启用</span>
         </label>
 
         <div className={styles.inputWrapper}>
@@ -194,7 +196,7 @@ export function DialogueLineEditor({
                 )}
                 <span>{isPlayingVoice ? "暂停" : "试听"}</span>
               </button>
-              <span role={voiceUnavailable ? "status" : undefined}>{voiceUnavailable ? "声音不可用" : "已配音"}</span>
+              {voiceUnavailable && <span role="status">声音不可用</span>}
               <button
                 type="button"
                 className={styles.voiceActionBtn}
@@ -222,20 +224,19 @@ export function DialogueLineEditor({
               aria-label="添加声音"
             >
               <svg
-                viewBox="0 0 16 16"
-                width="11"
-                height="11"
+                viewBox="0 0 12 12"
+                width="10"
+                height="10"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"
                 strokeLinecap="round"
                 aria-hidden="true"
               >
-                <path d="M8 2a2 2 0 0 0-2 2v4a2 2 0 0 0 4 0V4a2 2 0 0 0-2-2Z" />
-                <path d="M12 7v1a4 4 0 0 1-8 0V7" />
-                <line x1="8" y1="12" x2="8" y2="14" />
+                <line x1="6" y1="2" x2="6" y2="10" />
+                <line x1="2" y1="6" x2="10" y2="6" />
               </svg>
-              <span>+ 声音</span>
+              <span>声音</span>
             </button>
           )}
 

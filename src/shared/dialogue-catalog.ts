@@ -62,7 +62,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "playful:click",
         group: "daily",
-        label: "活泼时被点一下",
+        label: "活泼时被点",
         builtIns: [
           { id: "playful-click-coming", text: "来啦！" },
           { id: "playful-click-play-more", text: "再玩一下？" },
@@ -73,7 +73,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "daily:petting",
         group: "daily",
-        label: "摸摸头",
+        label: "被摸摸头",
         builtIns: [
           { id: "daily-petting-comfy", text: "嗯，舒服。" },
           { id: "daily-petting-touch-again", text: "再摸一下。" },
@@ -134,7 +134,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "drowsy:petting",
         group: "drowsy",
-        label: "摸摸头",
+        label: "被摸摸头",
         builtIns: [
           { id: "drowsy-petting-gentle", text: "轻一点……" },
           { id: "drowsy-petting-sleepier", text: "更困了。" },
@@ -161,7 +161,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "sleeping:murmur",
         group: "sleeping",
-        label: "第一次叫它",
+        label: "轻声叫它",
         builtIns: [
           { id: "sleeping-murmur-hum", text: "唔……" },
           { id: "sleeping-murmur-heard", text: "听见了……" },
@@ -191,7 +191,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "sleeping:touch",
         group: "sleeping",
-        label: "睡觉时摸摸头",
+        label: "睡着时摸摸",
         builtIns: [
           { id: "sleeping-touch-felt", text: "感觉到了……" },
           { id: "sleeping-touch-sweet-dreams", text: "轻一点……好梦中。" },
@@ -225,7 +225,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "working:petting",
         group: "working",
-        label: "摸摸头",
+        label: "被摸摸头",
         builtIns: [
           { id: "working-petting-yes", text: "嗯。" },
           { id: "working-petting-cheer", text: "收到了，继续加油。" },
