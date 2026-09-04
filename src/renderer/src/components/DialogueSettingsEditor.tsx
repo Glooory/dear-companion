@@ -53,7 +53,6 @@ export function DialogueSettingsEditor({
     petId: string;
     values: Record<string, boolean>;
   } | null>(null);
-  const errorSummaryRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedInputRef = useRef<{
     category: DialogueCategory;
     lineId: string;
@@ -138,7 +137,10 @@ export function DialogueSettingsEditor({
     if (validationAttempt > prevValidationAttempt.current) {
       prevValidationAttempt.current = validationAttempt;
       if (validationIssues.length > 0) {
-        errorSummaryRef.current?.focus();
+        const firstIssuePath = validationIssues[0]!.path;
+        setTimeout(() => {
+          focusIssue(firstIssuePath);
+        }, 0);
       }
     }
   }, [validationAttempt, validationIssues]);
@@ -331,6 +333,9 @@ export function DialogueSettingsEditor({
         },
       },
     });
+    setTimeout(() => {
+      document.getElementById(`dialogue-input-${category}-${id}`)?.focus();
+    }, 0);
   };
 
   const handleDeleteCustomLine = (category: DialogueCategory, lineId: string): void => {
@@ -396,29 +401,6 @@ export function DialogueSettingsEditor({
 
   return (
     <div className={styles.container}>
-      {validationIssues.length > 0 && (
-        <div
-          ref={errorSummaryRef}
-          className={styles.errorSummary}
-          tabIndex={-1}
-          role="alert"
-          aria-labelledby="dialogue-error-summary-title"
-        >
-          <div id="dialogue-error-summary-title" className={styles.errorSummaryTitle}>
-            请检查以下内容
-          </div>
-          <ul className={styles.errorList}>
-            {validationIssues.map((issue) => (
-              <li key={issue.path}>
-                <button type="button" className={styles.errorLink} onClick={() => focusIssue(issue.path)}>
-                  {issue.message}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Top Controls: Nickname & Dialogue Voice */}
       <div className={styles.topControlsCard}>
         <div className={styles.controlCol}>
