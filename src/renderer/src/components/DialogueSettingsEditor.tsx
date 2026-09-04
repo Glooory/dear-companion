@@ -616,34 +616,36 @@ export function DialogueSettingsEditor({
                   </h4>
                 </div>
 
-                {hasModifiedBuiltIns &&
-                  (confirmRestoreCategory === trigger.id ? (
-                    <div className={styles.confirmBox}>
-                      <span className={styles.confirmText}>恢复原句并重新启用？配音和我的对白会保留。</span>
+                <div className={styles.triggerActionSlot}>
+                  {hasModifiedBuiltIns &&
+                    (confirmRestoreCategory === trigger.id ? (
+                      <div className={styles.confirmBox}>
+                        <span className={styles.confirmText}>恢复原句并重新启用？配音和我的对白会保留。</span>
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => handleRestoreCategory(trigger.id)}
+                        >
+                          确认
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button compact-button"
+                          onClick={() => setConfirmRestoreCategory(null)}
+                        >
+                          取消
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         type="button"
                         className="ghost-button compact-button"
-                        onClick={() => handleRestoreCategory(trigger.id)}
+                        onClick={() => setConfirmRestoreCategory(trigger.id)}
                       >
-                        确认
+                        恢复内置对白
                       </button>
-                      <button
-                        type="button"
-                        className="ghost-button compact-button"
-                        onClick={() => setConfirmRestoreCategory(null)}
-                      >
-                        取消
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="ghost-button compact-button"
-                      onClick={() => setConfirmRestoreCategory(trigger.id)}
-                    >
-                      恢复内置对白
-                    </button>
-                  ))}
+                    ))}
+                </div>
               </div>
 
               <div className={styles.triggerLines}>

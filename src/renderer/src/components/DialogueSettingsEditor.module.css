@@ -227,12 +227,23 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 28px;
 }
 
 .triggerTitleWrap {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 28px;
+  flex-shrink: 0;
+}
+
+.triggerActionSlot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 28px;
+  flex-shrink: 0;
 }
 
 .groupCheckbox {
@@ -285,16 +296,18 @@
 .confirmBox {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
+  gap: 6px;
+  padding: 2px 8px;
   background: #fff1f1;
   border: 1px solid #fecaca;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 .confirmText {
   color: #991b1b;
+  white-space: nowrap;
 }
 
 .saveBar {
@@ -336,14 +349,13 @@
     grid-template-columns: 1fr;
   }
 
-  .triggerHeader,
   .triggerFooter {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .confirmBox {
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: wrap;
   }
 }
