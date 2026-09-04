@@ -1,3 +1,4 @@
+import React from "react";
 import { clsx } from "clsx";
 import type { CompanionPace } from "@shared/contracts";
 import { InfoTooltip } from "./Tooltip";
@@ -8,78 +9,92 @@ const PACE_OPTIONS = [
     value: "quiet",
     label: "安静",
     tagline: "偶尔呼吸 · 几乎不走动",
-    description: "保持安静，不分散视线，适合需要专注的工作时段。",
   },
   {
     value: "natural",
     label: "惬意",
     tagline: "间歇走动 · 自然陪伴",
-    description: "偶尔走动或变换姿势，最舒服的日常节奏。",
   },
   {
     value: "lively",
     label: "活跃",
     tagline: "动作丰富 · 互动频繁",
-    description: "走动更频繁，更常主动做动作和小表情。",
   },
 ] as const;
 
-export function CompanionPreferences({
-  pace,
-  bubblesEnabled,
-  onPaceChange,
-  onBubblesChange,
-  onPreview,
-}: {
+export interface CompanionPreferencesProps {
   pace: CompanionPace;
-  bubblesEnabled: boolean;
   onPaceChange(value: CompanionPace): void;
-  onBubblesChange(value: boolean): void;
   onPreview(value: CompanionPace): void;
-}): React.JSX.Element {
+}
+
+export function CompanionPreferences({ pace, onPaceChange, onPreview }: CompanionPreferencesProps): React.JSX.Element {
+  const handleKeyDown = (event: React.KeyboardEvent, index: number): void => {
+    let nextIndex: number;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      nextIndex = (index + 1) % PACE_OPTIONS.length;
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      nextIndex = (index - 1 + PACE_OPTIONS.length) % PACE_OPTIONS.length;
+    } else if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      onPaceChange(PACE_OPTIONS[index]!.value);
+      return;
+    } else {
+      return;
+    }
+    const nextOption = PACE_OPTIONS[nextIndex]!;
+    onPaceChange(nextOption.value);
+    document.getElementById(`companion-pace-option-${nextOption.value}`)?.focus();
+  };
+
   return (
     <div className={styles.preferences}>
-      <fieldset className={styles.fieldset}>
-        <legend className={clsx("fieldset-legend-row", styles.legend)}>
-          <span>陪伴节奏</span>
-          <InfoTooltip text="调整伙伴在桌面的活动与走动频率。" />
-        </legend>
-        <div className={styles.grid}>
-          {PACE_OPTIONS.map((option) => (
-            <div className={clsx(styles.option, pace === option.value && styles.selected)} key={option.value}>
-              <label className={styles.header}>
-                <input
-                  type="radio"
-                  name="companion-pace"
-                  value={option.value}
-                  checked={pace === option.value}
-                  onChange={() => onPaceChange(option.value)}
-                />
-                <div className={styles.meta}>
-                  <div className={styles.titleRow}>
-                    <strong>{option.label}</strong>
-                    <InfoTooltip text={option.description} />
-                  </div>
-                  <small>{option.tagline}</small>
+      <div className={clsx("heading-with-tooltip", styles.headingRow)}>
+        <h2 id="companion-pace-heading" className={styles.heading}>
+          陪伴节奏
+        </h2>
+        <InfoTooltip text="调整伙伴在桌面的自主活动与走动频率。" />
+      </div>
+      <div role="radiogroup" aria-labelledby="companion-pace-heading" className={styles.grid}>
+        {PACE_OPTIONS.map((option, index) => {
+          const isSelected = pace === option.value;
+          return (
+            <div
+              key={option.value}
+              id={`companion-pace-option-${option.value}`}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={isSelected ? 0 : -1}
+              className={clsx(styles.option, isSelected && styles.selected)}
+              onClick={() => onPaceChange(option.value)}
+              onKeyDown={(e) => handleKeyDown(e, index)}
+            >
+              <div className={styles.cardTop}>
+                <div className={styles.labelRow}>
+                  <strong className={styles.label}>{option.label}</strong>
+                  {isSelected && <span className={styles.activeIndicator} aria-hidden="true" />}
                 </div>
-              </label>
-              <button type="button" className={styles.previewButton} onClick={() => onPreview(option.value)}>
-                试看动作
-              </button>
+                <span className={styles.tagline}>{option.tagline}</span>
+              </div>
+              <div className={styles.cardBottom}>
+                <button
+                  type="button"
+                  className={styles.previewButton}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPreview(option.value);
+                  }}
+                  title={`试看${option.label}动作`}
+                  aria-label={`试看${option.label}动作`}
+                >
+                  试看动作
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
-      </fieldset>
-      <div className={styles.bubblesToggleRow}>
-        <label className="toggle-control" style={{ marginBottom: 0 }}>
-          <input
-            type="checkbox"
-            checked={bubblesEnabled}
-            onChange={(event) => onBubblesChange(event.currentTarget.checked)}
-          />
-          <span>日常对话气泡</span>
-        </label>
-        <InfoTooltip text="漫步与互动时冒出轻量气泡；关闭后仅保留休息提醒。" />
+          );
+        })}
       </div>
     </div>
   );

@@ -10,9 +10,38 @@
   border: 1px solid #ede8e1;
   border-radius: 14px;
   padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.addressSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.addressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.addressLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2d2a26;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.switchesRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 18px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #ede8e1;
 }
 
 .controlCol {
@@ -25,6 +54,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.titleWithTooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .label {
@@ -41,16 +76,16 @@
 }
 
 .addressInput {
-  width: 100%;
-  max-width: 280px;
-  padding: 7px 11px;
+  width: 200px;
+  padding: 6px 10px;
   border: 1px solid #dcd7cd;
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   background: #ffffff;
   color: #2d2a26;
   box-sizing: border-box;
   transition: border-color 150ms ease;
+  flex-shrink: 0;
 }
 
 .addressInput:focus {
@@ -203,6 +238,28 @@
   font-size: 0.8125rem;
   color: #64748b;
   margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.noticeAction {
+  padding: 3px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 120ms ease;
+}
+
+.noticeAction:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
 }
 
 .triggerCards {
@@ -345,8 +402,9 @@
 }
 
 @media (max-width: 680px) {
-  .topControlsCard {
+  .switchesRow {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .triggerFooter {

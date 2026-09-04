@@ -16,6 +16,7 @@ import {
   type PetDialogueSettings,
 } from "@shared/dialogue-settings";
 import { DialogueLineEditor, type DialogueLineRowModel } from "./DialogueLineEditor";
+import { InfoTooltip } from "./Tooltip";
 import styles from "./DialogueSettingsEditor.module.css";
 
 interface GroupCheckboxProps {
@@ -57,6 +58,7 @@ export interface DialogueSettingsEditorProps {
   sleepingEnabled: boolean;
   validationAttempt: number;
   onChange: (settings: PetDialogueSettings) => void;
+  onBubblesChange?: (enabled: boolean) => void;
   onSave?: () => void;
   isBusy?: boolean;
   saveSuccess?: boolean;
@@ -72,6 +74,7 @@ export function DialogueSettingsEditor({
   sleepingEnabled,
   validationAttempt,
   onChange,
+  onBubblesChange,
   onSave,
   isBusy,
   saveSuccess,
@@ -432,29 +435,28 @@ export function DialogueSettingsEditor({
 
   return (
     <div className={styles.container}>
-      {/* Top Controls: Nickname & Dialogue Voice */}
+      {/* Top Controls: Nickname & Presentation Switches */}
       <div className={styles.topControlsCard}>
-        <div className={styles.controlCol}>
-          <div className={styles.labelRow}>
-            <label htmlFor="address-input" className={styles.label}>
+        {/* Row 1: Address (Single Row) */}
+        <div className={styles.addressSection}>
+          <div className={styles.addressRow}>
+            <label htmlFor="address-input" className={styles.addressLabel}>
               {petName ? `${petName}对你的称呼` : "对你的称呼"}
             </label>
+            <input
+              id="address-input"
+              type="text"
+              className={styles.addressInput}
+              value={settings.address}
+              maxLength={12}
+              onChange={(e) => handleAddressChange(e.currentTarget.value)}
+              onBlur={() => markFieldTouched("address")}
+              aria-invalid={Boolean(addressIssue)}
+              aria-describedby={addressIssue ? "address-input-error" : undefined}
+              placeholder="例如：小葡萄（可留空）"
+            />
+            <InfoTooltip text="在对白中插入“称呼”时使用；留空时不触发含称呼的对白。" />
           </div>
-          <input
-            id="address-input"
-            type="text"
-            className={styles.addressInput}
-            value={settings.address}
-            maxLength={12}
-            onChange={(e) => handleAddressChange(e.currentTarget.value)}
-            onBlur={() => markFieldTouched("address")}
-            aria-invalid={Boolean(addressIssue)}
-            aria-describedby={addressIssue ? "address-input-error" : "address-input-help"}
-            placeholder="例如：小葡萄（可留空）"
-          />
-          <p id="address-input-help" className={styles.supportingCopy}>
-            在对白中插入“称呼”时使用；留空时不触发含称呼的对白。
-          </p>
           {addressIssue && (
             <p id="address-input-error" className={styles.inlineError} role="alert">
               {addressIssue}
@@ -462,47 +464,78 @@ export function DialogueSettingsEditor({
           )}
         </div>
 
-        <div className={styles.controlCol}>
-          <div className={styles.labelRow}>
-            <span className={styles.label}>对白声音</span>
-            <div className={styles.voiceToggleRow}>
-              <span className={styles.switchStatus}>{settings.voiceEnabled ? "已启用" : "未启用"}</span>
-              <label className={styles.switch}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(settings.voiceEnabled)}
-                  onChange={(e) => handleVoiceToggle(e.target.checked)}
-                  aria-label="启用对白声音"
-                />
-                <span className={styles.slider} />
-              </label>
+        {/* Row 2: Presentation Switches */}
+        <div className={styles.switchesRow}>
+          <div className={styles.controlCol}>
+            <div className={styles.labelRow}>
+              <div className={styles.titleWithTooltip}>
+                <span className={styles.label}>日常对话气泡</span>
+                <InfoTooltip text="漫步与互动时冒出对白气泡；关闭后仅保留休息提醒。" />
+              </div>
+              <div className={styles.voiceToggleRow}>
+                <span className={styles.switchStatus}>{bubblesEnabled ? "已启用" : "未启用"}</span>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(bubblesEnabled)}
+                    onChange={(e) => onBubblesChange?.(e.target.checked)}
+                    aria-label="启用日常对话气泡"
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
             </div>
           </div>
-          <p className={styles.supportingCopy}>气泡弹出时播放录制或上传的声音；未配音的对白保持静音。</p>
 
-          {settings.voiceEnabled && (
-            <div className={styles.volumeWrap}>
-              <span className={styles.volumeLabel}>音量</span>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                className={styles.volumeSlider}
-                value={settings.voiceVolume ?? 0.8}
-                onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                aria-label="对白音量"
-              />
-              <span className={styles.volumePercent}>{Math.round((settings.voiceVolume ?? 0.8) * 100)}%</span>
+          <div className={styles.controlCol}>
+            <div className={styles.labelRow}>
+              <div className={styles.titleWithTooltip}>
+                <span className={styles.label}>对白声音</span>
+                <InfoTooltip text="气泡弹出时播放对应的声音。" />
+              </div>
+              <div className={styles.voiceToggleRow}>
+                <span className={styles.switchStatus}>{settings.voiceEnabled ? "已启用" : "未启用"}</span>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(settings.voiceEnabled)}
+                    onChange={(e) => handleVoiceToggle(e.target.checked)}
+                    aria-label="启用对白声音"
+                  />
+                  <span className={styles.slider} />
+                </label>
+              </div>
             </div>
-          )}
+
+            {settings.voiceEnabled && (
+              <div className={styles.volumeWrap}>
+                <span className={styles.volumeLabel}>音量</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  className={styles.volumeSlider}
+                  value={settings.voiceVolume ?? 0.8}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  aria-label="对白音量"
+                />
+                <span className={styles.volumePercent}>{Math.round((settings.voiceVolume ?? 0.8) * 100)}%</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Status Notice if feature is off */}
       {!bubblesEnabled && (
         <div className={styles.notice} role="status">
-          日常对话气泡已关闭；对白设置会保留，重新开启气泡后生效。
+          <span>日常对话气泡已关闭；对白设置会保留，重新开启气泡后生效。</span>
+          {onBubblesChange && (
+            <button type="button" className={styles.noticeAction} onClick={() => onBubblesChange(true)}>
+              开启气泡
+            </button>
+          )}
         </div>
       )}
       {selectedGroupId === "drowsy" && !drowsyEnabled && (

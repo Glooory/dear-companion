@@ -805,6 +805,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       sleepingEnabled={draft.lifeStates.sleeping.enabled}
                       validationAttempt={dialogueValidationAttempt}
                       onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
+                      onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
                       onSave={saveDraft}
                       isBusy={isBusy}
                       saveSuccess={saveSuccess}
@@ -859,11 +860,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       <section className="editor-section">
                         <CompanionPreferences
                           pace={draft.companionPace}
-                          bubblesEnabled={draft.interactionBubblesEnabled}
                           onPaceChange={(companionPace) => setDraft({ ...draft, companionPace })}
-                          onBubblesChange={(interactionBubblesEnabled) =>
-                            setDraft({ ...draft, interactionBubblesEnabled })
-                          }
                           onPreview={(pace) => {
                             void api.previewCompanionPace(pace).catch(() => toast.error("暂时无法预览，请稍后再试。"));
                           }}
