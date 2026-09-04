@@ -67,6 +67,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const {
     dialogue,
     show: showDialogue,
+    preview: previewDialogue,
     clear: clearDialogue,
   } = useDialogue(activePet?.interactionBubblesEnabled ?? true, activePet?.dialogueSettings, activePet?.id);
   useAudioPlayback(api, pageVisible);
@@ -396,11 +397,23 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           performCurrentPhotoAction("bounce", 850);
           return;
         }
+        if (request.type === "preview-dialogue") {
+          if (request.petId !== activePet.id) return;
+          previewDialogue({
+            text: request.text,
+            voiceAssetId: request.voiceAssetId,
+            voiceTrimStart: request.voiceTrimStart,
+            voiceTrimEnd: request.voiceTrimEnd,
+            voiceVolume: request.voiceVolume,
+          });
+          performCurrentPhotoAction("nod", 850);
+          return;
+        }
         if (request.pace === "quiet") performCurrentPhotoAction("gentle-breathe", 1_600);
         else if (request.pace === "natural") performCurrentPhotoAction("sway", 900);
         else performCurrentPhotoAction("bounce", 900);
       }),
-    [activePet, api, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue]
+    [activePet, api, baseAsset, lifeState, performCurrentPhotoAction, previewDialogue, runtimeActive, showDialogue]
   );
 
   useEffect(() => {

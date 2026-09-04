@@ -36,6 +36,7 @@ const api: ReleaseHardeningApi = {
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send(IPC_CHANNELS.setPetIgnoreMouseEvents, Boolean(ignore)),
   showPetContextMenu: () => ipcRenderer.send(IPC_CHANNELS.showPetContextMenu),
   previewCompanionPace: (pace) => ipcRenderer.invoke(IPC_CHANNELS.previewCompanionPace, pace),
+  previewDialogue: (preview) => ipcRenderer.invoke(IPC_CHANNELS.previewDialogue, preview),
   getBubbleSystemSnapshot: () => ipcRenderer.invoke(IPC_CHANNELS.getBubbleSystemSnapshot),
   setBubbleDialogue: (dialogue) => ipcRenderer.send(IPC_CHANNELS.setBubbleDialogue, dialogue),
   onPetSystemChanged: (listener) => {

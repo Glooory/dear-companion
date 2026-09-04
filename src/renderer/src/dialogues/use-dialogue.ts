@@ -11,6 +11,14 @@ import { VoicePlaybackCoordinator } from "./voice-playback-coordinator";
 
 export type DialogueTriggerKey = DialogueCategory | "system:crying" | "system:completion";
 
+export interface DialoguePreviewOptions {
+  text: string;
+  voiceAssetId?: string;
+  voiceTrimStart?: number;
+  voiceTrimEnd?: number;
+  voiceVolume?: number;
+}
+
 export function useDialogue(
   enabled: boolean,
   dialogueSettings?: PetDialogueSettings,
@@ -19,6 +27,7 @@ export function useDialogue(
   dialogue: string | null;
   show(category: DialogueTriggerKey | string, required?: boolean): string | null;
   show(category: string, lines: readonly string[], required?: boolean): string | null;
+  preview(options: DialoguePreviewOptions): void;
   clear(): void;
 } {
   const selector = useRef(new DialogueSelector());
@@ -121,6 +130,33 @@ export function useDialogue(
     [clear, dialogueSettings, enabled, petId, stopVoice, voicePlayback]
   );
 
+  const preview = useCallback(
+    (options: DialoguePreviewOptions): void => {
+      const trimmed = options.text.trim();
+      if (!trimmed) return;
+      clear();
+      setDialogue(trimmed);
+
+      if (petId && options.voiceAssetId) {
+        const volume = Math.max(0, Math.min(1, options.voiceVolume ?? dialogueSettings?.voiceVolume ?? 0.8));
+        voicePlayback.schedule(
+          `app://renderer/pet-voices/${encodeURIComponent(petId)}/${encodeURIComponent(options.voiceAssetId)}`,
+          volume,
+          80,
+          options.voiceTrimStart,
+          options.voiceTrimEnd
+        );
+      }
+
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        stopVoice();
+        setDialogue(null);
+      }, 2_800);
+    },
+    [clear, dialogueSettings?.voiceVolume, petId, stopVoice, voicePlayback]
+  );
+
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -130,5 +166,5 @@ export function useDialogue(
     [voicePlayback]
   );
 
-  return { dialogue, show, clear };
+  return { dialogue, show, preview, clear };
 }

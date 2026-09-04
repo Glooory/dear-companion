@@ -10,6 +10,7 @@ import {
   parseAutostartEnabledInput,
   parseAutostartStatus,
   parseCreateWorkScheduleInput,
+  parseDialoguePreviewRequest,
   parseHeadHotspot,
   parseManualLifeSelection,
   parsePetRendererStatus,
@@ -520,5 +521,52 @@ describe("settings contracts", () => {
 
     expect(() => parseHeadHotspot({ ...legacy, enabled: "yes" })).toThrow("Invalid head hotspot enabled state");
     expect(() => parseHeadHotspot({ ...legacy, extra: 1 })).toThrow("Invalid head hotspot");
+  });
+
+  it("parses valid dialogue preview request and rejects invalid payloads", () => {
+    const valid = {
+      petId: "pet-1",
+      text: "你好呀！",
+      voiceAssetId: "voice-1",
+      voiceTrimStart: 0.5,
+      voiceTrimEnd: 3.2,
+      voiceVolume: 0.8,
+    };
+    expect(parseDialoguePreviewRequest(valid)).toEqual(valid);
+
+    // Minimal valid
+    expect(parseDialoguePreviewRequest({ petId: "pet-1", text: "早安" })).toEqual({
+      petId: "pet-1",
+      text: "早安",
+      voiceAssetId: undefined,
+      voiceTrimStart: undefined,
+      voiceTrimEnd: undefined,
+      voiceVolume: undefined,
+    });
+
+    // Invalid non-record
+    expect(() => parseDialoguePreviewRequest(null)).toThrow("Invalid dialogue preview request");
+    expect(() => parseDialoguePreviewRequest("test")).toThrow("Invalid dialogue preview request");
+
+    // Invalid petId
+    expect(() => parseDialoguePreviewRequest({ petId: "../bad", text: "hello" })).toThrow("Invalid pet identifier");
+
+    // Invalid text
+    expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "" })).toThrow("Invalid preview text length");
+    expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "   " })).toThrow("Invalid preview text length");
+    expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: 123 })).toThrow("Invalid preview text");
+
+    // Invalid voiceTrim
+    expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "ok", voiceTrimStart: -1 })).toThrow(
+      "Invalid voice trim start"
+    );
+    expect(() =>
+      parseDialoguePreviewRequest({ petId: "pet-1", text: "ok", voiceTrimStart: 5, voiceTrimEnd: 4 })
+    ).toThrow("Voice trim end must be greater than trim start");
+
+    // Invalid volume
+    expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "ok", voiceVolume: 1.5 })).toThrow(
+      "Invalid voice volume"
+    );
   });
 });

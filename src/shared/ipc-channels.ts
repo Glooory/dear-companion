@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   setPetIgnoreMouseEvents: "pet-system:set-ignore-mouse-events",
   showPetContextMenu: "pet-system:show-context-menu",
   previewCompanionPace: "pet-system:preview-pace",
+  previewDialogue: "pet-system:preview-dialogue",
   getBubbleSystemSnapshot: "bubble:get-snapshot",
   setBubbleDialogue: "bubble:set-dialogue",
   bubbleSystemChanged: "bubble:system-changed",

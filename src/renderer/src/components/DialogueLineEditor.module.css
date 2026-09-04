@@ -202,10 +202,37 @@
     color 150ms ease;
 }
 
-.addVoiceBtn:hover {
+.previewBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px solid #dcd7cd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #55514b;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.previewBtn:hover {
   border-color: #3d7363;
   color: #2f5c4f;
-  background: rgba(61, 115, 99, 0.04);
+  background: rgba(61, 115, 99, 0.06);
+}
+
+.previewBtn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  border-color: #ede8e1;
+  color: #a8a29e;
 }
 
 .voiceUnavailable {

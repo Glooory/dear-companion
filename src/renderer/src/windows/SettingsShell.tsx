@@ -22,7 +22,7 @@ import {
   type Weekday,
   type WorkSchedule,
 } from "@shared/contracts";
-import { clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
+import { ADDRESS_PLACEHOLDER, clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
@@ -302,6 +302,48 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       setTimeout(() => setSaveSuccess(false), 2000);
       toast.success("伙伴设置已保存");
     });
+  };
+
+  const handlePreviewDialogue = (line: {
+    text: string;
+    voiceAssetId?: string;
+    voiceTrimStart?: number;
+    voiceTrimEnd?: number;
+  }): void => {
+    if (!selectedPet || !draft) return;
+    if (selectedPet.id !== snapshot?.activePetId) {
+      toast.warning("当前桌面伙伴不是正在编辑的伙伴。");
+      return;
+    }
+    if (!snapshot?.petWindow.visible) {
+      toast.warning("桌面伙伴处于隐藏状态。");
+      return;
+    }
+    if (restSnapshot?.runtime.session || restSnapshot?.runtime.prompt) {
+      toast.warning("伙伴正在休息中。");
+      return;
+    }
+    const rawText = line.text.trim();
+    if (!rawText) {
+      toast.warning("对白内容不能为空。");
+      return;
+    }
+    const address = draft.dialogueSettings.address.trim();
+    if (rawText.includes(ADDRESS_PLACEHOLDER) && !address) {
+      toast.warning("请先在上方设置称呼，再预览包含称呼的对白。");
+      return;
+    }
+    const resolvedText = rawText.replaceAll(ADDRESS_PLACEHOLDER, address);
+    void api
+      .previewDialogue({
+        petId: selectedPet.id,
+        text: resolvedText,
+        voiceAssetId: line.voiceAssetId,
+        voiceTrimStart: line.voiceTrimStart,
+        voiceTrimEnd: line.voiceTrimEnd,
+        voiceVolume: draft.dialogueSettings.voiceVolume,
+      })
+      .catch(() => toast.error("暂时无法预览，请稍后再试。"));
   };
 
   const switchActivePet = (petId: string): void => {
@@ -806,6 +848,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       validationAttempt={dialogueValidationAttempt}
                       onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
                       onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
+                      onPreviewDialogue={handlePreviewDialogue}
                       onSave={saveDraft}
                       isBusy={isBusy}
                       saveSuccess={saveSuccess}

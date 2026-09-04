@@ -20,6 +20,13 @@ export interface DialogueLineRowModel {
   readonly issue?: string;
 }
 
+export interface DialoguePreviewPayload {
+  readonly text: string;
+  readonly voiceAssetId?: string;
+  readonly voiceTrimStart?: number;
+  readonly voiceTrimEnd?: number;
+}
+
 export interface DialogueLineEditorProps {
   readonly petId: string;
   readonly row: DialogueLineRowModel;
@@ -28,6 +35,7 @@ export interface DialogueLineEditorProps {
   readonly onTextChange: (text: string) => void;
   readonly onToggleAutomatic: (enabled: boolean) => void;
   readonly onVoiceChange: (voiceAssetId: string | undefined, trimStart?: number, trimEnd?: number) => void;
+  readonly onPreview?: (payload: DialoguePreviewPayload) => void;
   readonly onRestore?: () => void;
   readonly onDelete?: () => void;
   readonly onInputFocus?: (el: HTMLInputElement) => void;
@@ -42,6 +50,7 @@ export function DialogueLineEditor({
   onTextChange,
   onToggleAutomatic,
   onVoiceChange,
+  onPreview,
   onRestore,
   onDelete,
   onInputFocus,
@@ -267,6 +276,27 @@ export function DialogueLineEditor({
                 <line x1="2" y1="6" x2="10" y2="6" />
               </svg>
               <span>声音</span>
+            </button>
+          )}
+
+          {onPreview && (
+            <button
+              type="button"
+              className={styles.previewBtn}
+              onClick={() => {
+                if (isPlayingVoice) {
+                  releaseAudition();
+                }
+                onPreview({
+                  text: row.currentText || row.defaultText || "",
+                  voiceAssetId: row.voiceAssetId,
+                  voiceTrimStart: row.voiceTrimStart,
+                  voiceTrimEnd: row.voiceTrimEnd,
+                });
+              }}
+              aria-label={`预览对白：${row.currentText || row.defaultText || "未命名对白"}`}
+            >
+              预览
             </button>
           )}
 

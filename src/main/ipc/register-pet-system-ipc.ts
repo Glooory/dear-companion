@@ -1,6 +1,7 @@
 import { dialog, ipcMain, Menu, type IpcMainEvent } from "electron";
 import {
   parseCompanionPace,
+  parseDialoguePreviewRequest,
   parsePetIdentifier,
   type AppSettings,
   type PetSystemSnapshot,
@@ -270,6 +271,19 @@ export function registerPetSystemIpc({
       requireSettingsSender(event.sender.id);
       const pace = parseCompanionPace(value);
       windowManager.requestPetInteraction({ type: "preview-pace", pace });
+    });
+    handle(IPC_CHANNELS.previewDialogue, (event, value: unknown) => {
+      requireSettingsSender(event.sender.id);
+      const preview = parseDialoguePreviewRequest(value);
+      windowManager.requestPetInteraction({
+        type: "preview-dialogue",
+        petId: preview.petId,
+        text: preview.text,
+        voiceAssetId: preview.voiceAssetId,
+        voiceTrimStart: preview.voiceTrimStart,
+        voiceTrimEnd: preview.voiceTrimEnd,
+        voiceVolume: preview.voiceVolume,
+      });
     });
 
     handle(IPC_CHANNELS.createPet, async (event, name: unknown) => {

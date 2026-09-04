@@ -59,6 +59,12 @@ export interface DialogueSettingsEditorProps {
   validationAttempt: number;
   onChange: (settings: PetDialogueSettings) => void;
   onBubblesChange?: (enabled: boolean) => void;
+  onPreviewDialogue?: (line: {
+    text: string;
+    voiceAssetId?: string;
+    voiceTrimStart?: number;
+    voiceTrimEnd?: number;
+  }) => void;
   onSave?: () => void;
   isBusy?: boolean;
   saveSuccess?: boolean;
@@ -75,6 +81,7 @@ export function DialogueSettingsEditor({
   validationAttempt,
   onChange,
   onBubblesChange,
+  onPreviewDialogue,
   onSave,
   isBusy,
   saveSuccess,
@@ -725,6 +732,7 @@ export function DialogueSettingsEditor({
                     onVoiceChange={(voiceId, trimStart, trimEnd) =>
                       updateLineVoice(trigger.id, row.id, voiceId, trimStart, trimEnd)
                     }
+                    onPreview={onPreviewDialogue}
                     onRestore={
                       row.source === "builtin" && row.isModified
                         ? () => handleRestoreBuiltIn(trigger.id, row.id)

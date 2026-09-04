@@ -170,7 +170,19 @@ export interface CompanionRuntimeSnapshot {
   available: { drowsy: boolean; sleeping: boolean };
 }
 
-export type PetInteractionRequest = { type: "play-now" } | { type: "preview-pace"; pace: CompanionPace };
+export interface DialoguePreviewRequest {
+  petId: string;
+  text: string;
+  voiceAssetId?: string;
+  voiceTrimStart?: number;
+  voiceTrimEnd?: number;
+  voiceVolume?: number;
+}
+
+export type PetInteractionRequest =
+  | { type: "play-now" }
+  | { type: "preview-pace"; pace: CompanionPace }
+  | ({ type: "preview-dialogue" } & DialoguePreviewRequest);
 
 export interface CompanionSystemSnapshot {
   workSchedules: readonly WorkSchedule[];
@@ -368,6 +380,7 @@ export interface PetSystemApi extends FoundationApi {
   setIgnoreMouseEvents(ignore: boolean): void;
   showPetContextMenu(): void;
   previewCompanionPace(pace: CompanionPace): Promise<void>;
+  previewDialogue(preview: DialoguePreviewRequest): Promise<void>;
   getBubbleSystemSnapshot(): Promise<BubbleSystemSnapshot>;
   setBubbleDialogue(dialogue: string | null): void;
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void;
@@ -655,6 +668,70 @@ export function parsePetName(value: unknown): string {
   const name = value.trim();
   if (name.length < 1 || name.length > 80) throw new Error("Invalid pet name");
   return name;
+}
+
+export function parseDialoguePreviewRequest(value: unknown): DialoguePreviewRequest {
+  if (!isRecord(value)) throw new Error("Invalid dialogue preview request");
+  const petId = parsePetIdentifier(value.petId);
+  if (typeof value.text !== "string") throw new Error("Invalid preview text");
+  const text = value.text.trim();
+  if (text.length < 1 || text.length > 500) throw new Error("Invalid preview text length");
+
+  let voiceAssetId: string | undefined;
+  if (value.voiceAssetId !== undefined && value.voiceAssetId !== null) {
+    voiceAssetId = parsePetIdentifier(value.voiceAssetId);
+  }
+
+  let voiceTrimStart: number | undefined;
+  if (value.voiceTrimStart !== undefined && value.voiceTrimStart !== null) {
+    if (
+      typeof value.voiceTrimStart !== "number" ||
+      !Number.isFinite(value.voiceTrimStart) ||
+      value.voiceTrimStart < 0 ||
+      value.voiceTrimStart > 60
+    ) {
+      throw new Error("Invalid voice trim start");
+    }
+    voiceTrimStart = value.voiceTrimStart;
+  }
+
+  let voiceTrimEnd: number | undefined;
+  if (value.voiceTrimEnd !== undefined && value.voiceTrimEnd !== null) {
+    if (
+      typeof value.voiceTrimEnd !== "number" ||
+      !Number.isFinite(value.voiceTrimEnd) ||
+      value.voiceTrimEnd < 0 ||
+      value.voiceTrimEnd > 60
+    ) {
+      throw new Error("Invalid voice trim end");
+    }
+    if (voiceTrimStart !== undefined && value.voiceTrimEnd <= voiceTrimStart) {
+      throw new Error("Voice trim end must be greater than trim start");
+    }
+    voiceTrimEnd = value.voiceTrimEnd;
+  }
+
+  let voiceVolume: number | undefined;
+  if (value.voiceVolume !== undefined && value.voiceVolume !== null) {
+    if (
+      typeof value.voiceVolume !== "number" ||
+      !Number.isFinite(value.voiceVolume) ||
+      value.voiceVolume < 0 ||
+      value.voiceVolume > 1
+    ) {
+      throw new Error("Invalid voice volume");
+    }
+    voiceVolume = value.voiceVolume;
+  }
+
+  return {
+    petId,
+    text,
+    voiceAssetId,
+    voiceTrimStart,
+    voiceTrimEnd,
+    voiceVolume,
+  };
 }
 
 export function parsePetUpdateInput(value: unknown, availableAssetIds: readonly string[]): PetUpdateInput {
