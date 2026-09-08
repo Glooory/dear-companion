@@ -125,6 +125,11 @@ function createOccurrence(
     cursorTolerance: schedule.cursorTolerance,
     message: schedule.message,
     sounds: { ...schedule.sounds },
+    ...(schedule.voiceAssetId ? { voiceAssetId: schedule.voiceAssetId } : {}),
+    ...(schedule.voiceAssetId && schedule.voiceTrimStart !== undefined
+      ? { voiceTrimStart: schedule.voiceTrimStart }
+      : {}),
+    ...(schedule.voiceAssetId && schedule.voiceTrimEnd !== undefined ? { voiceTrimEnd: schedule.voiceTrimEnd } : {}),
   };
 }
 

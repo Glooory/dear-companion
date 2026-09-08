@@ -1,4 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+import { clsx } from "clsx";
 import type { CreateReminderInput, CursorTolerance } from "@shared/contracts";
+import { VoiceRecorderPopover } from "./VoiceRecorderPopover";
 import { WeekdayPicker } from "./WeekdayPicker";
 import styles from "./ReminderEditor.module.css";
 
@@ -18,6 +21,147 @@ interface Props {
 }
 
 export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, onDelete }: Props): React.JSX.Element {
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [failedVoiceId, setFailedVoiceId] = useState<string | null>(null);
+  const [isVoiceMissing, setIsVoiceMissing] = useState(false);
+  const [prevVoiceAssetId, setPrevVoiceAssetId] = useState(value.voiceAssetId);
+  if (value.voiceAssetId !== prevVoiceAssetId) {
+    setPrevVoiceAssetId(value.voiceAssetId);
+    setFailedVoiceId(null);
+    setIsVoiceMissing(false);
+    setIsPlayingVoice(false);
+  }
+  const [showRecorder, setShowRecorder] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const releaseAudition = (audio = audioRef.current): void => {
+    if (!audio) return;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (audioRef.current === audio) audioRef.current = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.pause();
+    audio.src = "";
+    setIsPlayingVoice(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      if (audioRef.current) {
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, [value.voiceAssetId]);
+
+  useEffect(() => {
+    if (disabled && isPlayingVoice) {
+      releaseAudition();
+    }
+  }, [disabled, isPlayingVoice]);
+
+  useEffect(() => {
+    if (!value.voiceAssetId) return;
+    let cancelled = false;
+    const assetId = value.voiceAssetId;
+    window.dearCompanion
+      .getReminderVoiceAvailability([assetId])
+      .then((avail) => {
+        if (!cancelled) {
+          setIsVoiceMissing(!avail[assetId]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setIsVoiceMissing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value.voiceAssetId]);
+
+  const voiceUnavailable = isVoiceMissing || failedVoiceId === value.voiceAssetId;
+
+  const toggleVoiceAudition = (): void => {
+    if (!value.voiceAssetId) return;
+    if (isPlayingVoice && audioRef.current) {
+      releaseAudition();
+      return;
+    }
+    if (audioRef.current) {
+      releaseAudition();
+    }
+    const url = `app://renderer/reminder-voices/${encodeURIComponent(value.voiceAssetId)}`;
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audioRef.current = audio;
+
+    const trimStart = value.voiceTrimStart ?? 0;
+    const trimEnd = value.voiceTrimEnd;
+
+    const checkTrim = (): void => {
+      if (!audioRef.current || audioRef.current !== audio) return;
+      if (trimEnd !== undefined && audio.currentTime >= trimEnd) {
+        releaseAudition(audio);
+        return;
+      }
+      rafRef.current = requestAnimationFrame(checkTrim);
+    };
+
+    audio.onended = () => releaseAudition(audio);
+    audio.onerror = () => {
+      releaseAudition(audio);
+      setFailedVoiceId(value.voiceAssetId ?? null);
+    };
+
+    const applySeekAndPlay = (): void => {
+      if (!audioRef.current || audioRef.current !== audio) return;
+      if (trimStart > 0) {
+        try {
+          audio.currentTime = trimStart;
+        } catch {
+          // Seek will be reapplied once playback starts if metadata is not ready yet
+        }
+      }
+      void audio
+        .play()
+        .then(() => {
+          if (!audioRef.current || audioRef.current !== audio) return;
+          if (trimStart > 0 && audio.currentTime < trimStart) {
+            audio.currentTime = trimStart;
+          }
+          setFailedVoiceId(null);
+          setIsPlayingVoice(true);
+          if (trimEnd !== undefined) {
+            rafRef.current = requestAnimationFrame(checkTrim);
+          }
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+          releaseAudition(audio);
+          setFailedVoiceId(value.voiceAssetId ?? null);
+        });
+    };
+
+    if (trimStart > 0 && audio.readyState < 1) {
+      audio.addEventListener("loadedmetadata", applySeekAndPlay, { once: true });
+    } else {
+      applySeekAndPlay();
+    }
+  };
+
   const timeValue =
     value.hour === null || value.minute === null
       ? ""
@@ -92,7 +236,90 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
       </div>
 
       <div className={styles.sectionCard}>
-        <h3 className={styles.sectionTitle}>提醒内容</h3>
+        <div className={styles.sectionHeaderRow}>
+          <h3 className={styles.sectionTitle}>提醒内容</h3>
+          <div className={styles.voiceSlot}>
+            {value.voiceAssetId ? (
+              <div className={styles.voiceCapsule}>
+                <button
+                  type="button"
+                  className={clsx(styles.voicePlayBtn, voiceUnavailable && styles.voiceUnavailable)}
+                  disabled={disabled}
+                  onClick={toggleVoiceAudition}
+                  aria-label={isPlayingVoice ? "停止试听" : "试听对白语音"}
+                  title={voiceUnavailable ? "对白语音文件缺失" : isPlayingVoice ? "停止试听" : "试听对白语音"}
+                >
+                  {isPlayingVoice ? (
+                    <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true">
+                      <rect x="2" y="2" width="3" height="8" rx="0.5" />
+                      <rect x="7" y="2" width="3" height="8" rx="0.5" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true">
+                      <path d="M3 2.5v7l6-3.5-6-3.5z" />
+                    </svg>
+                  )}
+                  <span>{isPlayingVoice ? "停止" : "试听"}</span>
+                </button>
+                <button
+                  type="button"
+                  className={styles.voiceActionBtn}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (isPlayingVoice) releaseAudition();
+                    setShowRecorder(true);
+                  }}
+                  aria-label="编辑对白语音"
+                >
+                  编辑
+                </button>
+                <button
+                  type="button"
+                  className={styles.voiceDeleteBtn}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (isPlayingVoice) releaseAudition();
+                    onChange({
+                      ...value,
+                      voiceAssetId: undefined,
+                      voiceTrimStart: undefined,
+                      voiceTrimEnd: undefined,
+                    });
+                  }}
+                  aria-label="删除对白语音"
+                >
+                  删除
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={styles.addVoiceBtn}
+                disabled={disabled}
+                onClick={() => {
+                  if (isPlayingVoice) releaseAudition();
+                  setShowRecorder(true);
+                }}
+                aria-label="添加对白语音"
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  width="10"
+                  height="10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <line x1="6" y1="2" x2="6" y2="10" />
+                  <line x1="2" y1="6" x2="10" y2="6" />
+                </svg>
+                <span>对白语音</span>
+              </button>
+            )}
+          </div>
+        </div>
         <label className={styles.messageField}>
           <span>提醒气泡文案</span>
           <textarea
@@ -130,9 +357,13 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
                   })
                 }
               />
-              <strong>播放休息提示音</strong>
+              <strong>{value.voiceAssetId ? "播放对白语音" : "播放休息提示音"}</strong>
             </div>
-            <span className={styles.toggleSubtext}>到点弹出提醒气泡时发出提示音</span>
+            <span className={styles.toggleSubtext}>
+              {value.voiceAssetId
+                ? "到点弹出提醒气泡时播放上方录制的对白语音（替代默认提示音）"
+                : "到点弹出提醒气泡时播放默认提示铃声"}
+            </span>
           </label>
           <label className={styles.toggleDetailed}>
             <div className={styles.toggleMain}>
@@ -166,6 +397,28 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
           保存提醒
         </button>
       </div>
+
+      {showRecorder && (
+        <VoiceRecorderPopover
+          target="reminder"
+          dialogueText={value.message || "休息一会儿吧。"}
+          mode={value.voiceAssetId ? "replace" : "add"}
+          volume={1.0}
+          initialVoiceAssetId={value.voiceAssetId}
+          initialTrimStart={value.voiceTrimStart}
+          initialTrimEnd={value.voiceTrimEnd}
+          onSave={(voiceId, trimStart, trimEnd) => {
+            onChange({
+              ...value,
+              voiceAssetId: voiceId,
+              voiceTrimStart: trimStart,
+              voiceTrimEnd: trimEnd,
+              sounds: { ...value.sounds, reminder: true },
+            });
+          }}
+          onClose={() => setShowRecorder(false)}
+        />
+      )}
     </div>
   );
 }

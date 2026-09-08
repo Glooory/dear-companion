@@ -466,6 +466,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       cursorTolerance: draftValue.cursorTolerance,
       message: draftValue.message,
       sounds: { ...draftValue.sounds },
+      voiceAssetId: draftValue.voiceAssetId,
+      voiceTrimStart: draftValue.voiceTrimStart,
+      voiceTrimEnd: draftValue.voiceTrimEnd,
     };
     void runMutation(async () => {
       const isEditing = Boolean(draftValue.id);
@@ -1016,7 +1019,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <p className={styles.emptyState}>暂无休息提醒。</p>
               ) : (
                 restSnapshot.reminders.map((reminder) => {
-                  const soundBadge = formatSoundBadge(reminder.sounds);
+                  const soundBadge = formatSoundBadge(reminder);
                   return (
                     <div
                       className={clsx(styles.reminderRow, !reminder.enabled && styles.reminderDisabled)}
@@ -1323,9 +1326,16 @@ function formatTolerance(tolerance: CursorTolerance): string {
   }
 }
 
-function formatSoundBadge(sounds: { reminder: boolean; crying: boolean }): { label: string; enabled: boolean } {
+function formatSoundBadge(reminder: Pick<ReminderSchedule, "sounds" | "voiceAssetId">): {
+  label: string;
+  enabled: boolean;
+} {
+  const { sounds, voiceAssetId } = reminder;
+  const hasVoice = Boolean(voiceAssetId) && sounds.reminder;
+  if (hasVoice && sounds.crying) return { label: "🎙️ 对白语音+督促音", enabled: true };
+  if (hasVoice) return { label: "🎙️ 对白语音", enabled: true };
   if (sounds.reminder && sounds.crying) return { label: "🔔 提示音+督促音", enabled: true };
-  if (sounds.reminder) return { label: "🔔 提示音开启", enabled: true };
-  if (sounds.crying) return { label: "🔔 督促音开启", enabled: true };
+  if (sounds.reminder) return { label: "🔔 提示音", enabled: true };
+  if (sounds.crying) return { label: "🔔 仅督促音", enabled: true };
   return { label: "🔕 静音", enabled: false };
 }

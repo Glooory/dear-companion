@@ -15,24 +15,122 @@ export function useAudioPlayback(
         cancelCurrent = playBuiltIn(request.cue);
         return;
       }
+      if (request.source.kind === "reminder-voice") {
+        const { voiceAssetId, voiceTrimStart, voiceTrimEnd } = request.source;
+        const audio = new Audio(`app://renderer/reminder-voices/${encodeURIComponent(voiceAssetId)}`);
+        let fallbackPlayed = false;
+        let cancelFallback: (() => void) | null = null;
+        const trimStart = voiceTrimStart ?? 0;
+        const trimEnd = voiceTrimEnd;
+        let rafId: number | null = null;
+        let timeoutId: number | null = null;
+
+        const cleanupAudio = (): void => {
+          if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          if (timeoutId !== null) {
+            window.clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          audio.removeEventListener("loadedmetadata", applySeekAndPlay);
+          audio.removeEventListener("error", fail);
+          audio.pause();
+          audio.src = "";
+        };
+
+        timeoutId = window.setTimeout(() => {
+          cleanupAudio();
+        }, request.maxDurationMs);
+
+        const fail = (): void => {
+          if (fallbackPlayed) return;
+          fallbackPlayed = true;
+          cleanupAudio();
+          cancelFallback = playBuiltIn(request.cue);
+          api.reportAudioPlaybackFailure(request.requestId, voiceAssetId);
+        };
+
+        const checkTrim = (): void => {
+          if (trimEnd !== undefined && audio.currentTime >= trimEnd) {
+            cleanupAudio();
+            return;
+          }
+          rafId = requestAnimationFrame(checkTrim);
+        };
+
+        const applySeekAndPlay = (): void => {
+          if (trimStart > 0) {
+            try {
+              audio.currentTime = trimStart;
+            } catch {
+              // Seek will be reapplied once playback starts if metadata is not ready yet
+            }
+          }
+          void audio
+            .play()
+            .then(() => {
+              if (trimStart > 0 && audio.currentTime < trimStart) audio.currentTime = trimStart;
+              if (trimEnd !== undefined) rafId = requestAnimationFrame(checkTrim);
+            })
+            .catch(fail);
+        };
+
+        audio.addEventListener("error", fail, { once: true });
+        audio.addEventListener("ended", () => {
+          cleanupAudio();
+        }, { once: true });
+
+        if (trimStart > 0 && audio.readyState < 1) {
+          audio.addEventListener("loadedmetadata", applySeekAndPlay, { once: true });
+        } else {
+          applySeekAndPlay();
+        }
+
+        cancelCurrent = () => {
+          cleanupAudio();
+          cancelFallback?.();
+        };
+        return;
+      }
       const assetId = request.source.assetId;
       const audio = new Audio(`app://renderer/audio-assets/${encodeURIComponent(assetId)}`);
       let fallbackPlayed = false;
-      const timeout = window.setTimeout(() => audio.pause(), request.maxDurationMs);
-      const fail = (): void => {
-        if (fallbackPlayed) return;
-        fallbackPlayed = true;
-        audio.pause();
-        playBuiltIn(request.cue);
-        api.reportAudioPlaybackFailure(request.requestId, assetId);
-      };
-      audio.addEventListener("error", fail, { once: true });
-      void audio.play().catch(fail);
-      cancelCurrent = () => {
-        window.clearTimeout(timeout);
+      let cancelFallback: (() => void) | null = null;
+      let timeoutId: number | null = null;
+
+      const cleanupAudio = (): void => {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         audio.removeEventListener("error", fail);
         audio.pause();
         audio.src = "";
+      };
+
+      timeoutId = window.setTimeout(() => {
+        cleanupAudio();
+      }, request.maxDurationMs);
+
+      const fail = (): void => {
+        if (fallbackPlayed) return;
+        fallbackPlayed = true;
+        cleanupAudio();
+        cancelFallback = playBuiltIn(request.cue);
+        api.reportAudioPlaybackFailure(request.requestId, assetId);
+      };
+
+      audio.addEventListener("error", fail, { once: true });
+      audio.addEventListener("ended", () => {
+        cleanupAudio();
+      }, { once: true });
+
+      void audio.play().catch(fail);
+      cancelCurrent = () => {
+        cleanupAudio();
+        cancelFallback?.();
       };
     });
     return () => {

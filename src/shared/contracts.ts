@@ -25,6 +25,9 @@ export interface ReminderSchedule {
   cursorTolerance: CursorTolerance;
   message: string;
   sounds: ReminderSounds;
+  voiceAssetId?: string;
+  voiceTrimStart?: number;
+  voiceTrimEnd?: number;
 }
 
 export interface AudioAsset {
@@ -212,6 +215,9 @@ export interface ReminderOccurrence {
   cursorTolerance: CursorTolerance;
   message: string;
   sounds: ReminderSounds;
+  voiceAssetId?: string;
+  voiceTrimStart?: number;
+  voiceTrimEnd?: number;
 }
 
 export interface ReminderPrompt extends ReminderOccurrence {
@@ -265,10 +271,19 @@ export interface AudioImportResult {
   failures: readonly AudioImportFailure[];
 }
 
+export type AudioPlaybackSource =
+  | AudioSource
+  | {
+      kind: "reminder-voice";
+      voiceAssetId: string;
+      voiceTrimStart?: number;
+      voiceTrimEnd?: number;
+    };
+
 export interface AudioPlaybackRequest {
   requestId: string;
   cue: "reminder" | "crying";
-  source: AudioSource;
+  source: AudioPlaybackSource;
   maxDurationMs: 30_000;
 }
 
@@ -417,6 +432,10 @@ export interface RestSystemApi extends CompanionSystemApi {
   chooseAndImportAudio(): Promise<AudioImportResult>;
   updateAudioSources(input: AudioSourceInput): Promise<RestSystemSnapshot>;
   reportAudioPlaybackFailure(requestId: string, assetId: string | null): void;
+  saveReminderVoice(data: Uint8Array, extension: string): Promise<{ voiceId: string }>;
+  pickReminderVoiceSource(): Promise<{ data: Uint8Array; ext: string } | null>;
+  getReminderVoice(voiceId: string): Promise<{ data: Uint8Array; ext: string } | null>;
+  getReminderVoiceAvailability(voiceIds: readonly string[]): Promise<Record<string, boolean>>;
   onRestSystemChanged(listener: (snapshot: RestSystemSnapshot) => void): () => void;
   onAudioPlaybackRequested(listener: (request: AudioPlaybackRequest) => void): () => void;
 }
@@ -556,21 +575,40 @@ export function migrateAppSettings(value: unknown): SettingsMigrationResult {
 
 export function parseCreateReminderInput(value: unknown): CreateReminderInput {
   if (!isRecord(value)) throw new Error("Invalid reminder input");
-  assertExactKeys(
-    value,
-    ["enabled", "hour", "minute", "weekdays", "restDurationMinutes", "cursorTolerance", "message", "sounds"],
-    "Invalid reminder input"
-  );
+  const allowedKeys = [
+    "enabled",
+    "hour",
+    "minute",
+    "weekdays",
+    "restDurationMinutes",
+    "cursorTolerance",
+    "message",
+    "sounds",
+  ];
+  if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+  if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+  if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+  assertExactKeys(value, allowedKeys, "Invalid reminder input");
   return parseReminderFields(value);
 }
 
 export function parseUpdateReminderInput(value: unknown): UpdateReminderInput {
   if (!isRecord(value)) throw new Error("Invalid reminder input");
-  assertExactKeys(
-    value,
-    ["id", "enabled", "hour", "minute", "weekdays", "restDurationMinutes", "cursorTolerance", "message", "sounds"],
-    "Invalid reminder input"
-  );
+  const allowedKeys = [
+    "id",
+    "enabled",
+    "hour",
+    "minute",
+    "weekdays",
+    "restDurationMinutes",
+    "cursorTolerance",
+    "message",
+    "sounds",
+  ];
+  if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+  if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+  if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+  assertExactKeys(value, allowedKeys, "Invalid reminder input");
   return { id: parsePetIdentifier(value.id), ...parseReminderFields(value) };
 }
 
@@ -702,12 +740,13 @@ export function parseDialoguePreviewRequest(value: unknown): DialoguePreviewRequ
     if (
       typeof value.voiceTrimEnd !== "number" ||
       !Number.isFinite(value.voiceTrimEnd) ||
-      value.voiceTrimEnd < 0 ||
+      value.voiceTrimEnd <= 0 ||
       value.voiceTrimEnd > 60
     ) {
       throw new Error("Invalid voice trim end");
     }
-    if (voiceTrimStart !== undefined && value.voiceTrimEnd <= voiceTrimStart) {
+    const start = voiceTrimStart ?? 0;
+    if (value.voiceTrimEnd <= start) {
       throw new Error("Voice trim end must be greater than trim start");
     }
     voiceTrimEnd = value.voiceTrimEnd;
@@ -883,11 +922,21 @@ function validateActivePet(activePetId: string | null, pets: readonly Pick<PetCo
 
 function parseReminderSchedule(value: unknown): ReminderSchedule {
   if (!isRecord(value)) throw new Error("Invalid reminder schedule");
-  assertExactKeys(
-    value,
-    ["id", "enabled", "hour", "minute", "weekdays", "restDurationMinutes", "cursorTolerance", "message", "sounds"],
-    "Invalid reminder schedule"
-  );
+  const allowedKeys = [
+    "id",
+    "enabled",
+    "hour",
+    "minute",
+    "weekdays",
+    "restDurationMinutes",
+    "cursorTolerance",
+    "message",
+    "sounds",
+  ];
+  if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+  if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+  if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+  assertExactKeys(value, allowedKeys, "Invalid reminder schedule");
   return { id: parsePetIdentifier(value.id), ...parseReminderFields(value) };
 }
 
@@ -922,6 +971,46 @@ function parseReminderFields(value: Record<string, unknown>): CreateReminderInpu
   if (typeof value.sounds.reminder !== "boolean" || typeof value.sounds.crying !== "boolean") {
     throw new Error("Invalid reminder sounds");
   }
+
+  let voiceAssetId: string | undefined;
+  if (value.voiceAssetId !== undefined && value.voiceAssetId !== null) {
+    voiceAssetId = parsePetIdentifier(value.voiceAssetId);
+  }
+
+  let voiceTrimStart: number | undefined;
+  if (value.voiceTrimStart !== undefined && value.voiceTrimStart !== null) {
+    if (
+      typeof value.voiceTrimStart !== "number" ||
+      !Number.isFinite(value.voiceTrimStart) ||
+      value.voiceTrimStart < 0 ||
+      value.voiceTrimStart > 60
+    ) {
+      throw new Error("Invalid reminder voiceTrimStart");
+    }
+    voiceTrimStart = value.voiceTrimStart;
+  }
+
+  let voiceTrimEnd: number | undefined;
+  if (value.voiceTrimEnd !== undefined && value.voiceTrimEnd !== null) {
+    if (
+      typeof value.voiceTrimEnd !== "number" ||
+      !Number.isFinite(value.voiceTrimEnd) ||
+      value.voiceTrimEnd <= 0 ||
+      value.voiceTrimEnd > 60
+    ) {
+      throw new Error("Invalid reminder voiceTrimEnd");
+    }
+    const start = voiceTrimStart ?? 0;
+    if (value.voiceTrimEnd <= start) {
+      throw new Error("voiceTrimEnd must be greater than voiceTrimStart");
+    }
+    voiceTrimEnd = value.voiceTrimEnd;
+  }
+
+  if ((voiceTrimStart !== undefined || voiceTrimEnd !== undefined) && !voiceAssetId) {
+    throw new Error("voiceTrimStart and voiceTrimEnd require voiceAssetId");
+  }
+
   return {
     enabled: value.enabled,
     hour: value.hour,
@@ -931,6 +1020,9 @@ function parseReminderFields(value: Record<string, unknown>): CreateReminderInpu
     cursorTolerance: value.cursorTolerance,
     message,
     sounds: { reminder: value.sounds.reminder, crying: value.sounds.crying },
+    ...(voiceAssetId ? { voiceAssetId } : {}),
+    ...(voiceAssetId && voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
+    ...(voiceAssetId && voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
   };
 }
 

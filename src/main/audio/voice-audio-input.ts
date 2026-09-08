@@ -1,4 +1,8 @@
+import { open } from "node:fs/promises";
+
 export type VoiceAudioFormat = "mp3" | "wav" | "ogg" | "webm" | "m4a";
+
+export const ALLOWED_VOICE_EXTENSIONS = new Set<VoiceAudioFormat>(["mp3", "wav", "ogg", "webm", "m4a"]);
 
 export const MAX_VOICE_AUDIO_BYTES = 5 * 1024 * 1024;
 
@@ -68,4 +72,22 @@ export function detectVoiceAudioFormat(bytes: Uint8Array): VoiceAudioFormat | nu
 
 function ascii(bytes: Uint8Array, offset: number, length: number): string {
   return String.fromCharCode(...bytes.subarray(offset, offset + length));
+}
+
+export async function readVoiceSourceFile(sourcePath: string): Promise<Buffer> {
+  let file;
+  try {
+    file = await open(sourcePath, "r");
+    const fileStat = await file.stat();
+    if (!fileStat.isFile()) throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+    validateVoiceAudioFileSize(fileStat.size);
+    const bytes = await file.readFile();
+    validateVoiceAudioFileSize(bytes.byteLength);
+    return bytes;
+  } catch (error) {
+    if (error instanceof VoiceAudioInputError) throw error;
+    throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+  } finally {
+    await file?.close().catch(() => undefined);
+  }
 }

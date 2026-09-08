@@ -20,7 +20,17 @@ interface Dependencies {
   settingsStore: Pick<SettingsStore, "load" | "update">;
   scheduler: Pick<ReminderScheduler, "refresh" | "getActivePrompt" | "resolvePrompt" | "snooze">;
   restController: Pick<RestSessionController, "startFromPrompt" | "endManually" | "getSnapshot">;
-  audioService: Pick<AudioService, "importAssets" | "updateSources" | "reportPlaybackFailure">;
+  audioService: Pick<
+    AudioService,
+    | "importAssets"
+    | "updateSources"
+    | "reportPlaybackFailure"
+    | "saveReminderVoice"
+    | "readReminderVoiceSource"
+    | "readReminderVoice"
+    | "getReminderVoiceAvailability"
+    | "cleanupUnreferencedReminderVoices"
+  >;
   windowManager: Pick<WindowManager, "getWindowKind" | "getOwnedWindow" | "broadcastRestSystemChanged">;
   getRuntimeSnapshot(): RestRuntimeSnapshot;
   idFactory?: () => string;
@@ -30,14 +40,25 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
   const handled: string[] = [];
   let active = true;
   const idFactory = dependencies.idFactory ?? randomUUID;
+  const voiceDraftOwners = new Set<number>();
+
+  const trackVoiceDraftOwner = (sender: Electron.WebContents): void => {
+    if (voiceDraftOwners.has(sender.id)) return;
+    voiceDraftOwners.add(sender.id);
+    sender.once("destroyed", () => {
+      voiceDraftOwners.delete(sender.id);
+      void dependencies.audioService.cleanupUnreferencedReminderVoices().catch(() => undefined);
+    });
+  };
 
   const requireSettings = (senderId: number): void => {
     if (dependencies.windowManager.getWindowKind(senderId) !== "settings")
       throw new Error("This operation is available only from settings");
   };
-  const requirePet = (senderId: number): void => {
-    if (dependencies.windowManager.getWindowKind(senderId) !== "pet")
-      throw new Error("This operation is available only from the pet window");
+  const requirePetOrBubble = (senderId: number): void => {
+    const kind = dependencies.windowManager.getWindowKind(senderId);
+    if (kind !== "pet" && kind !== "bubble")
+      throw new Error("This operation is available only from the pet or bubble window");
   };
   const snapshot = async (): Promise<RestSystemSnapshot> =>
     createRestSystemSnapshot(await dependencies.settingsStore.load(), dependencies.getRuntimeSnapshot());
@@ -57,11 +78,13 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
 
   const playbackFailureListener = (event: IpcMainEvent, requestId: unknown, assetId: unknown): void => {
     try {
-      requirePet(event.sender.id);
+      requirePetOrBubble(event.sender.id);
       if (!isSafeIdentifier(requestId) || (assetId !== null && !isSafeIdentifier(assetId))) return;
       void dependencies.audioService
         .reportPlaybackFailure(requestId, assetId)
-        .then(() => broadcast())
+        .then((changed) => {
+          if (changed) void broadcast();
+        })
         .catch(() => undefined);
     } catch {
       // Stale and unowned renderers receive no privileged operation.
@@ -81,6 +104,7 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
         const id = createUniqueId(idFactory, used);
         return { ...current, reminders: [...current.reminders, { id, ...input, enabled: true }] };
       });
+      void dependencies.audioService.cleanupUnreferencedReminderVoices().catch(() => undefined);
       return refreshAndBroadcast();
     });
     handle(IPC_CHANNELS.updateReminder, async (event, value: unknown) => {
@@ -90,6 +114,7 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
         if (!current.reminders.some((item) => item.id === input.id)) throw new Error("Reminder does not exist");
         return { ...current, reminders: current.reminders.map((item) => (item.id === input.id ? input : item)) };
       });
+      void dependencies.audioService.cleanupUnreferencedReminderVoices().catch(() => undefined);
       return refreshAndBroadcast();
     });
     handle(IPC_CHANNELS.deleteReminder, async (event, idValue: unknown) => {
@@ -99,6 +124,7 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
         if (!current.reminders.some((item) => item.id === id)) throw new Error("Reminder does not exist");
         return { ...current, reminders: current.reminders.filter((item) => item.id !== id) };
       });
+      void dependencies.audioService.cleanupUnreferencedReminderVoices().catch(() => undefined);
       return refreshAndBroadcast();
     });
     handle(IPC_CHANNELS.setReminderEnabled, async (event, idValue: unknown, enabled: unknown) => {
@@ -119,7 +145,7 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
       return refreshAndBroadcast();
     });
     handle(IPC_CHANNELS.startPromptedRest, async (event, occurrenceIdValue: unknown) => {
-      requirePet(event.sender.id);
+      requirePetOrBubble(event.sender.id);
       const occurrenceId = parseOccurrenceId(occurrenceIdValue);
       const prompt = dependencies.scheduler.getActivePrompt();
       if (!prompt || prompt.occurrenceId !== occurrenceId) throw new Error("Reminder prompt is not active");
@@ -127,20 +153,20 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
       return broadcast();
     });
     handle(IPC_CHANNELS.snoozePrompt, async (event, occurrenceIdValue: unknown, minutes: unknown) => {
-      requirePet(event.sender.id);
+      requirePetOrBubble(event.sender.id);
       const occurrenceId = parseOccurrenceId(occurrenceIdValue);
       if (minutes !== 5 && minutes !== 10 && minutes !== 15) throw new Error("Invalid snooze duration");
       dependencies.scheduler.snooze(occurrenceId, minutes);
       return broadcast();
     });
     handle(IPC_CHANNELS.skipPrompt, async (event, occurrenceIdValue: unknown) => {
-      requirePet(event.sender.id);
+      requirePetOrBubble(event.sender.id);
       const occurrenceId = parseOccurrenceId(occurrenceIdValue);
       dependencies.scheduler.resolvePrompt(occurrenceId);
       return broadcast();
     });
     handle(IPC_CHANNELS.endRestSession, async (event) => {
-      requirePet(event.sender.id);
+      requirePetOrBubble(event.sender.id);
       if (!dependencies.restController.getSnapshot().session) throw new Error("No rest session is active");
       dependencies.restController.endManually();
       return broadcast();
@@ -163,6 +189,37 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
       await dependencies.audioService.updateSources(value);
       return broadcast();
     });
+    handle(IPC_CHANNELS.saveReminderVoice, async (event, data: unknown, extension: unknown) => {
+      requireSettings(event.sender.id);
+      if (!(data instanceof Uint8Array)) throw new Error("Invalid audio buffer");
+      if (typeof extension !== "string") throw new Error("Invalid extension");
+      trackVoiceDraftOwner(event.sender);
+      return dependencies.audioService.saveReminderVoice(Buffer.from(data), extension);
+    });
+    handle(IPC_CHANNELS.pickReminderVoiceSource, async (event) => {
+      requireSettings(event.sender.id);
+      const owner = dependencies.windowManager.getOwnedWindow(event.sender.id);
+      const selection = await dialog.showOpenDialog(owner, {
+        title: "选择提醒声音",
+        properties: ["openFile"],
+        filters: [{ name: "音频文件", extensions: ["mp3", "wav", "m4a", "ogg", "webm"] }],
+      });
+      if (selection.canceled || selection.filePaths.length === 0) return null;
+      const result = await dependencies.audioService.readReminderVoiceSource(selection.filePaths[0]!);
+      return { data: new Uint8Array(result.buffer), ext: result.ext };
+    });
+    handle(IPC_CHANNELS.getReminderVoice, async (event, voiceId: unknown) => {
+      requireSettings(event.sender.id);
+      const validatedVoiceId = parsePetIdentifier(voiceId);
+      return dependencies.audioService.readReminderVoice(validatedVoiceId);
+    });
+    handle(IPC_CHANNELS.getReminderVoiceAvailability, async (event, voiceIds: unknown) => {
+      requireSettings(event.sender.id);
+      if (!Array.isArray(voiceIds) || voiceIds.length > 128 || !voiceIds.every(isSafeIdentifier)) {
+        throw new Error("Invalid voice identifiers");
+      }
+      return dependencies.audioService.getReminderVoiceAvailability(voiceIds);
+    });
     ipcMain.on(IPC_CHANNELS.reportAudioPlaybackFailure, playbackFailureListener);
   } catch (error) {
     for (const channel of handled) ipcMain.removeHandler(channel);
@@ -173,6 +230,7 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
   return () => {
     if (!active) return;
     active = false;
+    voiceDraftOwners.clear();
     for (const channel of handled) ipcMain.removeHandler(channel);
     ipcMain.removeListener(IPC_CHANNELS.reportAudioPlaybackFailure, playbackFailureListener);
   };

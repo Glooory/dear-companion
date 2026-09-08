@@ -243,4 +243,17 @@ describe("application protocol", () => {
       })
     );
   });
+
+  it("serves reminder voice assets with safe identifier validation and forwards headers", async () => {
+    const rendererRoot = await createRendererRoot();
+    const voicePath = join(dirname(rendererRoot), "reminder-voice.wav");
+    await writeFile(voicePath, "reminder voice audio");
+    const reminderVoiceResolver = vi.fn(async (voiceId: string) => (voiceId === "voice-1" ? voicePath : null));
+    await registerAppProtocol(rendererRoot, undefined, undefined, undefined, reminderVoiceResolver);
+
+    expect((await requestRenderer("app://renderer/reminder-voices/voice-1")).status).toBe(200);
+    expect((await requestRenderer("app://renderer/reminder-voices/missing")).status).toBe(404);
+    expect((await requestRenderer("app://renderer/reminder-voices/..%2Fsecret")).status).toBe(403);
+    expect((await requestRenderer("app://renderer/reminder-voices/voice_1")).status).toBe(403);
+  });
 });

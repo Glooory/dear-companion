@@ -67,4 +67,60 @@ describe("AudioService", () => {
       })
     ).rejects.toThrow("Stale imported");
   });
+
+  it("saves reminder voices, checks availability, requests playback with custom voice, and cleans up unreferenced voices", async () => {
+    const { service, onPlaybackRequested } = await harness();
+    const wavHeader = Buffer.from("RIFFxxxxWAVEtestpayload");
+    const { voiceId } = await service.saveReminderVoice(wavHeader, "wav");
+    expect(voiceId).toBeTruthy();
+
+    const resolved = await service.resolveReminderVoicePath(voiceId);
+    expect(resolved).toContain("audio/reminder-voices");
+    expect(await service.resolveReminderVoicePath("non-existent")).toBeNull();
+
+    const availability = await service.getReminderVoiceAvailability([voiceId, "unknown-id"]);
+    expect(availability).toEqual({
+      [voiceId]: true,
+      "unknown-id": false,
+    });
+
+    const readBack = await service.readReminderVoice(voiceId);
+    expect(readBack).not.toBeNull();
+    expect(readBack?.ext).toBe("wav");
+    expect(readBack?.data).toEqual(new Uint8Array(wavHeader));
+
+    // Request playback with custom voice
+    const request = await service.requestPlayback("reminder", true, {
+      voiceAssetId: voiceId,
+      voiceTrimStart: 0.5,
+      voiceTrimEnd: 2.5,
+    });
+    expect(request?.source).toEqual({
+      kind: "reminder-voice",
+      voiceAssetId: voiceId,
+      voiceTrimStart: 0.5,
+      voiceTrimEnd: 2.5,
+    });
+    expect(onPlaybackRequested).toHaveBeenCalledWith(request);
+
+    // Reporting failure on reminder voice returns false and does not mutate settingsStore
+    const changed = await service.reportPlaybackFailure(request!.requestId, voiceId);
+    expect(changed).toBe(false);
+
+    // Subsequent playback for this failed voice falls back to default chime
+    const failedVoiceFallback = await service.requestPlayback("reminder", true, {
+      voiceAssetId: voiceId,
+    });
+    expect(failedVoiceFallback?.source).toEqual({ kind: "builtin", id: "gentle-chime" });
+
+    // Request playback with missing custom voice falls back to default
+    const fallbackRequest = await service.requestPlayback("reminder", true, {
+      voiceAssetId: "deleted-voice-id",
+    });
+    expect(fallbackRequest?.source).toEqual({ kind: "builtin", id: "gentle-chime" });
+
+    // Test cleanup
+    await service.cleanupUnreferencedReminderVoices();
+    expect(await service.resolveReminderVoicePath(voiceId)).toBeNull();
+  });
 });

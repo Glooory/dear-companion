@@ -9,6 +9,7 @@ import {
   parseAppSettings,
   parseAutostartEnabledInput,
   parseAutostartStatus,
+  parseCreateReminderInput,
   parseCreateWorkScheduleInput,
   parseDialoguePreviewRequest,
   parseHeadHotspot,
@@ -17,6 +18,7 @@ import {
   parsePetUpdateInput,
   parseScreenEllipse,
   parseSettingsNavigationTarget,
+  parseUpdateReminderInput,
   parseUpdateWorkScheduleInput,
   resolvePetWindowSize,
   type PetConfig,
@@ -568,5 +570,60 @@ describe("settings contracts", () => {
     expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "ok", voiceVolume: 1.5 })).toThrow(
       "Invalid voice volume"
     );
+  });
+
+  it("parses create and update reminder inputs with optional voice configuration", () => {
+    const validBase = {
+      enabled: true,
+      hour: 14,
+      minute: 30,
+      weekdays: [1, 2, 3, 4, 5],
+      restDurationMinutes: 10,
+      cursorTolerance: "standard",
+      message: "该休息一下啦",
+      sounds: { reminder: true, crying: false },
+    };
+
+    const parsedWithoutVoice = parseCreateReminderInput(validBase);
+    expect(parsedWithoutVoice).toEqual(validBase);
+
+    const withVoice = {
+      ...validBase,
+      voiceAssetId: "voice-123",
+      voiceTrimStart: 0.5,
+      voiceTrimEnd: 3.2,
+    };
+    const parsedWithVoice = parseCreateReminderInput(withVoice);
+    expect(parsedWithVoice).toEqual(withVoice);
+
+    const updateWithVoice = parseUpdateReminderInput({ id: "rem-1", ...withVoice });
+    expect(updateWithVoice).toEqual({ id: "rem-1", ...withVoice });
+
+    // Rejects trims without voiceAssetId
+    expect(() => parseCreateReminderInput({ ...validBase, voiceTrimStart: 1 })).toThrow(
+      "voiceTrimStart and voiceTrimEnd require voiceAssetId"
+    );
+
+    // Rejects voiceTrimEnd <= voiceTrimStart
+    expect(() =>
+      parseCreateReminderInput({
+        ...validBase,
+        voiceAssetId: "voice-123",
+        voiceTrimStart: 2,
+        voiceTrimEnd: 1,
+      })
+    ).toThrow("voiceTrimEnd must be greater than voiceTrimStart");
+
+    // Rejects voiceTrimEnd <= 0 even when voiceTrimStart is omitted
+    expect(() =>
+      parseCreateReminderInput({
+        ...validBase,
+        voiceAssetId: "voice-123",
+        voiceTrimEnd: 0,
+      })
+    ).toThrow("Invalid reminder voiceTrimEnd");
+
+    // Rejects unexpected keys
+    expect(() => parseCreateReminderInput({ ...validBase, extra: 123 })).toThrow("Invalid reminder input");
   });
 });

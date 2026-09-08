@@ -16,11 +16,140 @@
   background: #faf8f5;
 }
 
+.sectionHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 28px;
+}
+
 .sectionTitle {
   margin: 0;
   font-size: 0.82rem;
   font-weight: 700;
   color: #4a453e;
+}
+
+.voiceSlot {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+.voiceCapsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(61, 115, 99, 0.08);
+  border: 1px solid rgba(61, 115, 99, 0.2);
+  color: #2b5548;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.voicePlayBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 22px;
+  gap: 4px;
+  border-radius: 999px;
+  border: 0;
+  background: #3d7363;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0 7px;
+  font: inherit;
+  font-size: 0.7rem;
+  box-sizing: border-box;
+}
+
+.voicePlayBtn:hover {
+  background: #346355;
+}
+
+.voiceActionBtn {
+  border: 0;
+  background: transparent;
+  color: #6b665e;
+  cursor: pointer;
+  padding: 0 6px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 0.7rem;
+  box-sizing: border-box;
+}
+
+.voiceActionBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #242220;
+}
+
+.voiceDeleteBtn {
+  border: 0;
+  background: transparent;
+  color: #6b665e;
+  cursor: pointer;
+  padding: 0 6px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 0.7rem;
+  box-sizing: border-box;
+}
+
+.voiceDeleteBtn:hover {
+  color: #b91c1c;
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.voicePlayBtn.voiceUnavailable {
+  border: 1px solid #d4a29a;
+  background: #fff4f2;
+  color: #8f3025;
+}
+
+.voicePlayBtn.voiceUnavailable:hover {
+  background: #ffebe8;
+  color: #8f3025;
+}
+
+.addVoiceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px dashed #dcd7cd;
+  border-radius: 6px;
+  background: transparent;
+  color: #716d66;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.addVoiceBtn:hover {
+  border-color: #3d7363;
+  color: #2f5c4f;
+  background: rgba(61, 115, 99, 0.04);
 }
 
 .fields {

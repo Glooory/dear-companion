@@ -7,7 +7,8 @@ import { AudioWaveformTrimmer } from "./AudioWaveformTrimmer";
 import styles from "./VoiceRecorderPopover.module.css";
 
 export interface VoiceRecorderPopoverProps {
-  petId: string;
+  petId?: string;
+  target?: "pet" | "reminder";
   dialogueText: string;
   mode: "add" | "replace";
   volume: number;
@@ -35,6 +36,7 @@ interface AudioEditorData {
 
 export function VoiceRecorderPopover({
   petId,
+  target = "pet",
   dialogueText,
   mode,
   volume,
@@ -60,6 +62,7 @@ export function VoiceRecorderPopover({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const playbackSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const rafRef = useRef<number | null>(null);
+  const seekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const operationRef = useRef(0);
   const mountedRef = useRef(true);
 
@@ -78,6 +81,10 @@ export function VoiceRecorderPopover({
   };
 
   const stopPlayback = (): void => {
+    if (seekTimerRef.current) {
+      clearTimeout(seekTimerRef.current);
+      seekTimerRef.current = null;
+    }
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -138,6 +145,10 @@ export function VoiceRecorderPopover({
       }
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
+      if (seekTimerRef.current) {
+        clearTimeout(seekTimerRef.current);
+        seekTimerRef.current = null;
+      }
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (playbackSourceRef.current) {
         try {
@@ -158,8 +169,14 @@ export function VoiceRecorderPopover({
   useEffect(() => {
     if (!initialVoiceAssetId) return;
     const operation = ++operationRef.current;
-    void window.dearCompanion
-      .getPetVoice(petId, initialVoiceAssetId)
+    const loadPromise =
+      target === "reminder"
+        ? window.dearCompanion.getReminderVoice(initialVoiceAssetId)
+        : petId
+          ? window.dearCompanion.getPetVoice(petId, initialVoiceAssetId)
+          : Promise.resolve(null);
+
+    void loadPromise
       .then(async (result) => {
         if (!result) throw new Error("voice-not-found");
         if (!mountedRef.current || operation !== operationRef.current) return;
@@ -192,7 +209,7 @@ export function VoiceRecorderPopover({
         setErrorMessage("无法加载现有声音，您可以重新录制或选择新音频。");
         setStatus("idle");
       });
-  }, [initialTrimEnd, initialTrimStart, initialVoiceAssetId, petId]);
+  }, [initialTrimEnd, initialTrimStart, initialVoiceAssetId, petId, target]);
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === "Escape") {
@@ -382,7 +399,8 @@ export function VoiceRecorderPopover({
     if (isPlaying) {
       stopPlayback();
       // Restart playback from new seek point
-      setTimeout(() => {
+      seekTimerRef.current = setTimeout(() => {
+        seekTimerRef.current = null;
         if (!mountedRef.current) return;
         const ctx = getAudioContext();
         if (ctx.state === "suspended") void ctx.resume();
@@ -467,8 +485,14 @@ export function VoiceRecorderPopover({
         if (!editorData.rawBytes || !editorData.rawExt) {
           throw new Error("Missing audio source data");
         }
-        const saved = await window.dearCompanion.savePetVoice(petId, editorData.rawBytes, editorData.rawExt);
-        voiceId = saved.voiceId;
+        if (target === "reminder") {
+          const saved = await window.dearCompanion.saveReminderVoice(editorData.rawBytes, editorData.rawExt);
+          voiceId = saved.voiceId;
+        } else {
+          if (!petId) throw new Error("Missing petId");
+          const saved = await window.dearCompanion.savePetVoice(petId, editorData.rawBytes, editorData.rawExt);
+          voiceId = saved.voiceId;
+        }
       }
       if (!voiceId) {
         throw new Error("No voice ID resolved");
@@ -490,7 +514,12 @@ export function VoiceRecorderPopover({
     setErrorMessage(null);
     stopPlayback();
     try {
-      const result = await window.dearCompanion.pickPetVoiceSource(petId);
+      const result =
+        target === "reminder"
+          ? await window.dearCompanion.pickReminderVoiceSource()
+          : petId
+            ? await window.dearCompanion.pickPetVoiceSource(petId)
+            : null;
       if (!mountedRef.current || operation !== operationRef.current) return;
       if (result?.data) {
         const ctx = getAudioContext();

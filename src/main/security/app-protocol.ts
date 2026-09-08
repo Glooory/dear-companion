@@ -24,13 +24,15 @@ export function registerAppScheme(): void {
 export type PetAssetResolver = (petId: string, assetId: string) => Promise<string | null>;
 export type AudioAssetResolver = (assetId: string) => Promise<string | null>;
 export type PetVoiceResolver = (petId: string, voiceId: string) => Promise<string | null>;
+export type ReminderVoiceResolver = (voiceId: string) => Promise<string | null>;
 type LocalFileFetcher = (canonicalPath: string, request?: Request) => Promise<Response>;
 
 export async function registerAppProtocol(
   rendererRoot: string,
   resolvePetAsset?: PetAssetResolver,
   resolveAudioAsset?: AudioAssetResolver,
-  resolvePetVoice?: PetVoiceResolver
+  resolvePetVoice?: PetVoiceResolver,
+  resolveReminderVoice?: ReminderVoiceResolver
 ): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot);
   const localFileSession = session.fromPartition("app-local-resources", { cache: false });
@@ -52,6 +54,9 @@ export async function registerAppProtocol(
       }
       if (relativePath.startsWith("pet-voices/")) {
         return servePetVoice(relativePath, resolvePetVoice, fetchLocalFile, request);
+      }
+      if (relativePath.startsWith("reminder-voices/")) {
+        return serveReminderVoice(relativePath, resolveReminderVoice, fetchLocalFile, request);
       }
       if (relativePath.startsWith("audio-assets/")) {
         return serveAudioAsset(relativePath, resolveAudioAsset, fetchLocalFile, request);
@@ -151,6 +156,28 @@ async function servePetVoice(
 
   try {
     const path = await resolvePetVoice(segments[1], segments[2]);
+    if (!path) return notFoundResponse();
+    const canonicalPath = await realpath(path);
+    return await fetchLocalFile(canonicalPath, request);
+  } catch {
+    return notFoundResponse();
+  }
+}
+
+async function serveReminderVoice(
+  relativePath: string,
+  resolveReminderVoice: ReminderVoiceResolver | undefined,
+  fetchLocalFile: LocalFileFetcher,
+  request?: Request
+): Promise<Response> {
+  const segments = relativePath.split("/");
+  if (segments.length !== 2 || segments[0] !== "reminder-voices" || !isSafeIdentifier(segments[1])) {
+    return forbiddenResponse();
+  }
+  if (!resolveReminderVoice) return notFoundResponse();
+
+  try {
+    const path = await resolveReminderVoice(segments[1]);
     if (!path) return notFoundResponse();
     const canonicalPath = await realpath(path);
     return await fetchLocalFile(canonicalPath, request);

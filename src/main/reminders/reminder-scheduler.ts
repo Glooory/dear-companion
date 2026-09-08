@@ -222,5 +222,8 @@ function stripPrompt(prompt: ReminderPrompt): ReminderOccurrence {
     cursorTolerance: prompt.cursorTolerance,
     message: prompt.message,
     sounds: { ...prompt.sounds },
+    ...(prompt.voiceAssetId ? { voiceAssetId: prompt.voiceAssetId } : {}),
+    ...(prompt.voiceAssetId && prompt.voiceTrimStart !== undefined ? { voiceTrimStart: prompt.voiceTrimStart } : {}),
+    ...(prompt.voiceAssetId && prompt.voiceTrimEnd !== undefined ? { voiceTrimEnd: prompt.voiceTrimEnd } : {}),
   };
 }

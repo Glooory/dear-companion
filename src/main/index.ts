@@ -259,11 +259,13 @@ if (!hasSingleInstanceLock) {
       getRuntimeSnapshot,
       onPlaybackRequested: (request) => runtimeManager?.broadcastAudioPlaybackRequested(request),
     });
+    await localAudioService.cleanupUnreferencedReminderVoices();
     await registerAppProtocol(
       rendererRoot,
       (petId, assetId) => petPackService.resolveAssetPath(petId, assetId),
       (assetId) => localAudioService.resolveAssetPath(assetId),
-      (petId, voiceId) => petPackService.resolveVoiceAssetPath(petId, voiceId)
+      (petId, voiceId) => petPackService.resolveVoiceAssetPath(petId, voiceId),
+      (voiceId) => localAudioService.resolveReminderVoicePath(voiceId)
     );
     if (isQuitting) return;
 
@@ -321,7 +323,17 @@ if (!hasSingleInstanceLock) {
       onPrompt: async (prompt) => {
         await manager.showPetForRuntime();
         await broadcastRestRuntime();
-        await localAudioService.requestPlayback("reminder", prompt.sounds.reminder);
+        await localAudioService.requestPlayback(
+          "reminder",
+          prompt.sounds.reminder,
+          prompt.voiceAssetId
+            ? {
+                voiceAssetId: prompt.voiceAssetId,
+                voiceTrimStart: prompt.voiceTrimStart,
+                voiceTrimEnd: prompt.voiceTrimEnd,
+              }
+            : undefined
+        );
       },
       onPromptDismissed: () => {
         void broadcastRestRuntime().catch(() => undefined);

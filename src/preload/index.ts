@@ -88,6 +88,10 @@ const api: ReleaseHardeningApi = {
   updateAudioSources: (input) => ipcRenderer.invoke(IPC_CHANNELS.updateAudioSources, input),
   reportAudioPlaybackFailure: (requestId, assetId) =>
     ipcRenderer.send(IPC_CHANNELS.reportAudioPlaybackFailure, requestId, assetId),
+  saveReminderVoice: (data, extension) => ipcRenderer.invoke(IPC_CHANNELS.saveReminderVoice, data, extension),
+  pickReminderVoiceSource: () => ipcRenderer.invoke(IPC_CHANNELS.pickReminderVoiceSource),
+  getReminderVoice: (voiceId) => ipcRenderer.invoke(IPC_CHANNELS.getReminderVoice, voiceId),
+  getReminderVoiceAvailability: (voiceIds) => ipcRenderer.invoke(IPC_CHANNELS.getReminderVoiceAvailability, voiceIds),
   onRestSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: RestSystemSnapshot): void => listener(snapshot);
     ipcRenderer.on(IPC_CHANNELS.restSystemChanged, wrapped);
