@@ -29,7 +29,7 @@ import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
 import { DialogueSettingsEditor } from "../components/DialogueSettingsEditor";
 import { PetGalleryManager } from "../components/PetGalleryManager";
-import { ReminderEditor, type ReminderDraft } from "../components/ReminderEditor";
+import { ReminderEditor, createDraftWindow, type ReminderDraft } from "../components/ReminderEditor";
 import { useToast } from "../components/Toast";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
@@ -443,8 +443,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const newReminder = (): void =>
     setReminderDraft({
+      mode: "fixed",
       hour: null,
       minute: null,
+      windows: [createDraftWindow()],
+      intervalMinutes: 60,
       weekdays: [0, 1, 2, 3, 4, 5, 6],
       restDurationMinutes: 10,
       cursorTolerance: "standard",
@@ -455,18 +458,73 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
   const editReminder = (reminder: ReminderSchedule): void =>
     setReminderDraft({
-      ...reminder,
+      id: reminder.id,
+      mode: reminder.mode,
+      hour: reminder.mode === "fixed" ? reminder.hour : null,
+      minute: reminder.mode === "fixed" ? reminder.minute : null,
+      windows:
+        reminder.mode === "interval"
+          ? reminder.windows.map((w) => createDraftWindow(w))
+          : [createDraftWindow()],
+      intervalMinutes: reminder.mode === "interval" ? reminder.intervalMinutes : 60,
       weekdays: [...reminder.weekdays],
+      restDurationMinutes: reminder.restDurationMinutes,
+      cursorTolerance: reminder.cursorTolerance,
+      message: reminder.message,
       sounds: { ...reminder.sounds },
+      voiceAssetId: reminder.voiceAssetId,
+      voiceTrimStart: reminder.voiceTrimStart,
+      voiceTrimEnd: reminder.voiceTrimEnd,
+      enabled: reminder.enabled,
     });
+
+  const handleReminderValidationError = (): void => {
+    toast.warning("请检查提醒设置中的填写项。");
+  };
 
   const saveReminder = (): void => {
     const draftValue = reminderDraft;
-    if (!draftValue || draftValue.hour === null || draftValue.minute === null) return;
+    if (!draftValue) return;
+
+    let timingInput:
+      | { mode: "fixed"; hour: number; minute: number }
+      | { mode: "interval"; windows: { startHour: number; startMinute: number; endHour: number; endMinute: number }[]; intervalMinutes: number };
+
+    if (draftValue.mode === "fixed") {
+      if (draftValue.hour === null || draftValue.minute === null) return;
+      timingInput = {
+        mode: "fixed",
+        hour: draftValue.hour,
+        minute: draftValue.minute,
+      };
+    } else {
+      if (
+        draftValue.windows.length === 0 ||
+        draftValue.windows.some(
+          (w) =>
+            w.startHour === null ||
+            w.startMinute === null ||
+            w.endHour === null ||
+            w.endMinute === null
+        )
+      ) {
+        return;
+      }
+      timingInput = {
+        mode: "interval",
+        windows: draftValue.windows.map(({ startHour, startMinute, endHour, endMinute }) => ({
+          startHour: startHour!,
+          startMinute: startMinute!,
+          endHour: endHour!,
+          endMinute: endMinute!,
+        })),
+        intervalMinutes: draftValue.intervalMinutes,
+      };
+    }
+
     const input: CreateReminderInput = {
+      ...timingInput,
       enabled: draftValue.enabled,
-      hour: draftValue.hour,
-      minute: draftValue.minute,
       weekdays: [...draftValue.weekdays],
       restDurationMinutes: draftValue.restDurationMinutes,
       cursorTolerance: draftValue.cursorTolerance,
@@ -476,6 +534,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       voiceTrimStart: draftValue.voiceTrimStart,
       voiceTrimEnd: draftValue.voiceTrimEnd,
     };
+
     void runMutation(async () => {
       const isEditing = Boolean(draftValue.id);
       const next = draftValue.id
@@ -1047,12 +1106,15 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       >
                         <div className={styles.reminderPrimaryRow}>
                           <strong className={styles.reminderTime}>
-                            {String(reminder.hour).padStart(2, "0")}:{String(reminder.minute).padStart(2, "0")}
+                            {formatReminderTiming(reminder)}
                           </strong>
                           <span className={styles.reminderMessage}>{reminder.message}</span>
                         </div>
                         <div className={styles.reminderBadges}>
                           <span className={styles.reminderBadge}>{formatReminderWeekdays(reminder.weekdays)}</span>
+                          {reminder.mode === "interval" && (
+                            <span className={styles.reminderBadge}>每 {reminder.intervalMinutes} 分钟</span>
+                          )}
                           <span className={styles.reminderBadge}>{reminder.restDurationMinutes} 分钟休息</span>
                           <span
                             className={clsx(
@@ -1110,9 +1172,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 <div className={styles.modalCard}>
                   <div className={styles.modalHeader}>
                     <h3 id="reminder-modal-title">
-                      {reminderDraft.id
-                        ? `编辑休息提醒 · ${String(reminderDraft.hour ?? 0).padStart(2, "0")}:${String(reminderDraft.minute ?? 0).padStart(2, "0")}`
-                        : "添加休息提醒"}
+                      {reminderDraft.id ? "编辑休息提醒" : "添加休息提醒"}
                     </h3>
                     <button
                       type="button"
@@ -1150,6 +1210,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     }
                     onChange={setReminderDraft}
                     onSave={saveReminder}
+                    onValidationError={handleReminderValidationError}
                     onCancel={() => setReminderDraft(null)}
                     onDelete={reminderDraft.id ? deleteReminder : undefined}
                   />
@@ -1368,4 +1429,16 @@ function formatSoundBadge(reminder: Pick<ReminderSchedule, "sounds" | "voiceAsse
   if (sounds.reminder) return { label: "🔔 提示音", enabled: true };
   if (sounds.crying) return { label: "🔔 仅督促音", enabled: true };
   return { label: "🔕 静音", enabled: false };
+}
+
+function formatReminderTiming(reminder: ReminderSchedule): string {
+  if (reminder.mode === "fixed") {
+    return `${String(reminder.hour).padStart(2, "0")}:${String(reminder.minute).padStart(2, "0")}`;
+  }
+  return reminder.windows
+    .map(
+      (w) =>
+        `${String(w.startHour).padStart(2, "0")}:${String(w.startMinute).padStart(2, "0")}–${String(w.endHour).padStart(2, "0")}:${String(w.endMinute).padStart(2, "0")}`
+    )
+    .join("、");
 }

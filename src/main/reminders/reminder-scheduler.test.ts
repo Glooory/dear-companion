@@ -6,6 +6,7 @@ function schedule(id = "reminder-a", overrides: Partial<ReminderSchedule> = {}):
   const target = new Date(2026, 0, 5, 9, 30);
   return {
     id,
+    mode: "fixed",
     enabled: true,
     hour: target.getHours(),
     minute: target.getMinutes(),
@@ -15,7 +16,23 @@ function schedule(id = "reminder-a", overrides: Partial<ReminderSchedule> = {}):
     message: id,
     sounds: { reminder: false, crying: false },
     ...overrides,
-  };
+  } as ReminderSchedule;
+}
+
+function intervalSchedule(id = "reminder-interval", overrides: Partial<ReminderSchedule> = {}): ReminderSchedule {
+  return {
+    id,
+    mode: "interval",
+    enabled: true,
+    windows: [{ startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 }],
+    intervalMinutes: 15,
+    weekdays: [1],
+    restDurationMinutes: 10,
+    cursorTolerance: "standard",
+    message: id,
+    sounds: { reminder: false, crying: false },
+    ...overrides,
+  } as ReminderSchedule;
 }
 
 describe("ReminderScheduler", () => {
@@ -229,5 +246,172 @@ describe("ReminderScheduler", () => {
 
     timer!();
     expect(prompts).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces later occurrences from the same interval schedule while a prompt is active", async () => {
+    let now = new Date(2026, 0, 5, 8, 59).getTime();
+    let timer: (() => void) | null = null;
+    const prompts = vi.fn();
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [intervalSchedule()],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => {
+        timer = null;
+      },
+      isRestActive: () => false,
+      onPrompt: prompts,
+    });
+
+    await scheduler.start();
+    const firstOccurrenceAt = new Date(2026, 0, 5, 9, 0).getTime();
+    const secondOccurrenceAt = new Date(2026, 0, 5, 9, 15).getTime();
+
+    now = firstOccurrenceAt;
+    timer!();
+    expect(prompts).toHaveBeenCalledTimes(1);
+    expect(prompts.mock.calls[0]![0].scheduledFor).toBe(firstOccurrenceAt);
+
+    // Advance through next interval while first prompt remains active
+    now = secondOccurrenceAt;
+    timer!();
+    scheduler.resolvePrompt(prompts.mock.calls[0]![0].occurrenceId);
+    expect(prompts).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses multiple due occurrences from the same interval schedule in a single scan", async () => {
+    let now = new Date(2026, 0, 5, 8, 59, 30).getTime();
+    let timer: (() => void) | null = null;
+    const prompts = vi.fn();
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [intervalSchedule("rem-interval", { intervalMinutes: 1 })],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => {
+        timer = null;
+      },
+      isRestActive: () => false,
+      onPrompt: prompts,
+    });
+
+    await scheduler.start();
+    now = new Date(2026, 0, 5, 9, 1).getTime();
+    timer!();
+
+    expect(prompts).toHaveBeenCalledTimes(1);
+    expect(prompts.mock.calls[0]![0].scheduledFor).toBe(new Date(2026, 0, 5, 9, 0).getTime());
+    scheduler.resolvePrompt(prompts.mock.calls[0]![0].occurrenceId);
+    expect(prompts).toHaveBeenCalledTimes(1);
+  });
+
+  it("coalesces later occurrences from the same interval schedule while an earlier one is snoozed", async () => {
+    let now = new Date(2026, 0, 5, 8, 59).getTime();
+    let timer: (() => void) | null = null;
+    const prompts = vi.fn();
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [intervalSchedule()],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => {
+        timer = null;
+      },
+      isRestActive: () => false,
+      onPrompt: prompts,
+    });
+
+    await scheduler.start();
+    now = new Date(2026, 0, 5, 9, 0).getTime();
+    timer!();
+    const firstId = prompts.mock.calls[0]![0].occurrenceId;
+    scheduler.snooze(firstId, 15);
+
+    now = new Date(2026, 0, 5, 9, 15).getTime();
+    timer!();
+    expect(prompts).toHaveBeenCalledTimes(2);
+    expect(prompts.mock.calls[1]![0].occurrenceId).toBe(firstId);
+
+    scheduler.resolvePrompt(firstId);
+    expect(prompts).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips interval occurrences during active rest sessions", async () => {
+    let now = new Date(2026, 0, 5, 8, 59).getTime();
+    let resting = true;
+    let timer: (() => void) | null = null;
+    const prompts = vi.fn();
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [intervalSchedule()],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => {
+        timer = null;
+      },
+      isRestActive: () => resting,
+      onPrompt: prompts,
+    });
+
+    await scheduler.start();
+    now = new Date(2026, 0, 5, 9, 0).getTime();
+    timer!();
+    expect(prompts).not.toHaveBeenCalled();
+
+    resting = false;
+    now = new Date(2026, 0, 5, 9, 15).getTime();
+    timer!();
+    expect(prompts).toHaveBeenCalledTimes(1);
+    expect(prompts.mock.calls[0]![0].scheduledFor).toBe(now);
+  });
+
+  it("does not coalesce occurrences across distinct schedules due at the same instant", async () => {
+    let now = new Date(2026, 0, 5, 8, 59).getTime();
+    let timer: (() => void) | null = null;
+    const prompts = vi.fn();
+    const schedA = intervalSchedule("rem-interval-a");
+    const schedB = intervalSchedule("rem-interval-b");
+    const scheduler = new ReminderScheduler({
+      loadSchedules: async () => [schedB, schedA],
+      now: () => now,
+      monotonicNow: () => now,
+      timezoneOffset: () => 0,
+      setTimeout: (callback) => {
+        timer = callback;
+        return 1 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => {
+        timer = null;
+      },
+      isRestActive: () => false,
+      onPrompt: prompts,
+    });
+
+    await scheduler.start();
+    now = new Date(2026, 0, 5, 9, 0).getTime();
+    timer!();
+    expect(prompts).toHaveBeenCalledTimes(1);
+    expect(prompts.mock.calls[0]![0].scheduleId).toBe("rem-interval-a");
+
+    scheduler.resolvePrompt(prompts.mock.calls[0]![0].occurrenceId);
+    expect(prompts).toHaveBeenCalledTimes(2);
+    expect(prompts.mock.calls[1]![0].scheduleId).toBe("rem-interval-b");
   });
 });

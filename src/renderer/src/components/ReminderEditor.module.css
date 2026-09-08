@@ -152,22 +152,126 @@
   background: rgba(61, 115, 99, 0.04);
 }
 
-.fields {
+.modeFieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
-  gap: 10px;
+  gap: 6px;
 }
 
-.fields label {
-  display: grid;
-  gap: 4px;
-  color: #55514b;
+.modeLegend {
+  padding: 0;
   font-size: 0.8125rem;
   font-weight: 600;
+  color: #55514b;
 }
 
-.fields input,
-.fields select {
+.segmentedControl {
+  display: flex;
+  border: 1px solid #dbd6ce;
+  border-radius: 8px;
+  background: #ede8e1;
+  padding: 2px;
+  gap: 2px;
+}
+
+.segmentOption {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #55514b;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+
+.segmentOption:hover:not(.segmentSelected) {
+  color: #242220;
+}
+
+.segmentSelected {
+  background: #ffffff;
+  color: #242220;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.segmentRadio {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.segmentOption:focus-within {
+  outline: 2px solid #3d7363;
+  outline-offset: 1px;
+}
+
+.windowsSection {
+  display: grid;
+  gap: 8px;
+}
+
+.windowsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.windowLabel {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #55514b;
+}
+
+.windowRows {
+  display: grid;
+  gap: 6px;
+}
+
+.windowRowContainer {
+  display: grid;
+  gap: 2px;
+}
+
+.windowRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.windowInputsContainer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1;
+}
+
+.windowTimeField {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.windowTimeLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b665e;
+}
+
+.windowTimeField input {
   width: 100%;
   padding: 6px 9px;
   border: 1px solid #dbd6ce;
@@ -175,6 +279,187 @@
   background: #ffffff;
   color: #2d2a26;
   font-size: 0.82rem;
+  height: 32px;
+  box-sizing: border-box;
+}
+
+.windowTimeField input[aria-invalid="true"] {
+  border-color: #b91c1c;
+  background-color: #fff8f8;
+}
+
+.windowTimeSeparator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  color: #7d7870;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.windowActionSlot {
+  width: 52px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.removeWindowBtn {
+  background: transparent;
+  border: 1px solid #dbd6ce;
+  border-radius: 6px;
+  color: #6b665e;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  height: 30px;
+  width: 100%;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.removeWindowBtn:hover:not(:disabled) {
+  border-color: #b91c1c;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.removeWindowBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.windowAddSlot {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.addWindowBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px dashed #9cbdb1;
+  background: rgba(61, 115, 99, 0.04);
+  color: #2f5c4f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.addWindowBtn:hover:not(:disabled) {
+  background: rgba(61, 115, 99, 0.1);
+  border-color: #3d7363;
+}
+
+.addWindowBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #dbd6ce;
+  color: #8c867d;
+  background: #f7f5f2;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 4px;
+}
+
+.fieldGroup label {
+  color: #55514b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.fieldGroup input,
+.fieldGroup select {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1px solid #dbd6ce;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #2d2a26;
+  font-size: 0.82rem;
+  height: 32px;
+  box-sizing: border-box;
+}
+
+.fieldGroup input[aria-invalid="true"] {
+  border-color: #b91c1c;
+  background-color: #fff8f8;
+}
+
+.inputWithSuffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputWithSuffix input {
+  padding-right: 44px;
+}
+
+.inputSuffix {
+  position: absolute;
+  right: 9px;
+  font-size: 0.8rem;
+  color: #7d7870;
+  pointer-events: none;
+}
+
+.supportingCopy {
+  font-size: 0.72rem;
+  color: #7d7870;
+  line-height: 1.3;
+}
+
+.errorSlot {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.inlineError {
+  font-size: 0.72rem;
+  color: #b91c1c;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.timingSummary {
+  padding: 8px 12px;
+  background: #f0ece6;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  color: #433e38;
+  line-height: 1.4;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .messageField {
@@ -195,6 +480,11 @@
   background: #ffffff;
   color: #2d2a26;
   font-size: 0.82rem;
+}
+
+.messageField textarea[aria-invalid="true"] {
+  border-color: #b91c1c;
+  background-color: #fff8f8;
 }
 
 .togglesGrid {
@@ -271,5 +561,19 @@
 @media (max-width: 760px) {
   .fields {
     grid-template-columns: 1fr;
+  }
+
+  .windowInputsContainer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .windowTimeSeparator {
+    display: none;
+  }
+
+  .windowRow {
+    align-items: center;
   }
 }

@@ -123,6 +123,14 @@ export class ReminderScheduler {
     this.activePrompt = null;
   }
 
+  private hasOutstandingOccurrence(scheduleId: string): boolean {
+    return (
+      this.activePrompt?.scheduleId === scheduleId ||
+      this.queue.some((item) => item.scheduleId === scheduleId) ||
+      [...this.snoozes.values()].some((entry) => entry.occurrence.scheduleId === scheduleId)
+    );
+  }
+
   private wake(): void {
     if (this.disposed) return;
     this.wakeTimer = null;
@@ -136,6 +144,10 @@ export class ReminderScheduler {
     for (const occurrence of due) {
       this.handled.add(occurrence.occurrenceId);
       if (now - occurrence.scheduledFor > 60_000 || this.options.isRestActive()) continue;
+      const schedule = this.schedules.find((item) => item.id === occurrence.scheduleId);
+      if (schedule?.mode === "interval" && this.hasOutstandingOccurrence(occurrence.scheduleId)) {
+        continue;
+      }
       this.enqueueOccurrence(occurrence);
     }
     for (const [id, snooze] of this.snoozes) {
@@ -210,7 +222,19 @@ export class ReminderScheduler {
 }
 
 function cloneSchedule(schedule: ReminderSchedule): ReminderSchedule {
-  return { ...schedule, weekdays: [...schedule.weekdays], sounds: { ...schedule.sounds } };
+  if (schedule.mode === "interval") {
+    return {
+      ...schedule,
+      weekdays: [...schedule.weekdays],
+      sounds: { ...schedule.sounds },
+      windows: schedule.windows.map((window) => ({ ...window })),
+    };
+  }
+  return {
+    ...schedule,
+    weekdays: [...schedule.weekdays],
+    sounds: { ...schedule.sounds },
+  };
 }
 
 function stripPrompt(prompt: ReminderPrompt): ReminderOccurrence {

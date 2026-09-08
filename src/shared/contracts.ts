@@ -15,11 +15,20 @@ export interface ReminderSounds {
   crying: boolean;
 }
 
-export interface ReminderSchedule {
-  id: string;
+export const MAX_REMINDER_WINDOWS = 3;
+export const MIN_REMINDER_INTERVAL_MINUTES = 15;
+export const MAX_REMINDER_INTERVAL_MINUTES = 240;
+export const REMINDER_INTERVAL_STEP_MINUTES = 5;
+
+export interface ReminderTimeWindow {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+}
+
+interface ReminderCommonFields {
   enabled: boolean;
-  hour: number;
-  minute: number;
   weekdays: readonly Weekday[];
   restDurationMinutes: number;
   cursorTolerance: CursorTolerance;
@@ -28,6 +37,28 @@ export interface ReminderSchedule {
   voiceAssetId?: string;
   voiceTrimStart?: number;
   voiceTrimEnd?: number;
+}
+
+export interface FixedReminderSchedule extends ReminderCommonFields {
+  id: string;
+  mode: "fixed";
+  hour: number;
+  minute: number;
+}
+
+export interface IntervalReminderSchedule extends ReminderCommonFields {
+  id: string;
+  mode: "interval";
+  windows: readonly ReminderTimeWindow[];
+  intervalMinutes: number;
+}
+
+export type ReminderSchedule = FixedReminderSchedule | IntervalReminderSchedule;
+
+interface LegacyReminderSchedule extends ReminderCommonFields {
+  id: string;
+  hour: number;
+  minute: number;
 }
 
 export interface AudioAsset {
@@ -200,12 +231,23 @@ export interface AppSettingsV6 {
   petWindow: PetWindowSettings;
   autostartEnabled: boolean;
   audio: AudioSettingsV3;
+  reminders: readonly LegacyReminderSchedule[];
+  workSchedules: readonly WorkSchedule[];
+  pets: readonly PetConfig[];
+}
+
+export interface AppSettingsV7 {
+  schemaVersion: 7;
+  activePetId: string | null;
+  petWindow: PetWindowSettings;
+  autostartEnabled: boolean;
+  audio: AudioSettingsV3;
   reminders: readonly ReminderSchedule[];
   workSchedules: readonly WorkSchedule[];
   pets: readonly PetConfig[];
 }
 
-export type AppSettings = AppSettingsV6;
+export type AppSettings = AppSettingsV7;
 
 export interface ReminderOccurrence {
   occurrenceId: string;
@@ -251,7 +293,8 @@ export interface RestSystemSnapshot {
   runtime: RestRuntimeSnapshot;
 }
 
-export type CreateReminderInput = Omit<ReminderSchedule, "id">;
+type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;
+export type CreateReminderInput = WithoutId<ReminderSchedule>;
 export type UpdateReminderInput = ReminderSchedule;
 export interface AudioSourceInput {
   reminderSource: AudioSource;
@@ -483,7 +526,7 @@ export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
 });
 
 export const DEFAULT_APP_SETTINGS = Object.freeze({
-  schemaVersion: 6,
+  schemaVersion: 7,
   activePetId: null,
   petWindow: Object.freeze({
     x: null,
@@ -563,11 +606,14 @@ export function parsePetRendererStatus(value: unknown): PetRendererStatus {
 export function migrateAppSettings(value: unknown): SettingsMigrationResult {
   if (!isRecord(value)) throw new Error("Unsupported settings schema version");
 
+  if (value.schemaVersion === 7) {
+    return { migrated: false, settings: parseAppSettingsV7(value) };
+  }
   if (value.schemaVersion === 6) {
-    return { migrated: false, settings: parseAppSettingsV6(value) };
+    return { migrated: true, settings: migrateAppSettingsFromV6(value) };
   }
   if (value.schemaVersion === 5) {
-    return { migrated: true, settings: parseAppSettingsV6(value, "Invalid schema v5 settings") };
+    return { migrated: true, settings: migrateAppSettingsFromV6(value, "Invalid schema v5 settings") };
   }
 
   throw new Error("Unsupported settings schema version");
@@ -575,41 +621,87 @@ export function migrateAppSettings(value: unknown): SettingsMigrationResult {
 
 export function parseCreateReminderInput(value: unknown): CreateReminderInput {
   if (!isRecord(value)) throw new Error("Invalid reminder input");
-  const allowedKeys = [
-    "enabled",
-    "hour",
-    "minute",
-    "weekdays",
-    "restDurationMinutes",
-    "cursorTolerance",
-    "message",
-    "sounds",
-  ];
-  if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
-  if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
-  if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
-  assertExactKeys(value, allowedKeys, "Invalid reminder input");
-  return parseReminderFields(value);
+  if (value.mode === "fixed") {
+    const allowedKeys = [
+      "mode",
+      "enabled",
+      "hour",
+      "minute",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder input");
+    return parseFixedReminderFields(value);
+  }
+  if (value.mode === "interval") {
+    const allowedKeys = [
+      "mode",
+      "enabled",
+      "windows",
+      "intervalMinutes",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder input");
+    return parseIntervalReminderFields(value);
+  }
+  throw new Error("Invalid reminder input");
 }
 
 export function parseUpdateReminderInput(value: unknown): UpdateReminderInput {
   if (!isRecord(value)) throw new Error("Invalid reminder input");
-  const allowedKeys = [
-    "id",
-    "enabled",
-    "hour",
-    "minute",
-    "weekdays",
-    "restDurationMinutes",
-    "cursorTolerance",
-    "message",
-    "sounds",
-  ];
-  if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
-  if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
-  if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
-  assertExactKeys(value, allowedKeys, "Invalid reminder input");
-  return { id: parsePetIdentifier(value.id), ...parseReminderFields(value) };
+  const id = parsePetIdentifier(value.id);
+  if (value.mode === "fixed") {
+    const allowedKeys = [
+      "id",
+      "mode",
+      "enabled",
+      "hour",
+      "minute",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder input");
+    return { id, ...parseFixedReminderFields(value) };
+  }
+  if (value.mode === "interval") {
+    const allowedKeys = [
+      "id",
+      "mode",
+      "enabled",
+      "windows",
+      "intervalMinutes",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder input");
+    return { id, ...parseIntervalReminderFields(value) };
+  }
+  throw new Error("Invalid reminder input");
 }
 
 export function parseCreateWorkScheduleInput(value: unknown): CreateWorkScheduleInput {
@@ -843,48 +935,6 @@ export function createPetSystemSnapshot(settings: AppSettings): PetSystemSnapsho
   };
 }
 
-function parseAppSettingsV6(
-  value: Record<string, unknown>,
-  errorMessage = "Invalid schema v6 settings"
-): AppSettingsV6 {
-  assertExactKeys(
-    value,
-    ["schemaVersion", "activePetId", "petWindow", "autostartEnabled", "audio", "reminders", "workSchedules", "pets"],
-    errorMessage
-  );
-  const foundation = parseCommonFoundationFields(value);
-  if (!Array.isArray(value.pets)) throw new Error("Invalid pet collection");
-  const pets = value.pets.map(parsePetConfig);
-  assertUnique(
-    pets.map((pet) => pet.id),
-    "Duplicate pet identifier"
-  );
-  const activePetId = parseNullableIdentifier(value.activePetId, "active pet identifier");
-  validateActivePet(activePetId, pets);
-  if (!Array.isArray(value.reminders)) throw new Error("Invalid reminder collection");
-  const reminders = value.reminders.map(parseReminderSchedule);
-  assertUnique(
-    reminders.map((reminder) => reminder.id),
-    "Duplicate reminder identifier"
-  );
-  if (!Array.isArray(value.workSchedules)) throw new Error("Invalid work schedule collection");
-  const workSchedules = value.workSchedules.map(parseWorkSchedule);
-  assertUnique(
-    workSchedules.map((schedule) => schedule.id),
-    "Duplicate work schedule identifier"
-  );
-  const audio = parseAudioSettings(value.audio);
-  return {
-    schemaVersion: 6,
-    activePetId,
-    ...foundation,
-    audio,
-    reminders,
-    workSchedules,
-    pets,
-  };
-}
-
 function parseCommonFoundationFields(
   value: Record<string, unknown>
 ): Pick<AppSettings, "petWindow" | "autostartEnabled"> {
@@ -920,7 +970,157 @@ function validateActivePet(activePetId: string | null, pets: readonly Pick<PetCo
   }
 }
 
+function parseAppSettingsV7(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v7 settings"
+): AppSettingsV7 {
+  assertExactKeys(
+    value,
+    ["schemaVersion", "activePetId", "petWindow", "autostartEnabled", "audio", "reminders", "workSchedules", "pets"],
+    errorMessage
+  );
+  if (value.schemaVersion !== 7) throw new Error(errorMessage);
+  const foundation = parseCommonFoundationFields(value);
+  if (!Array.isArray(value.pets)) throw new Error("Invalid pet collection");
+  const pets = value.pets.map(parsePetConfig);
+  assertUnique(
+    pets.map((pet) => pet.id),
+    "Duplicate pet identifier"
+  );
+  const activePetId = parseNullableIdentifier(value.activePetId, "active pet identifier");
+  validateActivePet(activePetId, pets);
+  if (!Array.isArray(value.reminders)) throw new Error("Invalid reminder collection");
+  const reminders = value.reminders.map(parseReminderSchedule);
+  assertUnique(
+    reminders.map((reminder) => reminder.id),
+    "Duplicate reminder identifier"
+  );
+  if (!Array.isArray(value.workSchedules)) throw new Error("Invalid work schedule collection");
+  const workSchedules = value.workSchedules.map(parseWorkSchedule);
+  assertUnique(
+    workSchedules.map((schedule) => schedule.id),
+    "Duplicate work schedule identifier"
+  );
+  const audio = parseAudioSettings(value.audio);
+  return {
+    schemaVersion: 7,
+    activePetId,
+    ...foundation,
+    audio,
+    reminders,
+    workSchedules,
+    pets,
+  };
+}
+
+function parseAppSettingsV6(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v6 settings"
+): AppSettingsV6 {
+  assertExactKeys(
+    value,
+    ["schemaVersion", "activePetId", "petWindow", "autostartEnabled", "audio", "reminders", "workSchedules", "pets"],
+    errorMessage
+  );
+  const foundation = parseCommonFoundationFields(value);
+  if (!Array.isArray(value.pets)) throw new Error("Invalid pet collection");
+  const pets = value.pets.map(parsePetConfig);
+  assertUnique(
+    pets.map((pet) => pet.id),
+    "Duplicate pet identifier"
+  );
+  const activePetId = parseNullableIdentifier(value.activePetId, "active pet identifier");
+  validateActivePet(activePetId, pets);
+  if (!Array.isArray(value.reminders)) throw new Error("Invalid reminder collection");
+  const reminders = value.reminders.map(parseLegacyReminderSchedule);
+  assertUnique(
+    reminders.map((reminder) => reminder.id),
+    "Duplicate reminder identifier"
+  );
+  if (!Array.isArray(value.workSchedules)) throw new Error("Invalid work schedule collection");
+  const workSchedules = value.workSchedules.map(parseWorkSchedule);
+  assertUnique(
+    workSchedules.map((schedule) => schedule.id),
+    "Duplicate work schedule identifier"
+  );
+  const audio = parseAudioSettings(value.audio);
+  return {
+    schemaVersion: 6,
+    activePetId,
+    ...foundation,
+    audio,
+    reminders,
+    workSchedules,
+    pets,
+  };
+}
+
+function migrateLegacyReminder(reminder: LegacyReminderSchedule): FixedReminderSchedule {
+  return {
+    ...reminder,
+    weekdays: [...reminder.weekdays],
+    sounds: { ...reminder.sounds },
+    mode: "fixed",
+  };
+}
+
+function migrateAppSettingsFromV6(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v6 settings"
+): AppSettingsV7 {
+  const v6 = parseAppSettingsV6(value, errorMessage);
+  return {
+    ...v6,
+    schemaVersion: 7,
+    reminders: v6.reminders.map(migrateLegacyReminder),
+  };
+}
+
 function parseReminderSchedule(value: unknown): ReminderSchedule {
+  if (!isRecord(value)) throw new Error("Invalid reminder schedule");
+  const id = parsePetIdentifier(value.id);
+  if (value.mode === "fixed") {
+    const allowedKeys = [
+      "id",
+      "mode",
+      "enabled",
+      "hour",
+      "minute",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder schedule");
+    return { id, ...parseFixedReminderFields(value) };
+  }
+  if (value.mode === "interval") {
+    const allowedKeys = [
+      "id",
+      "mode",
+      "enabled",
+      "windows",
+      "intervalMinutes",
+      "weekdays",
+      "restDurationMinutes",
+      "cursorTolerance",
+      "message",
+      "sounds",
+    ];
+    if ("voiceAssetId" in value) allowedKeys.push("voiceAssetId");
+    if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
+    if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
+    assertExactKeys(value, allowedKeys, "Invalid reminder schedule");
+    return { id, ...parseIntervalReminderFields(value) };
+  }
+  throw new Error("Invalid reminder schedule");
+}
+
+function parseLegacyReminderSchedule(value: unknown): LegacyReminderSchedule {
   if (!isRecord(value)) throw new Error("Invalid reminder schedule");
   const allowedKeys = [
     "id",
@@ -937,14 +1137,20 @@ function parseReminderSchedule(value: unknown): ReminderSchedule {
   if ("voiceTrimStart" in value) allowedKeys.push("voiceTrimStart");
   if ("voiceTrimEnd" in value) allowedKeys.push("voiceTrimEnd");
   assertExactKeys(value, allowedKeys, "Invalid reminder schedule");
-  return { id: parsePetIdentifier(value.id), ...parseReminderFields(value) };
-}
-
-function parseReminderFields(value: Record<string, unknown>): CreateReminderInput {
-  if (typeof value.enabled !== "boolean") throw new Error("Invalid reminder enabled state");
+  const common = parseReminderCommonFields(value);
   if (!isIntegerInRange(value.hour, 0, 23) || !isIntegerInRange(value.minute, 0, 59)) {
     throw new Error("Invalid reminder time");
   }
+  return {
+    id: parsePetIdentifier(value.id),
+    ...common,
+    hour: value.hour,
+    minute: value.minute,
+  };
+}
+
+function parseReminderCommonFields(value: Record<string, unknown>): ReminderCommonFields {
+  if (typeof value.enabled !== "boolean") throw new Error("Invalid reminder enabled state");
   if (
     !Array.isArray(value.weekdays) ||
     value.weekdays.length === 0 ||
@@ -1013,8 +1219,6 @@ function parseReminderFields(value: Record<string, unknown>): CreateReminderInpu
 
   return {
     enabled: value.enabled,
-    hour: value.hour,
-    minute: value.minute,
     weekdays: [...weekdays],
     restDurationMinutes: value.restDurationMinutes,
     cursorTolerance: value.cursorTolerance,
@@ -1023,6 +1227,75 @@ function parseReminderFields(value: Record<string, unknown>): CreateReminderInpu
     ...(voiceAssetId ? { voiceAssetId } : {}),
     ...(voiceAssetId && voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
     ...(voiceAssetId && voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
+  };
+}
+
+function parseFixedReminderFields(value: Record<string, unknown>): Omit<FixedReminderSchedule, "id"> {
+  const common = parseReminderCommonFields(value);
+  if (!isIntegerInRange(value.hour, 0, 23) || !isIntegerInRange(value.minute, 0, 59)) {
+    throw new Error("Invalid reminder time");
+  }
+  return {
+    ...common,
+    mode: "fixed",
+    hour: value.hour,
+    minute: value.minute,
+  };
+}
+
+function minutesOfDay(hour: number, minute: number): number {
+  return hour * 60 + minute;
+}
+
+function parseReminderWindow(value: unknown): ReminderTimeWindow {
+  if (!isRecord(value)) throw new Error("Invalid reminder window");
+  assertExactKeys(value, ["startHour", "startMinute", "endHour", "endMinute"], "Invalid reminder window");
+  if (
+    !isIntegerInRange(value.startHour, 0, 23) ||
+    !isIntegerInRange(value.startMinute, 0, 59) ||
+    !isIntegerInRange(value.endHour, 0, 23) ||
+    !isIntegerInRange(value.endMinute, 0, 59)
+  ) {
+    throw new Error("Invalid reminder window time");
+  }
+  const startMinutes = minutesOfDay(value.startHour, value.startMinute);
+  const endMinutes = minutesOfDay(value.endHour, value.endMinute);
+  if (startMinutes >= endMinutes) {
+    throw new Error("Invalid reminder window range");
+  }
+  return {
+    startHour: value.startHour,
+    startMinute: value.startMinute,
+    endHour: value.endHour,
+    endMinute: value.endMinute,
+  };
+}
+
+function parseIntervalReminderFields(value: Record<string, unknown>): Omit<IntervalReminderSchedule, "id"> {
+  const common = parseReminderCommonFields(value);
+  if (
+    !isIntegerInRange(value.intervalMinutes, MIN_REMINDER_INTERVAL_MINUTES, MAX_REMINDER_INTERVAL_MINUTES) ||
+    value.intervalMinutes % REMINDER_INTERVAL_STEP_MINUTES !== 0
+  ) {
+    throw new Error("Invalid reminder interval");
+  }
+  if (!Array.isArray(value.windows) || value.windows.length < 1 || value.windows.length > MAX_REMINDER_WINDOWS) {
+    throw new Error("Invalid reminder windows");
+  }
+  const windows = value.windows.map(parseReminderWindow);
+  windows.sort((a, b) => minutesOfDay(a.startHour, a.startMinute) - minutesOfDay(b.startHour, b.startMinute));
+  for (let index = 1; index < windows.length; index += 1) {
+    const previous = windows[index - 1]!;
+    const current = windows[index]!;
+    if (minutesOfDay(current.startHour, current.startMinute) < minutesOfDay(previous.endHour, previous.endMinute)) {
+      throw new Error("Overlapping reminder windows");
+    }
+  }
+  return {
+    ...common,
+    mode: "interval",
+    windows,
+    intervalMinutes: value.intervalMinutes,
   };
 }
 
@@ -1131,7 +1404,19 @@ function parseAudioSource(value: unknown, assetIds: ReadonlySet<string>, allowed
 }
 
 function cloneReminder(reminder: ReminderSchedule): ReminderSchedule {
-  return { ...reminder, weekdays: [...reminder.weekdays], sounds: { ...reminder.sounds } };
+  if (reminder.mode === "interval") {
+    return {
+      ...reminder,
+      weekdays: [...reminder.weekdays],
+      sounds: { ...reminder.sounds },
+      windows: reminder.windows.map((window) => ({ ...window })),
+    };
+  }
+  return {
+    ...reminder,
+    weekdays: [...reminder.weekdays],
+    sounds: { ...reminder.sounds },
+  };
 }
 
 function cloneWorkSchedule(schedule: WorkSchedule): WorkSchedule {

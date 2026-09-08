@@ -69,9 +69,9 @@ describe("settings contracts", () => {
     expect(resolvePetWindowSize(400)).toEqual({ width: 376, height: 344 });
   });
 
-  it("uses privacy-preserving schema v6 first-run defaults", () => {
+  it("uses privacy-preserving schema v7 first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 6,
+      schemaVersion: 7,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
@@ -93,7 +93,7 @@ describe("settings contracts", () => {
     expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow("Unsupported settings schema version");
   });
 
-  it("round-trips v6 into newly allocated nested values", () => {
+  it("round-trips v7 into newly allocated nested values", () => {
     const pet = createPet();
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] };
     const parsed = parseAppSettings(input);
@@ -106,7 +106,7 @@ describe("settings contracts", () => {
     expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings);
   });
 
-  it("migrates v5 dialogue settings to explicit voice defaults", () => {
+  it("migrates v5 dialogue settings to explicit voice defaults and schema v7", () => {
     const pet = createPet();
     const legacyPet = {
       ...pet,
@@ -122,12 +122,48 @@ describe("settings contracts", () => {
     const migration = migrateAppSettings(legacy);
 
     expect(migration.migrated).toBe(true);
-    expect(migration.settings.schemaVersion).toBe(6);
+    expect(migration.settings.schemaVersion).toBe(7);
     expect(migration.settings.pets[0]?.dialogueSettings).toEqual({
       address: "小葡萄",
       voiceEnabled: false,
       voiceVolume: 0.8,
       categories: {},
+    });
+  });
+
+  it("migrates v6 legacy reminders to schema v7 fixed schedules", () => {
+    const legacyReminder = {
+      id: "reminder-1",
+      enabled: true,
+      hour: 9,
+      minute: 30,
+      weekdays: [1, 2, 3, 4, 5],
+      restDurationMinutes: 10,
+      cursorTolerance: "standard",
+      message: "休息一下",
+      sounds: { reminder: false, crying: false },
+    };
+    const legacy = {
+      schemaVersion: 6,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: {
+        reminderSource: { kind: "builtin", id: "gentle-chime" },
+        cryingSource: { kind: "builtin", id: "soft-whimper" },
+        assets: [],
+      },
+      reminders: [legacyReminder],
+      workSchedules: [],
+      pets: [],
+    };
+
+    const migration = migrateAppSettings(legacy);
+    expect(migration.migrated).toBe(true);
+    expect(migration.settings.schemaVersion).toBe(7);
+    expect(migration.settings.reminders[0]).toEqual({
+      ...legacyReminder,
+      mode: "fixed",
     });
   });
 
@@ -353,6 +389,7 @@ describe("settings contracts", () => {
   it("validates reminder and audio ownership strictly", () => {
     const reminder = {
       id: "reminder-1",
+      mode: "fixed" as const,
       enabled: true,
       hour: 9,
       minute: 30,
@@ -574,12 +611,13 @@ describe("settings contracts", () => {
 
   it("parses create and update reminder inputs with optional voice configuration", () => {
     const validBase = {
+      mode: "fixed" as const,
       enabled: true,
       hour: 14,
       minute: 30,
-      weekdays: [1, 2, 3, 4, 5],
+      weekdays: [1, 2, 3, 4, 5] as const,
       restDurationMinutes: 10,
-      cursorTolerance: "standard",
+      cursorTolerance: "standard" as const,
       message: "该休息一下啦",
       sounds: { reminder: true, crying: false },
     };
@@ -625,5 +663,135 @@ describe("settings contracts", () => {
 
     // Rejects unexpected keys
     expect(() => parseCreateReminderInput({ ...validBase, extra: 123 })).toThrow("Invalid reminder input");
+  });
+
+  it("validates interval reminder timing and windows strictly", () => {
+    const intervalInput = {
+      enabled: true,
+      mode: "interval" as const,
+      windows: [
+        { startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 },
+        { startHour: 14, startMinute: 0, endHour: 18, endMinute: 0 },
+      ],
+      intervalMinutes: 60,
+      weekdays: [1, 2, 3, 4, 5] as const,
+      restDurationMinutes: 10,
+      cursorTolerance: "standard" as const,
+      message: "休息一会儿吧。",
+      sounds: { reminder: false, crying: false },
+    };
+
+    expect(parseCreateReminderInput(intervalInput)).toEqual(intervalInput);
+
+    // Deep clones windows
+    const parsed = parseCreateReminderInput(intervalInput);
+    if (parsed.mode === "interval") {
+      expect(parsed.windows).not.toBe(intervalInput.windows);
+      expect(parsed.windows[0]).not.toBe(intervalInput.windows[0]);
+    }
+
+    // Sorts windows by start minute
+    const unsortedInput = {
+      ...intervalInput,
+      windows: [
+        { startHour: 14, startMinute: 0, endHour: 18, endMinute: 0 },
+        { startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 },
+      ],
+    };
+    expect(parseCreateReminderInput(unsortedInput)).toEqual(intervalInput);
+
+    // Allows adjacent touching windows
+    const adjacentWindows = [
+      { startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 },
+      { startHour: 12, startMinute: 0, endHour: 14, endMinute: 0 },
+    ];
+    expect(parseCreateReminderInput({ ...intervalInput, windows: adjacentWindows })).toMatchObject({
+      windows: adjacentWindows,
+    });
+
+    // Rejects mixed fixed and interval fields
+    expect(() => parseCreateReminderInput({ ...intervalInput, hour: 9 })).toThrow("Invalid reminder input");
+    expect(() =>
+      parseCreateReminderInput({
+        mode: "fixed",
+        enabled: true,
+        hour: 9,
+        minute: 0,
+        windows: [{ startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 }],
+        weekdays: [1],
+        restDurationMinutes: 10,
+        cursorTolerance: "standard",
+        message: "休息",
+        sounds: { reminder: false, crying: false },
+      })
+    ).toThrow("Invalid reminder input");
+
+    // Rejects empty windows
+    expect(() => parseCreateReminderInput({ ...intervalInput, windows: [] })).toThrow("Invalid reminder windows");
+
+    // Rejects more than 3 windows
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [
+          { startHour: 9, startMinute: 0, endHour: 11, endMinute: 0 },
+          { startHour: 11, startMinute: 0, endHour: 13, endMinute: 0 },
+          { startHour: 13, startMinute: 0, endHour: 15, endMinute: 0 },
+          { startHour: 15, startMinute: 0, endHour: 17, endMinute: 0 },
+        ],
+      })
+    ).toThrow("Invalid reminder windows");
+
+    // Rejects equal endpoints
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [{ startHour: 9, startMinute: 0, endHour: 9, endMinute: 0 }],
+      })
+    ).toThrow("Invalid reminder window range");
+
+    // Rejects cross-midnight window
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [{ startHour: 22, startMinute: 0, endHour: 2, endMinute: 0 }],
+      })
+    ).toThrow("Invalid reminder window range");
+
+    // Rejects overlapping windows
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [
+          { startHour: 9, startMinute: 0, endHour: 12, endMinute: 0 },
+          { startHour: 11, startMinute: 30, endHour: 13, endMinute: 0 },
+        ],
+      })
+    ).toThrow("Overlapping reminder windows");
+
+    // Rejects out-of-range time parts in window
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [{ startHour: 24, startMinute: 0, endHour: 25, endMinute: 0 }],
+      })
+    ).toThrow("Invalid reminder window time");
+    expect(() =>
+      parseCreateReminderInput({
+        ...intervalInput,
+        windows: [{ startHour: 9, startMinute: -1, endHour: 10, endMinute: 0 }],
+      })
+    ).toThrow("Invalid reminder window time");
+
+    // Rejects interval < 15 or > 240 or not divisible by 5
+    expect(() => parseCreateReminderInput({ ...intervalInput, intervalMinutes: 10 })).toThrow(
+      "Invalid reminder interval"
+    );
+    expect(() => parseCreateReminderInput({ ...intervalInput, intervalMinutes: 245 })).toThrow(
+      "Invalid reminder interval"
+    );
+    expect(() => parseCreateReminderInput({ ...intervalInput, intervalMinutes: 17 })).toThrow(
+      "Invalid reminder interval"
+    );
   });
 });

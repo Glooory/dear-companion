@@ -45,6 +45,8 @@ export const SYSTEM_LOCAL_CALENDAR: LocalCalendarAdapter = {
   },
 };
 
+const MAX_DUE_OCCURRENCES_GUARD = 2000;
+
 export function nextReminderOccurrence(
   schedule: ReminderSchedule,
   afterMs: number,
@@ -58,13 +60,33 @@ export function nextReminderOccurrence(
     if (noon === null) continue;
     const weekday = calendar.toLocalParts(noon).weekday;
     if (!schedule.weekdays.includes(weekday as 0 | 1 | 2 | 3 | 4 | 5 | 6)) continue;
-    const scheduledFor = calendar.fromLocalParts({
-      ...date,
-      hour: schedule.hour,
-      minute: schedule.minute,
-    });
-    if (scheduledFor === null || scheduledFor <= afterMs) continue;
-    return createOccurrence(schedule, scheduledFor, date);
+
+    if (schedule.mode === "fixed") {
+      const scheduledFor = calendar.fromLocalParts({
+        ...date,
+        hour: schedule.hour,
+        minute: schedule.minute,
+      });
+      if (scheduledFor === null || scheduledFor <= afterMs) continue;
+      return createOccurrence(schedule, scheduledFor, date, schedule.hour, schedule.minute);
+    }
+
+    for (const window of schedule.windows) {
+      const startMinutes = window.startHour * 60 + window.startMinute;
+      const endMinutes = window.endHour * 60 + window.endMinute;
+      for (let minuteOfDay = startMinutes; minuteOfDay <= endMinutes; minuteOfDay += schedule.intervalMinutes) {
+        const hour = Math.floor(minuteOfDay / 60);
+        const minute = minuteOfDay % 60;
+        const scheduledFor = calendar.fromLocalParts({
+          ...date,
+          hour,
+          minute,
+        });
+        if (scheduledFor !== null && scheduledFor > afterMs) {
+          return createOccurrence(schedule, scheduledFor, date, hour, minute);
+        }
+      }
+    }
   }
   return null;
 }
@@ -94,7 +116,7 @@ export function dueReminderOccurrences(
   const due: ReminderOccurrence[] = [];
   for (const schedule of schedules) {
     let cursor = startExclusiveMs;
-    for (let guard = 0; guard < 400; guard += 1) {
+    for (let guard = 0; guard < MAX_DUE_OCCURRENCES_GUARD; guard += 1) {
       const occurrence = nextReminderOccurrence(schedule, cursor, calendar);
       if (!occurrence || occurrence.scheduledFor > endInclusiveMs) break;
       if (!excludedOccurrenceIds.has(occurrence.occurrenceId)) due.push(occurrence);
@@ -107,15 +129,17 @@ export function dueReminderOccurrences(
 function createOccurrence(
   schedule: ReminderSchedule,
   scheduledFor: number,
-  date: Pick<LocalDateParts, "year" | "month" | "day">
+  date: Pick<LocalDateParts, "year" | "month" | "day">,
+  hour: number,
+  minute: number
 ): ReminderOccurrence {
   const occurrenceId = [
     schedule.id,
     String(date.year).padStart(4, "0"),
     String(date.month).padStart(2, "0"),
     String(date.day).padStart(2, "0"),
-    String(schedule.hour).padStart(2, "0"),
-    String(schedule.minute).padStart(2, "0"),
+    String(hour).padStart(2, "0"),
+    String(minute).padStart(2, "0"),
   ].join("-");
   return {
     occurrenceId,

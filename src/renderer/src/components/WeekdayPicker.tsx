@@ -15,21 +15,32 @@ export function WeekdayPicker({
   value,
   legend = "重复星期",
   disabled = false,
+  isInvalid = false,
+  describedBy,
   onChange,
 }: {
   value: readonly Weekday[];
   legend?: string;
   disabled?: boolean;
+  isInvalid?: boolean;
+  describedBy?: string;
   onChange(value: readonly Weekday[]): void;
 }): React.JSX.Element {
   return (
-    <fieldset className={styles.picker} disabled={disabled}>
+    <fieldset
+      className={styles.picker}
+      disabled={disabled}
+      data-invalid={isInvalid ? "true" : undefined}
+      aria-describedby={describedBy}
+    >
       <legend>{legend}</legend>
       {WEEKDAYS.map((day) => (
         <label key={day.value} className={styles.item}>
           <input
             type="checkbox"
             checked={value.includes(day.value)}
+            aria-invalid={isInvalid ? "true" : undefined}
+            aria-describedby={describedBy}
             onChange={(event) =>
               onChange(
                 event.currentTarget.checked

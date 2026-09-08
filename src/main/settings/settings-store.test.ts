@@ -301,4 +301,62 @@ describe("SettingsStore", () => {
     await expect(new SettingsStore(userDataPath).load()).rejects.toBeInstanceOf(SettingsRecoveryError);
     expect(JSON.parse(await readFile(settingsPath, "utf8"))).toEqual(legacy);
   });
+
+  it("migrates schema v6 file with fixed reminder to schema v7 and preserves original in backup", async () => {
+    const userDataPath = await createUserDataPath();
+    const legacyV6 = {
+      schemaVersion: 6,
+      activePetId: null,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: {
+        reminderSource: { kind: "builtin", id: "gentle-chime" },
+        cryingSource: { kind: "builtin", id: "soft-whimper" },
+        assets: [],
+      },
+      reminders: [
+        {
+          id: "reminder-v6",
+          enabled: true,
+          hour: 10,
+          minute: 30,
+          weekdays: [1, 2, 3, 4, 5],
+          restDurationMinutes: 10,
+          cursorTolerance: "standard",
+          message: "休息一下",
+          sounds: { reminder: false, crying: false },
+        },
+      ],
+      workSchedules: [],
+      pets: [],
+    };
+    const settingsPath = join(userDataPath, "settings.json");
+    const backupPath = join(userDataPath, "settings.backup.json");
+    const legacyJson = JSON.stringify(legacyV6, null, 2);
+    await writeFile(settingsPath, legacyJson, "utf8");
+
+    const loaded = await new SettingsStore(userDataPath).load();
+
+    expect(loaded.schemaVersion).toBe(7);
+    expect(loaded.reminders).toHaveLength(1);
+    expect(loaded.reminders[0]).toEqual({
+      id: "reminder-v6",
+      mode: "fixed",
+      enabled: true,
+      hour: 10,
+      minute: 30,
+      weekdays: [1, 2, 3, 4, 5],
+      restDurationMinutes: 10,
+      cursorTolerance: "standard",
+      message: "休息一下",
+      sounds: { reminder: false, crying: false },
+    });
+
+    const rewrittenPrimary = JSON.parse(await readFile(settingsPath, "utf8"));
+    expect(rewrittenPrimary.schemaVersion).toBe(7);
+    expect(rewrittenPrimary.reminders[0]?.mode).toBe("fixed");
+
+    const preservedBackup = await readFile(backupPath, "utf8");
+    expect(JSON.parse(preservedBackup)).toEqual(legacyV6);
+  });
 });
