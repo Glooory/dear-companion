@@ -3,7 +3,8 @@ import type { RestSystemApi } from "@shared/contracts";
 
 export function useAudioPlayback(
   api: Pick<RestSystemApi, "onAudioPlaybackRequested" | "reportAudioPlaybackFailure">,
-  enabled: boolean
+  enabled: boolean,
+  shouldPlayCue?: (cue: "reminder" | "crying") => boolean
 ): void {
   useEffect(() => {
     let cancelCurrent: (() => void) | null = null;
@@ -11,6 +12,7 @@ export function useAudioPlayback(
       cancelCurrent?.();
       cancelCurrent = null;
       if (!enabled) return;
+      if (shouldPlayCue && !shouldPlayCue(request.cue)) return;
       if (request.source.kind === "builtin") {
         cancelCurrent = playBuiltIn(request.cue);
         return;
@@ -137,7 +139,7 @@ export function useAudioPlayback(
       unsubscribe();
       cancelCurrent?.();
     };
-  }, [api, enabled]);
+  }, [api, enabled, shouldPlayCue]);
 }
 
 export function playAudioSource(

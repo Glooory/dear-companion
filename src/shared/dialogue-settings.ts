@@ -3,7 +3,9 @@ import { DIALOGUE_CATEGORIES, getDialogueTriggerMeta, type DialogueCategory } fr
 export const ADDRESS_PLACEHOLDER = "[称呼]";
 export const MAX_ADDRESS_LENGTH = 12;
 export const MAX_DIALOGUE_LINE_LENGTH = 30;
+export const MAX_REST_DIALOGUE_LINE_LENGTH = 15;
 export const MAX_CUSTOM_LINES_PER_CATEGORY = 20;
+export const MAX_CUSTOM_LINES_PER_REST_CATEGORY = 5;
 export const MAX_BUILT_IN_OVERRIDES_PER_CATEGORY = 64;
 
 const IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -140,11 +142,22 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
       issues.push({ path: `${category}`, message: "Too many built-in overrides" });
     }
 
+    const maxCustomLines = category.startsWith("rest:")
+      ? MAX_CUSTOM_LINES_PER_REST_CATEGORY
+      : MAX_CUSTOM_LINES_PER_CATEGORY;
     if (!Array.isArray(catVal.customLines)) {
       issues.push({ path: `${category}`, message: "Invalid custom lines" });
-    } else if (catVal.customLines.length > MAX_CUSTOM_LINES_PER_CATEGORY) {
-      issues.push({ path: `${category}`, message: "每个互动时机最多添加 20 条对白" });
+    } else if (catVal.customLines.length > maxCustomLines) {
+      issues.push({
+        path: `${category}`,
+        message: category.startsWith("rest:") ? "休息对白最多添加 5 条" : "每个互动时机最多添加 20 条对白",
+      });
     }
+
+    const maxLineLength = category.startsWith("rest:")
+      ? MAX_REST_DIALOGUE_LINE_LENGTH
+      : MAX_DIALOGUE_LINE_LENGTH;
+    const maxLineLengthMessage = category.startsWith("rest:") ? "休息对白最多 15 个字" : "对白最多 30 个字";
 
     const builtInOverrides = Array.isArray(catVal.builtInOverrides) ? catVal.builtInOverrides : [];
     const customLines = Array.isArray(catVal.customLines) ? catVal.customLines : [];
@@ -212,8 +225,8 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
           const trimmed = override.text.trim();
           if (trimmed.length === 0) {
             issues.push({ path: `${category}:${override.lineId}`, message: "对白内容不能为空" });
-          } else if (countVisibleCharacters(trimmed) > MAX_DIALOGUE_LINE_LENGTH) {
-            issues.push({ path: `${category}:${override.lineId}`, message: "对白最多 30 个字" });
+          } else if (countVisibleCharacters(trimmed) > maxLineLength) {
+            issues.push({ path: `${category}:${override.lineId}`, message: maxLineLengthMessage });
           } else {
             overrideTextMap.set(override.lineId, trimmed);
           }
@@ -283,8 +296,8 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
         const trimmed = custom.text.trim();
         if (trimmed.length === 0) {
           issues.push({ path: `${category}:${custom.id}`, message: "对白内容不能为空" });
-        } else if (countVisibleCharacters(trimmed) > MAX_DIALOGUE_LINE_LENGTH) {
-          issues.push({ path: `${category}:${custom.id}`, message: "对白最多 30 个字" });
+        } else if (countVisibleCharacters(trimmed) > maxLineLength) {
+          issues.push({ path: `${category}:${custom.id}`, message: maxLineLengthMessage });
         } else {
           customTexts.push({ id: custom.id, text: trimmed });
         }

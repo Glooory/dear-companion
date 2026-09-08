@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isDialogueCategory, SYSTEM_DIALOGUES, type DialogueCategory } from "@shared/dialogue-catalog";
+import { isDialogueCategory, type DialogueCategory } from "@shared/dialogue-catalog";
 import { DialogueSelector } from "@shared/dialogue-selector";
 import {
-  ADDRESS_PLACEHOLDER,
   resolveDialogueCandidates,
   type PetDialogueSettings,
   type ResolvedDialogueCandidate,
@@ -29,6 +28,7 @@ export function useDialogue(
   show(category: string, lines: readonly string[], required?: boolean): string | null;
   preview(options: DialoguePreviewOptions): void;
   clear(): void;
+  hasScheduledVoiceFor(category: string): boolean;
 } {
   const selector = useRef(new DialogueSelector());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,7 +36,10 @@ export function useDialogue(
   const [dialogue, setDialogue] = useState<string | null>(null);
   const previousPetId = useRef<string | null>(petId ?? null);
 
+  const scheduledVoiceCategory = useRef<string | null>(null);
+
   const stopVoice = useCallback(() => {
+    scheduledVoiceCategory.current = null;
     voicePlayback.stop();
   }, [voicePlayback]);
 
@@ -61,6 +64,12 @@ export function useDialogue(
 
       let selected: string | null;
       let selectedCandidate: ResolvedDialogueCandidate | null = null;
+      const effectiveCategory =
+        category === "system:crying"
+          ? "rest:crying"
+          : category === "system:completion"
+            ? "rest:completion"
+            : category;
 
       if (Array.isArray(linesOrRequired)) {
         selected = selector.current.select({
@@ -70,10 +79,10 @@ export function useDialogue(
           random: Math.random,
           enabled: required || enabled,
         });
-      } else if (isDialogueCategory(category)) {
-        const candidates = resolveDialogueCandidates(category, dialogueSettings);
+      } else if (isDialogueCategory(effectiveCategory)) {
+        const candidates = resolveDialogueCandidates(effectiveCategory, dialogueSettings);
         selectedCandidate = selector.current.selectEntry({
-          category,
+          category: effectiveCategory,
           entries: candidates,
           getText: (candidate) => candidate.text,
           now: Date.now(),
@@ -81,24 +90,6 @@ export function useDialogue(
           enabled: required || enabled,
         });
         selected = selectedCandidate?.text ?? null;
-      } else if (category === "system:crying") {
-        const address = dialogueSettings?.address.trim() ?? "";
-        selected = selector.current.select({
-          category,
-          lines: SYSTEM_DIALOGUES.crying.map((line) => line.replaceAll(ADDRESS_PLACEHOLDER, address)),
-          now: Date.now(),
-          random: Math.random,
-          enabled: required || enabled,
-        });
-      } else if (category === "system:completion") {
-        const address = dialogueSettings?.address.trim() ?? "";
-        selected = selector.current.select({
-          category,
-          lines: SYSTEM_DIALOGUES.reminderCompletion.map((line) => line.replaceAll(ADDRESS_PLACEHOLDER, address)),
-          now: Date.now(),
-          random: Math.random,
-          enabled: required || enabled,
-        });
       } else {
         selected = null;
       }
@@ -108,9 +99,16 @@ export function useDialogue(
       setDialogue(selected);
 
       // Play voice if enabled and voiceAssetId exists
-      if (enabled && dialogueSettings?.voiceEnabled && petId && selectedCandidate?.voiceAssetId) {
+      const shouldPlayVoice =
+        (required || enabled) &&
+        Boolean(dialogueSettings?.voiceEnabled) &&
+        Boolean(petId) &&
+        Boolean(selectedCandidate?.voiceAssetId);
+
+      if (shouldPlayVoice && petId && selectedCandidate?.voiceAssetId) {
+        scheduledVoiceCategory.current = effectiveCategory;
         const assetId = selectedCandidate.voiceAssetId;
-        const volume = Math.max(0, Math.min(1, dialogueSettings.voiceVolume ?? 0.8));
+        const volume = Math.max(0, Math.min(1, dialogueSettings?.voiceVolume ?? 0.8));
         voicePlayback.schedule(
           `app://renderer/pet-voices/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`,
           volume,
@@ -128,6 +126,13 @@ export function useDialogue(
       return selected;
     },
     [clear, dialogueSettings, enabled, petId, stopVoice, voicePlayback]
+  );
+
+  const hasScheduledVoiceFor = useCallback(
+    (targetCategory: string): boolean => {
+      return scheduledVoiceCategory.current === targetCategory;
+    },
+    []
   );
 
   const preview = useCallback(
@@ -166,5 +171,5 @@ export function useDialogue(
     [voicePlayback]
   );
 
-  return { dialogue, show, preview, clear };
+  return { dialogue, show, preview, clear, hasScheduledVoiceFor };
 }

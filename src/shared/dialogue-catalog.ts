@@ -15,9 +15,11 @@ export type DialogueCategory =
   | "state:working"
   | "working:click"
   | "working:petting"
+  | "rest:crying"
+  | "rest:completion"
   | "angry";
 
-export type DialogueGroupId = "daily" | "drowsy" | "sleeping" | "working" | "other";
+export type DialogueGroupId = "daily" | "drowsy" | "sleeping" | "working" | "rest" | "other";
 
 export interface BuiltInDialogueRow {
   readonly id: string;
@@ -229,6 +231,32 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
         builtIns: [
           { id: "working-petting-yes", text: "嗯。" },
           { id: "working-petting-cheer", text: "收到了，继续加油。" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "rest",
+    label: "休息陪伴",
+    triggers: [
+      {
+        id: "rest:crying",
+        group: "rest",
+        label: "打扰休息督促",
+        builtIns: [
+          { id: "rest-crying-not-enough", text: "还没休息够呢～" },
+          { id: "rest-crying-rest-more", text: "再休息一会儿吧～" },
+          { id: "rest-crying-close-eyes", text: "闭目养神一会儿好不好？" },
+        ],
+      },
+      {
+        id: "rest:completion",
+        group: "rest",
+        label: "休息结束庆祝",
+        builtIns: [
+          { id: "rest-completion-done", text: "休息结束啦！" },
+          { id: "rest-completion-moving", text: "活动一下，感觉好多了～" },
+          { id: "rest-completion-recharged", text: "充满电啦，继续加油！" },
         ],
       },
     ],

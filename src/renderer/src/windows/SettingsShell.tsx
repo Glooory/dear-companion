@@ -22,6 +22,7 @@ import {
   type Weekday,
   type WorkSchedule,
 } from "@shared/contracts";
+import type { DialogueGroupId } from "@shared/dialogue-catalog";
 import { ADDRESS_PLACEHOLDER, clonePetDialogueSettings, getDialogueValidationIssues } from "@shared/dialogue-settings";
 import { AudioSettings } from "../components/AudioSettings";
 import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
@@ -58,11 +59,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<"pets" | "rest" | "work" | "system">("pets");
   const [petSubTab, setPetSubTab] = useState<"appearance" | "dialogues">("appearance");
+  const [petDialogueGroupId, setPetDialogueGroupId] = useState<DialogueGroupId>("daily");
   const [dialogueValidationAttempt, setDialogueValidationAttempt] = useState(0);
 
   const selectedPet = useMemo(
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
     [snapshot, selectedPetId]
+  );
+  const activePet = useMemo(
+    () => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null,
+    [snapshot]
   );
   const hasUnsavedPetChanges = useMemo(
     () => Boolean(selectedPet && draft && JSON.stringify(petToUpdateInput(selectedPet)) !== JSON.stringify(draft)),
@@ -849,6 +855,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       drowsyEnabled={draft.lifeStates.drowsy.enabled}
                       sleepingEnabled={draft.lifeStates.sleeping.enabled}
                       validationAttempt={dialogueValidationAttempt}
+                      initialGroupId={petDialogueGroupId}
                       onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
                       onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
                       onPreviewDialogue={handlePreviewDialogue}
@@ -1118,6 +1125,18 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <ReminderEditor
                     value={reminderDraft}
                     disabled={isBusy}
+                    activePetName={activePet?.name}
+                    onNavigateToPetDialogue={
+                      activePet
+                        ? () => {
+                            setSelectedPetId(activePet.id);
+                            setReminderDraft(null);
+                            setActiveTab("pets");
+                            setPetSubTab("dialogues");
+                            setPetDialogueGroupId("rest");
+                          }
+                        : undefined
+                    }
                     onChange={setReminderDraft}
                     onSave={saveReminder}
                     onCancel={() => setReminderDraft(null)}

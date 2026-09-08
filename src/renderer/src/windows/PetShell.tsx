@@ -69,8 +69,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     show: showDialogue,
     preview: previewDialogue,
     clear: clearDialogue,
+    hasScheduledVoiceFor,
   } = useDialogue(activePet?.interactionBubblesEnabled ?? true, activePet?.dialogueSettings, activePet?.id);
-  useAudioPlayback(api, pageVisible);
+
+  const shouldPlayAudioCue = useCallback(
+    (cue: "reminder" | "crying"): boolean => {
+      if (cue === "crying" && hasScheduledVoiceFor("rest:crying")) {
+        return false;
+      }
+      return true;
+    },
+    [hasScheduledVoiceFor]
+  );
+  useAudioPlayback(api, pageVisible, shouldPlayAudioCue);
 
   const clearActionTimers = useCallback((): void => {
     actionTimers.current.forEach(clearTimeout);
@@ -488,9 +499,9 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     const prev = previousRuntimeState.current;
     previousRuntimeState.current = runtimeState;
     if (runtimeState === "crying") {
-      showDialogue("system:crying", true);
+      showDialogue("rest:crying", true);
     } else if (runtimeState === "celebrating") {
-      showDialogue("system:completion", true);
+      showDialogue("rest:completion", true);
     } else if (prev === "crying" || prev === "celebrating" || (prev !== null && runtimeState === null)) {
       clearDialogue();
     }

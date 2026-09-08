@@ -10,6 +10,7 @@ import {
   ADDRESS_PLACEHOLDER,
   getDialogueValidationIssues,
   MAX_CUSTOM_LINES_PER_CATEGORY,
+  MAX_CUSTOM_LINES_PER_REST_CATEGORY,
   restoreBuiltInCategory,
   restoreBuiltInLine,
   toggleCategoryAutomatic,
@@ -57,6 +58,7 @@ export interface DialogueSettingsEditorProps {
   drowsyEnabled: boolean;
   sleepingEnabled: boolean;
   validationAttempt: number;
+  initialGroupId?: DialogueGroupId;
   onChange: (settings: PetDialogueSettings) => void;
   onBubblesChange?: (enabled: boolean) => void;
   onPreviewDialogue?: (line: {
@@ -79,6 +81,7 @@ export function DialogueSettingsEditor({
   drowsyEnabled,
   sleepingEnabled,
   validationAttempt,
+  initialGroupId,
   onChange,
   onBubblesChange,
   onPreviewDialogue,
@@ -87,7 +90,15 @@ export function DialogueSettingsEditor({
   saveSuccess,
   hasUnsavedChanges,
 }: DialogueSettingsEditorProps): React.JSX.Element {
-  const [selectedGroupId, setSelectedGroupId] = useState<DialogueGroupId>("daily");
+  const [selectedGroupId, setSelectedGroupId] = useState<DialogueGroupId>(initialGroupId ?? "daily");
+  const [prevInitialGroupId, setPrevInitialGroupId] = useState(initialGroupId);
+
+  if (initialGroupId !== prevInitialGroupId) {
+    setPrevInitialGroupId(initialGroupId);
+    if (initialGroupId) {
+      setSelectedGroupId(initialGroupId);
+    }
+  }
   const [confirmRestoreCategory, setConfirmRestoreCategory] = useState<DialogueCategory | null>(null);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set());
   const [voiceAvailabilityState, setVoiceAvailabilityState] = useState<{
@@ -388,7 +399,10 @@ export function DialogueSettingsEditor({
 
   const handleAddCustomLine = (category: DialogueCategory): void => {
     const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
-    if (catSettings.customLines.length >= MAX_CUSTOM_LINES_PER_CATEGORY) return;
+    const maxCustomLines = category.startsWith("rest:")
+      ? MAX_CUSTOM_LINES_PER_REST_CATEGORY
+      : MAX_CUSTOM_LINES_PER_CATEGORY;
+    if (catSettings.customLines.length >= maxCustomLines) return;
 
     const id = `user-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     onChange({
@@ -749,7 +763,10 @@ export function DialogueSettingsEditor({
 
               <div className={styles.triggerFooter}>
                 <div className={styles.addActions}>
-                  {customLines.length < MAX_CUSTOM_LINES_PER_CATEGORY && (
+                  {customLines.length <
+                    (trigger.id.startsWith("rest:")
+                      ? MAX_CUSTOM_LINES_PER_REST_CATEGORY
+                      : MAX_CUSTOM_LINES_PER_CATEGORY) && (
                     <button
                       type="button"
                       className="ghost-button compact-button"

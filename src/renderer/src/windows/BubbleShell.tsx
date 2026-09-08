@@ -181,7 +181,7 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
           data-pet-interactive="true"
         >
           {session.state === "crying" ? (
-            <p>{dialogue ?? "还没休息够呢～"}</p>
+            <p>{dialogue ?? `${session.message} · ${formatCountdown(remainingSeconds)}`}</p>
           ) : session.state === "celebrating" ? (
             <p>{dialogue ?? "休息结束啦！"}</p>
           ) : (

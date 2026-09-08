@@ -14,13 +14,24 @@ export interface ReminderDraft extends Omit<CreateReminderInput, "hour" | "minut
 interface Props {
   value: ReminderDraft;
   disabled: boolean;
+  activePetName?: string;
+  onNavigateToPetDialogue?: () => void;
   onChange(value: ReminderDraft): void;
   onSave(): void;
   onCancel(): void;
   onDelete?: () => void;
 }
 
-export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, onDelete }: Props): React.JSX.Element {
+export function ReminderEditor({
+  value,
+  disabled,
+  activePetName,
+  onNavigateToPetDialogue,
+  onChange,
+  onSave,
+  onCancel,
+  onDelete,
+}: Props): React.JSX.Element {
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [failedVoiceId, setFailedVoiceId] = useState<string | null>(null);
   const [isVoiceMissing, setIsVoiceMissing] = useState(false);
@@ -379,8 +390,25 @@ export function ReminderEditor({ value, disabled, onChange, onSave, onCancel, on
               />
               <strong>督促继续休息时播放提示音</strong>
             </div>
-            <span className={styles.toggleSubtext}>休息期间检测到鼠标移动时发声督促</span>
+            <span className={styles.toggleSubtext}>
+              休息期间检测到鼠标移动时发声督促。督促对白与配音随当前在场的伙伴切换
+            </span>
           </label>
+
+          {onNavigateToPetDialogue && activePetName && (
+            <div className={styles.companionContextNotice}>
+              <span>
+                当前陪伴：<strong>{activePetName}</strong>
+              </span>
+              <button
+                type="button"
+                className={styles.companionContextLink}
+                onClick={onNavigateToPetDialogue}
+              >
+                定制该伙伴休息对白 ›
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -92,6 +92,8 @@
   margin: 0 0 8px;
   font-weight: 700;
   overflow-wrap: anywhere;
+  min-height: 18px;
+  line-height: 1.4;
 }
 
 .restActions {

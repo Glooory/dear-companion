@@ -12,9 +12,9 @@ import {
 } from "./dialogue-settings";
 
 describe("dialogue catalog coverage", () => {
-  test("all 17 trigger IDs are unique across groups", () => {
-    expect(DIALOGUE_CATEGORIES).toHaveLength(17);
-    expect(new Set(DIALOGUE_CATEGORIES).size).toBe(17);
+  test("all 19 trigger IDs are unique across groups", () => {
+    expect(DIALOGUE_CATEGORIES).toHaveLength(19);
+    expect(new Set(DIALOGUE_CATEGORIES).size).toBe(19);
     const groupTriggerIds = DIALOGUE_GROUPS.flatMap((group) => group.triggers.map((t) => t.id));
     expect(groupTriggerIds).toEqual(DIALOGUE_CATEGORIES);
   });
@@ -164,6 +164,57 @@ describe("dialogue character counting and normalization", () => {
         },
       })
     ).toThrow("每个互动时机最多添加 20 条对白");
+  });
+
+  test("rejects 16-character lines for rest categories", () => {
+    expect(() =>
+      parsePetDialogueSettings({
+        address: "",
+        categories: {
+          "rest:crying": {
+            builtInOverrides: [],
+            customLines: [
+              {
+                id: "line-1",
+                automaticEnabled: true,
+                text: "一二三四五六七八九十一二三四五六", // 16 characters
+              },
+            ],
+          },
+        },
+      })
+    ).toThrow("休息对白最多 15 个字");
+  });
+
+  test("rejects 6th custom line for rest categories", () => {
+    const customLines = Array.from({ length: 6 }, (_, index) => ({
+      id: `line-${index}`,
+      automaticEnabled: true,
+      text: `休息句子${index}`,
+    }));
+    const issues = getDialogueValidationIssues({
+      address: "",
+      categories: {
+        "rest:crying": {
+          builtInOverrides: [],
+          customLines,
+        },
+      },
+    });
+    expect(issues[0]?.path).toBe("rest:crying");
+    expect(issues[0]?.message).toBe("休息对白最多添加 5 条");
+
+    expect(() =>
+      parsePetDialogueSettings({
+        address: "",
+        categories: {
+          "rest:crying": {
+            builtInOverrides: [],
+            customLines,
+          },
+        },
+      })
+    ).toThrow("休息对白最多添加 5 条");
   });
 
   test("rejects unsafe and duplicate identifiers", () => {
