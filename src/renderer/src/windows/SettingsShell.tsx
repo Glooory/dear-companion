@@ -856,6 +856,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                       sleepingEnabled={draft.lifeStates.sleeping.enabled}
                       validationAttempt={dialogueValidationAttempt}
                       initialGroupId={petDialogueGroupId}
+                      onGroupChange={setPetDialogueGroupId}
                       onChange={(dialogueSettings) => setDraft({ ...draft, dialogueSettings })}
                       onBubblesChange={(interactionBubblesEnabled) => setDraft({ ...draft, interactionBubblesEnabled })}
                       onPreviewDialogue={handlePreviewDialogue}
@@ -1129,7 +1130,17 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     onNavigateToPetDialogue={
                       activePet
                         ? () => {
-                            setSelectedPetId(activePet.id);
+                            if (selectedPetId !== activePet.id) {
+                              if (selectedPetId) {
+                                void api.cleanupPetVoiceDrafts(selectedPetId).catch(() => undefined);
+                              }
+                              setSelectedPetId(activePet.id);
+                              setDraft(petToUpdateInput(activePet));
+                              setTargetHeightText(String(activePet.targetHeight));
+                            } else if (!draft) {
+                              setDraft(petToUpdateInput(activePet));
+                              setTargetHeightText(String(activePet.targetHeight));
+                            }
                             setReminderDraft(null);
                             setActiveTab("pets");
                             setPetSubTab("dialogues");

@@ -28,7 +28,7 @@ export function useDialogue(
   show(category: string, lines: readonly string[], required?: boolean): string | null;
   preview(options: DialoguePreviewOptions): void;
   clear(): void;
-  hasScheduledVoiceFor(category: string): boolean;
+  hasVoiceForCategory(category: DialogueCategory): boolean;
 } {
   const selector = useRef(new DialogueSelector());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,10 +36,7 @@ export function useDialogue(
   const [dialogue, setDialogue] = useState<string | null>(null);
   const previousPetId = useRef<string | null>(petId ?? null);
 
-  const scheduledVoiceCategory = useRef<string | null>(null);
-
   const stopVoice = useCallback(() => {
-    scheduledVoiceCategory.current = null;
     voicePlayback.stop();
   }, [voicePlayback]);
 
@@ -106,7 +103,6 @@ export function useDialogue(
         Boolean(selectedCandidate?.voiceAssetId);
 
       if (shouldPlayVoice && petId && selectedCandidate?.voiceAssetId) {
-        scheduledVoiceCategory.current = effectiveCategory;
         const assetId = selectedCandidate.voiceAssetId;
         const volume = Math.max(0, Math.min(1, dialogueSettings?.voiceVolume ?? 0.8));
         voicePlayback.schedule(
@@ -128,11 +124,13 @@ export function useDialogue(
     [clear, dialogueSettings, enabled, petId, stopVoice, voicePlayback]
   );
 
-  const hasScheduledVoiceFor = useCallback(
-    (targetCategory: string): boolean => {
-      return scheduledVoiceCategory.current === targetCategory;
+  const hasVoiceForCategory = useCallback(
+    (category: DialogueCategory): boolean => {
+      if (!dialogueSettings?.voiceEnabled || !petId) return false;
+      const candidates = resolveDialogueCandidates(category, dialogueSettings);
+      return candidates.some((candidate) => Boolean(candidate.voiceAssetId));
     },
-    []
+    [dialogueSettings, petId]
   );
 
   const preview = useCallback(
@@ -171,5 +169,5 @@ export function useDialogue(
     [voicePlayback]
   );
 
-  return { dialogue, show, preview, clear, hasScheduledVoiceFor };
+  return { dialogue, show, preview, clear, hasVoiceForCategory };
 }

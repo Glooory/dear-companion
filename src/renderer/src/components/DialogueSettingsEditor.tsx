@@ -59,6 +59,7 @@ export interface DialogueSettingsEditorProps {
   sleepingEnabled: boolean;
   validationAttempt: number;
   initialGroupId?: DialogueGroupId;
+  onGroupChange?: (groupId: DialogueGroupId) => void;
   onChange: (settings: PetDialogueSettings) => void;
   onBubblesChange?: (enabled: boolean) => void;
   onPreviewDialogue?: (line: {
@@ -82,6 +83,7 @@ export function DialogueSettingsEditor({
   sleepingEnabled,
   validationAttempt,
   initialGroupId,
+  onGroupChange,
   onChange,
   onBubblesChange,
   onPreviewDialogue,
@@ -99,6 +101,11 @@ export function DialogueSettingsEditor({
       setSelectedGroupId(initialGroupId);
     }
   }
+
+  const handleSelectGroup = (groupId: DialogueGroupId): void => {
+    setSelectedGroupId(groupId);
+    onGroupChange?.(groupId);
+  };
   const [confirmRestoreCategory, setConfirmRestoreCategory] = useState<DialogueCategory | null>(null);
   const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set());
   const [voiceAvailabilityState, setVoiceAvailabilityState] = useState<{
@@ -611,14 +618,14 @@ export function DialogueSettingsEditor({
               aria-controls={`dialogue-group-panel-${group.id}`}
               tabIndex={isActive ? 0 : -1}
               className={clsx(styles.scenarioTab, isActive && styles.active)}
-              onClick={() => setSelectedGroupId(group.id)}
+              onClick={() => handleSelectGroup(group.id)}
               onKeyDown={(event) => {
                 const currentIndex = DIALOGUE_GROUPS.findIndex((candidate) => candidate.id === group.id);
                 const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
                 if (delta === 0) return;
                 event.preventDefault();
                 const next = DIALOGUE_GROUPS[(currentIndex + delta + DIALOGUE_GROUPS.length) % DIALOGUE_GROUPS.length]!;
-                setSelectedGroupId(next.id);
+                handleSelectGroup(next.id);
                 document.getElementById(`dialogue-group-tab-${next.id}`)?.focus();
               }}
             >

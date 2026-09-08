@@ -405,7 +405,7 @@ export function ReminderEditor({
                 className={styles.companionContextLink}
                 onClick={onNavigateToPetDialogue}
               >
-                定制该伙伴休息对白 ›
+                设置休息对白 ›
               </button>
             </div>
           )}

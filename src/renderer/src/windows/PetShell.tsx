@@ -69,17 +69,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     show: showDialogue,
     preview: previewDialogue,
     clear: clearDialogue,
-    hasScheduledVoiceFor,
+    hasVoiceForCategory,
   } = useDialogue(activePet?.interactionBubblesEnabled ?? true, activePet?.dialogueSettings, activePet?.id);
 
   const shouldPlayAudioCue = useCallback(
     (cue: "reminder" | "crying"): boolean => {
-      if (cue === "crying" && hasScheduledVoiceFor("rest:crying")) {
+      if (cue === "crying" && hasVoiceForCategory("rest:crying")) {
         return false;
       }
       return true;
     },
-    [hasScheduledVoiceFor]
+    [hasVoiceForCategory]
   );
   useAudioPlayback(api, pageVisible, shouldPlayAudioCue);
 
