@@ -137,8 +137,8 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
   };
 
   const halfWidth = dialogueWidth > 0 ? dialogueWidth / 2 : 60;
-  const minCenter = halfWidth + 8;
-  const maxCenter = Math.max(minCenter, 320 - halfWidth - 8);
+  const minCenter = halfWidth + 12;
+  const maxCenter = Math.max(minCenter, 320 - halfWidth - 12);
   const dialogueCenterX = Math.max(minCenter, Math.min(maxCenter, bubbleSnapshot.tailOffsetX));
   const rawArrow = bubbleSnapshot.tailOffsetX - (dialogueCenterX - halfWidth);
   const arrowOffset = Math.max(14, Math.min(dialogueWidth > 0 ? dialogueWidth - 14 : 106, rawArrow));

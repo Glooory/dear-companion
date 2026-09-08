@@ -2,7 +2,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   user-select: none;
   touch-action: none;
   pointer-events: none;
@@ -15,12 +15,14 @@
   left: var(--dialogue-center-x, 50%);
   transform: translateX(-50%);
   width: fit-content;
-  max-width: 280px;
+  max-width: 272px;
   padding: 8px 14px;
   border: 1px solid rgba(45, 42, 38, 0.1);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 24px rgba(45, 42, 38, 0.12);
+  filter:
+    drop-shadow(0 2px 4px rgba(45, 42, 38, 0.08))
+    drop-shadow(0 1px 2px rgba(45, 42, 38, 0.05));
   color: #2d2a26;
   font-size: 13px;
   line-height: 1.4;
@@ -34,11 +36,11 @@
 }
 
 .shell[data-placement="top"] .dialogue {
-  bottom: 8px;
+  bottom: 12px;
 }
 
 .shell[data-placement="bottom"] .dialogue {
-  top: 8px;
+  top: 12px;
 }
 
 .dialogue::after {
@@ -67,13 +69,15 @@
 .restBubble {
   position: absolute;
   z-index: 8;
-  left: 10px;
-  right: 10px;
+  left: 12px;
+  right: 12px;
   padding: 11px 13px;
   border: 1px solid rgba(61, 115, 99, 0.3);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 10px 28px rgba(36, 71, 61, 0.16);
+  box-shadow:
+    0 2px 7px rgba(36, 71, 61, 0.1),
+    0 1px 2px rgba(36, 71, 61, 0.06);
   color: #24473d;
   font-size: 12.5px;
   cursor: default;
@@ -81,11 +85,11 @@
 }
 
 .shell[data-placement="top"] .restBubble {
-  bottom: 8px;
+  bottom: 10px;
 }
 
 .shell[data-placement="bottom"] .restBubble {
-  top: 8px;
+  top: 10px;
 }
 
 .restBubble p {
