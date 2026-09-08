@@ -2,20 +2,23 @@ import { useState, type ReactNode } from "react";
 import { clsx } from "clsx";
 import styles from "./Tooltip.module.css";
 
+export type TooltipPosition = "top" | "bottom" | "right" | "left" | "top-end" | "top-start";
+
 interface TooltipProps {
   content: string;
   children: ReactNode;
-  position?: "top" | "bottom" | "right" | "left" | "top-end";
+  position?: TooltipPosition;
   className?: string;
   disabled?: boolean;
 }
 
-const positionClassMap: Record<"top" | "bottom" | "right" | "left" | "top-end", string | undefined> = {
+const positionClassMap: Record<TooltipPosition, string | undefined> = {
   top: styles.top,
   bottom: styles.bottom,
   right: styles.right,
   left: styles.left,
   "top-end": styles.topEnd,
+  "top-start": styles.topStart,
 };
 
 export function Tooltip({
@@ -55,7 +58,7 @@ export function InfoTooltip({
   position = "top",
 }: {
   text: string;
-  position?: "top" | "bottom" | "right" | "left";
+  position?: TooltipPosition;
 }): React.JSX.Element {
   return (
     <Tooltip content={text} position={position} className={styles.infoTrigger}>

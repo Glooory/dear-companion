@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import type { CursorTolerance, ReminderSounds, ReminderTimeWindow, Weekday } from "@shared/contracts";
-import { Tooltip } from "./Tooltip";
+import { InfoTooltip, Tooltip } from "./Tooltip";
 import { VoiceRecorderPopover } from "./VoiceRecorderPopover";
 import { WeekdayPicker } from "./WeekdayPicker";
 import styles from "./ReminderEditor.module.css";
@@ -595,9 +595,11 @@ export function ReminderEditor({
         <div className={styles.fields}>
           {value.mode === "fixed" ? (
             <div className={styles.fieldGroup}>
-              <label htmlFor="reminder-time-input">
-                <span>提醒时间</span>
-              </label>
+              <div className={styles.fieldHeader}>
+                <label htmlFor="reminder-time-input">
+                  <span>提醒时间</span>
+                </label>
+              </div>
               <input
                 id="reminder-time-input"
                 type="time"
@@ -623,9 +625,12 @@ export function ReminderEditor({
             </div>
           ) : (
             <div className={styles.fieldGroup}>
-              <label htmlFor="reminder-interval-input">
-                <span>提醒间隔</span>
-              </label>
+              <div className={styles.fieldHeader}>
+                <label htmlFor="reminder-interval-input">
+                  <span>提醒间隔</span>
+                </label>
+                <InfoTooltip text="可设置 15–240 分钟，须为 5 的倍数。" position="top-start" />
+              </div>
               <div className={styles.inputWithSuffix}>
                 <input
                   id="reminder-interval-input"
@@ -636,7 +641,7 @@ export function ReminderEditor({
                   value={value.intervalMinutes}
                   disabled={disabled}
                   aria-invalid={Boolean(errors.intervalMinutes)}
-                  aria-describedby="interval-minutes-desc interval-minutes-error"
+                  aria-describedby={errors.intervalMinutes ? "interval-minutes-error" : undefined}
                   onChange={(event) => {
                     const next = Number(event.currentTarget.value);
                     if (Number.isInteger(next)) {
@@ -652,9 +657,6 @@ export function ReminderEditor({
                 />
                 <span className={styles.inputSuffix}>分钟</span>
               </div>
-              <span id="interval-minutes-desc" className={styles.supportingCopy}>
-                15–240 分钟，以 5 分钟为单位
-              </span>
               <div className={styles.errorSlot} id="interval-minutes-error" role="alert">
                 {errors.intervalMinutes && <span className={styles.inlineError}>{errors.intervalMinutes}</span>}
               </div>
@@ -662,31 +664,36 @@ export function ReminderEditor({
           )}
 
           <div className={styles.fieldGroup}>
-            <label htmlFor="rest-duration-input">
-              <span>休息时长（分钟）</span>
-            </label>
-            <input
-              id="rest-duration-input"
-              type="number"
-              min={1}
-              max={120}
-              value={value.restDurationMinutes}
-              disabled={disabled}
-              aria-invalid={Boolean(errors.restDurationMinutes)}
-              aria-describedby={errors.restDurationMinutes ? "rest-duration-error" : undefined}
-              onChange={(event) => {
-                const next = Number(event.currentTarget.value);
-                if (Number.isInteger(next)) {
-                  onChange({
-                    ...value,
-                    restDurationMinutes: Math.min(Math.max(next, 1), 120),
-                  });
-                  if (errors.restDurationMinutes) {
-                    setErrors((prev) => ({ ...prev, restDurationMinutes: undefined }));
+            <div className={styles.fieldHeader}>
+              <label htmlFor="rest-duration-input">
+                <span>休息时长</span>
+              </label>
+            </div>
+            <div className={styles.inputWithSuffix}>
+              <input
+                id="rest-duration-input"
+                type="number"
+                min={1}
+                max={120}
+                value={value.restDurationMinutes}
+                disabled={disabled}
+                aria-invalid={Boolean(errors.restDurationMinutes)}
+                aria-describedby={errors.restDurationMinutes ? "rest-duration-error" : undefined}
+                onChange={(event) => {
+                  const next = Number(event.currentTarget.value);
+                  if (Number.isInteger(next)) {
+                    onChange({
+                      ...value,
+                      restDurationMinutes: Math.min(Math.max(next, 1), 120),
+                    });
+                    if (errors.restDurationMinutes) {
+                      setErrors((prev) => ({ ...prev, restDurationMinutes: undefined }));
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
+              <span className={styles.inputSuffix}>分钟</span>
+            </div>
             <div className={styles.errorSlot} id="rest-duration-error" role="alert">
               {errors.restDurationMinutes && (
                 <span className={styles.inlineError}>{errors.restDurationMinutes}</span>
@@ -695,9 +702,11 @@ export function ReminderEditor({
           </div>
 
           <div className={styles.fieldGroup}>
-            <label htmlFor="cursor-tolerance-select">
-              <span>鼠标移动灵敏度</span>
-            </label>
+            <div className={styles.fieldHeader}>
+              <label htmlFor="cursor-tolerance-select">
+                <span>鼠标移动灵敏度</span>
+              </label>
+            </div>
             <select
               id="cursor-tolerance-select"
               value={value.cursorTolerance}
