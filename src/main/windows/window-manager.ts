@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, type Event as ElectronEvent } from "electron";
+import { app, BrowserWindow, screen, type Event as ElectronEvent } from "electron";
 import {
   BUBBLE_DIALOGUE_WINDOW_HEIGHT,
   BUBBLE_REST_WINDOW_HEIGHT,
@@ -340,6 +340,9 @@ export class WindowManager {
         if (this.settingsWindow.isMinimized()) this.settingsWindow.restore();
         this.settingsWindow.show();
         this.settingsWindow.focus();
+        if (process.platform === "darwin") {
+          app.focus({ steal: true });
+        }
         if (target) {
           this.settingsWindow.webContents.send(IPC_CHANNELS.settingsNavigationRequested, target);
           this.pendingSettingsTarget = null;
@@ -400,6 +403,9 @@ export class WindowManager {
       this.settingsWindowReady = true;
       settingsWindow.show();
       settingsWindow.focus();
+      if (process.platform === "darwin") {
+        app.focus({ steal: true });
+      }
       if (this.pendingSettingsTarget) {
         settingsWindow.webContents.send(IPC_CHANNELS.settingsNavigationRequested, this.pendingSettingsTarget);
         this.pendingSettingsTarget = null;
@@ -440,6 +446,9 @@ export class WindowManager {
     if (!this.settingsWindow || this.settingsWindow.isDestroyed() || !this.settingsWindowReady) return;
     this.settingsWindow.show();
     this.settingsWindow.focus();
+    if (process.platform === "darwin") {
+      app.focus({ steal: true });
+    }
   }
 
   getWindowKind(webContentsId: number): WindowKind {

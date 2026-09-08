@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, dialog, powerMonitor, screen, session } from "electron";
+import { app, dialog, nativeImage, powerMonitor, screen, session } from "electron";
 import {
   createCompanionSystemSnapshot,
   createPetSystemSnapshot,
@@ -193,6 +193,14 @@ if (!hasSingleInstanceLock) {
 
   void runStartup(async () => {
     await app.whenReady();
+    if (process.platform === "darwin" && app.dock) {
+      const iconPath = app.isPackaged ? join(process.resourcesPath, "icon.png") : join(process.cwd(), "build/icon.png");
+      const dockIcon = nativeImage.createFromPath(iconPath);
+      if (!dockIcon.isEmpty()) {
+        app.dock.setIcon(dockIcon);
+      }
+      app.dock.hide();
+    }
     const mainDirectory = dirname(fileURLToPath(import.meta.url));
     const preloadPath = join(mainDirectory, "../preload/index.js");
     const rendererRoot = join(mainDirectory, "../renderer");

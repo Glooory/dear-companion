@@ -16,6 +16,7 @@ mac:
   category: public.app-category.lifestyle
   identity: null
   extendInfo:
+    LSUIElement: true
     NSMicrophoneUsageDescription: Dear Companion uses the microphone only when you record a local companion dialogue voice.
   target:
     - dmg
