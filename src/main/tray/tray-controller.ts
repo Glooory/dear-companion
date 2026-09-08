@@ -69,7 +69,7 @@ export class TrayController {
 
     this.tray = new Tray(trayIcon);
     this.active = true;
-    this.tray.setToolTip("Dear Companion");
+    this.tray.setToolTip("挚伴");
     if (this.platform === "win32") this.tray.on("click", this.handleClick);
     if (this.settings) this.refresh(this.settings);
   }
@@ -106,7 +106,7 @@ export class TrayController {
           ]
         : []),
       { type: "separator" },
-      { label: "退出 Dear Companion", click: this.requestQuit },
+      { label: "退出 挚伴", click: this.requestQuit },
     ];
 
     // Electron opens an assigned context menu on primary click on macOS.

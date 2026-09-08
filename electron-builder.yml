@@ -1,5 +1,5 @@
 appId: com.glooory.dearcompanion
-productName: Dear Companion
+productName: 挚伴
 directories:
   output: release
   buildResources: build
@@ -17,7 +17,7 @@ mac:
   identity: null
   extendInfo:
     LSUIElement: true
-    NSMicrophoneUsageDescription: Dear Companion uses the microphone only when you record a local companion dialogue voice.
+    NSMicrophoneUsageDescription: 挚伴仅在录制对白声音时使用麦克风。
   target:
     - dmg
 win:

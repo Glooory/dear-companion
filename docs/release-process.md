@@ -1,6 +1,6 @@
 # Release Process
 
-Dear Companion 第一版发布 Windows x64、macOS Intel 和 macOS Apple Silicon 三种未签名、未公证安装包。生产应用保持完全离线，不包含更新器、遥测、远程资源或运行时图像生成。
+挚伴 第一版发布 Windows x64、macOS Intel 和 macOS Apple Silicon 三种未签名、未公证安装包。生产应用保持完全离线，不包含更新器、遥测、远程资源或运行时图像生成。
 
 ## 版本与标签
 

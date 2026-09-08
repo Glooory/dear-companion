@@ -1,9 +1,9 @@
 @echo off
 chcp 65001 >nul
-title Dear Companion - 打包安装包
+title 挚伴 - 打包安装包
 
 echo ========================================================
-echo         Dear Companion - 正在打包 Windows 安装程序
+echo         挚伴 - 正在打包 Windows 安装程序
 echo ========================================================
 echo.
 

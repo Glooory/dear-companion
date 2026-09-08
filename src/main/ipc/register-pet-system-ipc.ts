@@ -238,7 +238,7 @@ export function registerPetSystemIpc({
         },
         ...(isRestSessionActive() ? [{ label: "结束休息", click: endRestSession }] : []),
         { type: "separator" },
-        { label: "退出 Dear Companion", click: requestQuit },
+        { label: "退出 挚伴", click: requestQuit },
       ]);
       menu.popup({ window: owner });
     } catch {

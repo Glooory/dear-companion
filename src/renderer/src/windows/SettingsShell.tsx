@@ -29,7 +29,7 @@ import { CompanionBehaviorEditor } from "../components/CompanionBehaviorEditor";
 import { CompanionPreferences } from "../components/CompanionPreferences";
 import { DialogueSettingsEditor } from "../components/DialogueSettingsEditor";
 import { PetGalleryManager } from "../components/PetGalleryManager";
-import { ReminderEditor, createDraftWindow, type ReminderDraft } from "../components/ReminderEditor";
+import { createDraftWindow, ReminderEditor, type ReminderDraft } from "../components/ReminderEditor";
 import { useToast } from "../components/Toast";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
@@ -66,10 +66,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     () => snapshot?.pets.find((pet) => pet.id === selectedPetId) ?? null,
     [snapshot, selectedPetId]
   );
-  const activePet = useMemo(
-    () => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null,
-    [snapshot]
-  );
+  const activePet = useMemo(() => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null, [snapshot]);
   const hasUnsavedPetChanges = useMemo(
     () => Boolean(selectedPet && draft && JSON.stringify(petToUpdateInput(selectedPet)) !== JSON.stringify(draft)),
     [draft, selectedPet]
@@ -462,10 +459,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       mode: reminder.mode,
       hour: reminder.mode === "fixed" ? reminder.hour : null,
       minute: reminder.mode === "fixed" ? reminder.minute : null,
-      windows:
-        reminder.mode === "interval"
-          ? reminder.windows.map((w) => createDraftWindow(w))
-          : [createDraftWindow()],
+      windows: reminder.mode === "interval" ? reminder.windows.map((w) => createDraftWindow(w)) : [createDraftWindow()],
       intervalMinutes: reminder.mode === "interval" ? reminder.intervalMinutes : 60,
       weekdays: [...reminder.weekdays],
       restDurationMinutes: reminder.restDurationMinutes,
@@ -488,7 +482,11 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
     let timingInput:
       | { mode: "fixed"; hour: number; minute: number }
-      | { mode: "interval"; windows: { startHour: number; startMinute: number; endHour: number; endMinute: number }[]; intervalMinutes: number };
+      | {
+          mode: "interval";
+          windows: { startHour: number; startMinute: number; endHour: number; endMinute: number }[];
+          intervalMinutes: number;
+        };
 
     if (draftValue.mode === "fixed") {
       if (draftValue.hour === null || draftValue.minute === null) return;
@@ -501,11 +499,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       if (
         draftValue.windows.length === 0 ||
         draftValue.windows.some(
-          (w) =>
-            w.startHour === null ||
-            w.startMinute === null ||
-            w.endHour === null ||
-            w.endMinute === null
+          (w) => w.startHour === null || w.startMinute === null || w.endHour === null || w.endMinute === null
         )
       ) {
         return;
@@ -626,11 +620,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     <main className={styles.shell} aria-busy={isBusy || !settings || !snapshot || !restSnapshot || !companionSnapshot}>
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true">
-            ✦
-          </span>
-          <span className={styles.brandTitle}>Dear Companion</span>
-          <span className={styles.brandBadge}>本地离线</span>
+          <span className={styles.brandTitle}>挚伴</span>
         </div>
 
         <nav className={styles.nav} aria-label="设置分类">
@@ -1105,9 +1095,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                         }}
                       >
                         <div className={styles.reminderPrimaryRow}>
-                          <strong className={styles.reminderTime}>
-                            {formatReminderTiming(reminder)}
-                          </strong>
+                          <strong className={styles.reminderTime}>{formatReminderTiming(reminder)}</strong>
                           <span className={styles.reminderMessage}>{reminder.message}</span>
                         </div>
                         <div className={styles.reminderBadges}>
@@ -1171,9 +1159,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               >
                 <div className={styles.modalCard}>
                   <div className={styles.modalHeader}>
-                    <h3 id="reminder-modal-title">
-                      {reminderDraft.id ? "编辑休息提醒" : "添加休息提醒"}
-                    </h3>
+                    <h3 id="reminder-modal-title">{reminderDraft.id ? "编辑休息提醒" : "添加休息提醒"}</h3>
                     <button
                       type="button"
                       className={styles.modalCloseBtn}

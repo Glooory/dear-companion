@@ -155,7 +155,7 @@ function handleStartupFailure(): void {
   terminateFailedStartup({
     cleanup: disposeApplication,
     report: () => {
-      dialog.showErrorBox("Dear Companion 无法启动", "应用没有正常打开。请退出后再试一次。你的照片和设置不会丢失。");
+      dialog.showErrorBox("挚伴 无法启动", "应用没有正常打开。请退出后再试一次。你的照片和设置不会丢失。");
     },
     quit: requestQuit,
   });

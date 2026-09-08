@@ -22,26 +22,11 @@
   user-select: none;
 }
 
-.brandMark {
-  color: #3d7363;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
 .brandTitle {
   color: #242220;
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-
-.brandBadge {
-  padding: 2px 7px;
-  border-radius: 5px;
-  background: rgba(61, 115, 99, 0.1);
-  color: #2f5c4f;
-  font-size: 0.68rem;
-  font-weight: 600;
 }
 
 .nav {
