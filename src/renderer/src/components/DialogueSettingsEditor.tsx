@@ -13,12 +13,12 @@ import {
   MAX_CUSTOM_LINES_PER_REST_CATEGORY,
   MAX_QUICK_DIALOGUES,
   QUICK_DIALOGUE_BLOCKED_CATEGORIES,
+  removeQuickDialogueReference,
   resolveDialogueReference,
   restoreBuiltInCategory,
   restoreBuiltInLine,
   toggleCategoryAutomatic,
   toggleQuickDialogueReference,
-  removeQuickDialogueReference,
   type PetDialogueSettings,
 } from "@shared/dialogue-settings";
 import { DialogueLineEditor, type DialogueLineRowModel } from "./DialogueLineEditor";
@@ -537,7 +537,7 @@ export function DialogueSettingsEditor({
         <div className={styles.addressSection}>
           <div className={styles.addressRow}>
             <label htmlFor="address-input" className={styles.addressLabel}>
-              {petName ? `${petName}对你的称呼` : "对你的称呼"}
+              {petName ? `${petName}怎么称呼你` : "伙伴怎么称呼你"}
             </label>
             <input
               id="address-input"
@@ -549,9 +549,9 @@ export function DialogueSettingsEditor({
               onBlur={() => markFieldTouched("address")}
               aria-invalid={Boolean(addressIssue)}
               aria-describedby={addressIssue ? "address-input-error" : undefined}
-              placeholder="例如：小葡萄（可留空）"
+              placeholder="例如：小明（可留空）"
             />
-            <InfoTooltip text="在对白中插入“称呼”时使用；留空时不触发含称呼的对白。" />
+            <InfoTooltip text="对白中的 [称呼] 会替换为这里的内容；留空时，不使用含称呼的对白。" />
           </div>
           {addressIssue && (
             <p id="address-input-error" className={styles.inlineError} role="alert">
@@ -566,7 +566,7 @@ export function DialogueSettingsEditor({
             <div className={styles.labelRow}>
               <div className={styles.titleWithTooltip}>
                 <span className={styles.label}>日常对话气泡</span>
-                <InfoTooltip text="漫步与互动时冒出对白气泡；关闭后仅保留休息提醒。" />
+                <InfoTooltip text="伙伴活动或互动时显示对白；关闭后仍会显示休息提醒。" />
               </div>
               <div className={styles.voiceToggleRow}>
                 <span className={styles.switchStatus}>{bubblesEnabled ? "已启用" : "未启用"}</span>
@@ -633,7 +633,10 @@ export function DialogueSettingsEditor({
             <span id="quick-dialogue-title" className={styles.label}>
               常用对白
             </span>
-            <span className={styles.quickDialogueCount} aria-label={`已选 ${quickCount} 句，最多 ${MAX_QUICK_DIALOGUES} 句`}>
+            <span
+              className={styles.quickDialogueCount}
+              aria-label={`已选 ${quickCount} 句，最多 ${MAX_QUICK_DIALOGUES} 句`}
+            >
               已选 {quickCount} / {MAX_QUICK_DIALOGUES}
             </span>
           </div>
@@ -644,11 +647,7 @@ export function DialogueSettingsEditor({
                 key={`${summary.category}:${summary.lineId}`}
                 className={clsx(styles.quickDialogueChip, !summary.resolved && styles.quickDialogueChipUnavailable)}
               >
-                <span
-                  className={styles.quickDialogueChipText}
-                  title={summary.text}
-                  aria-label={summary.text}
-                >
+                <span className={styles.quickDialogueChipText} title={summary.text} aria-label={summary.text}>
                   {summary.text}
                 </span>
                 <button
@@ -680,9 +679,10 @@ export function DialogueSettingsEditor({
             className={clsx(styles.quickDialogueStatus, quickIssue && styles.quickDialogueStatusAlert)}
             role={quickIssue ? "alert" : "status"}
           >
-            {quickIssue ?? (quickCount >= MAX_QUICK_DIALOGUES
-              ? "已经选满，取消一句后可以继续添加。"
-              : "选出最多 3 句，在伙伴的右键菜单中随时播放。")}
+            {quickIssue ??
+              (quickCount >= MAX_QUICK_DIALOGUES
+                ? "已经选满，取消一句后可以继续添加。"
+                : "选出最多 3 句，可以从伙伴右键菜单随时让它说出。")}
           </div>
         </section>
       </div>
@@ -700,12 +700,12 @@ export function DialogueSettingsEditor({
       )}
       {selectedGroupId === "drowsy" && !drowsyEnabled && (
         <div className={styles.notice} role="status">
-          有点困了场景尚未启用，对白设置会保留。
+          还没有为“有点困了”选择照片，因此不会进入这个场景。对白设置会保留。
         </div>
       )}
       {selectedGroupId === "sleeping" && !sleepingEnabled && (
         <div className={styles.notice} role="status">
-          睡觉场景尚未启用，对白设置会保留。
+          还没有为“睡觉”选择照片，因此不会进入这个场景。对白设置会保留。
         </div>
       )}
 
@@ -804,7 +804,7 @@ export function DialogueSettingsEditor({
                     checked={isAllEnabled}
                     indeterminate={isPartiallyEnabled}
                     onChange={(checked) => onChange(toggleCategoryAutomatic(settings, trigger.id, checked))}
-                    ariaLabel={`启用全部${trigger.label}对白`}
+                    ariaLabel={`启用“${trigger.label}”下的全部对白`}
                   />
                   <h4 id={`trigger-title-${trigger.id}`} className={styles.triggerTitle}>
                     <label htmlFor={`group-checkbox-${trigger.id}`} className={styles.triggerTitleLabel}>
@@ -823,7 +823,7 @@ export function DialogueSettingsEditor({
                           className="ghost-button compact-button"
                           onClick={() => handleRestoreCategory(trigger.id)}
                         >
-                          确认
+                          恢复
                         </button>
                         <button
                           type="button"
@@ -943,7 +943,7 @@ export function DialogueSettingsEditor({
           {saveSuccess && <span className={styles.saveNotice}>设置已保存</span>}
           {!saveSuccess && hasUnsavedChanges && <span className={styles.unsavedNotice}>尚未保存</span>}
           <button type="button" className="primary-button" disabled={isBusy} onClick={onSave}>
-            {isBusy ? "保存中..." : "保存设置"}
+            {isBusy ? "保存中…" : "保存设置"}
           </button>
         </div>
       )}

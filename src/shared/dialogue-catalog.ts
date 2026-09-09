@@ -40,8 +40,8 @@ export interface DialogueGroupMeta {
 }
 
 export const SYSTEM_DIALOGUES = {
-  crying: ["还没休息够呢～", "再休息一会儿吧～", "闭目养神一会儿好不好？"],
-  reminderCompletion: ["休息结束啦！", "活动一下，感觉好多了～", "充满电啦，继续加油！"],
+  crying: ["还没休息够呢～", "再休息一会儿吧～", "还可以再歇歇。"],
+  reminderCompletion: ["休息结束啦！", "可以活动一下啦。", "回来继续陪你。"],
 } as const;
 
 export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
@@ -58,13 +58,13 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
           { id: "daily-click-whats-up", text: "怎么啦？" },
           { id: "daily-click-see-you", text: "看见你了。" },
           { id: "daily-click-with-you", text: "一直陪着你呢。" },
-          { id: "daily-click-hard-work", text: "今天也辛苦啦。" },
+          { id: "daily-click-hard-work", text: "来找我啦？" },
         ],
       },
       {
         id: "playful:click",
         group: "daily",
-        label: "活泼时被点",
+        label: "爱玩时被点",
         builtIns: [
           { id: "playful-click-coming", text: "来啦！" },
           { id: "playful-click-play-more", text: "再玩一下？" },
@@ -75,7 +75,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "daily:petting",
         group: "daily",
-        label: "被摸摸头",
+        label: "被摸头",
         builtIns: [
           { id: "daily-petting-comfy", text: "嗯，舒服。" },
           { id: "daily-petting-touch-again", text: "再摸一下。" },
@@ -87,7 +87,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "auto:cute",
         group: "daily",
-        label: "主动开口",
+        label: "自己活动时",
         builtIns: [
           { id: "auto-cute-stretch", text: "活动一下。" },
           { id: "auto-cute-posture", text: "换个姿势。" },
@@ -99,11 +99,11 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "state:daily",
         group: "daily",
-        label: "回到日常",
+        label: "回到平时陪伴",
         builtIns: [
           { id: "state-daily-back", text: "回来了。" },
           { id: "state-daily-stay", text: "继续待着。" },
-          { id: "state-daily-energetic", text: "元气满满！" },
+          { id: "state-daily-energetic", text: "清醒啦。" },
         ],
       },
     ],
@@ -136,7 +136,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "drowsy:petting",
         group: "drowsy",
-        label: "被摸摸头",
+        label: "被摸头",
         builtIns: [
           { id: "drowsy-petting-gentle", text: "轻一点……" },
           { id: "drowsy-petting-sleepier", text: "更困了。" },
@@ -157,7 +157,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
         builtIns: [
           { id: "state-sleeping-nap", text: "我先眯一会儿。" },
           { id: "state-sleeping-sleep", text: "先睡一下啦。" },
-          { id: "state-sleeping-dream", text: "做个好梦。" },
+          { id: "state-sleeping-dream", text: "我先睡啦。" },
         ],
       },
       {
@@ -193,10 +193,10 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "sleeping:touch",
         group: "sleeping",
-        label: "睡着时摸摸",
+        label: "睡着时被摸头",
         builtIns: [
           { id: "sleeping-touch-felt", text: "感觉到了……" },
-          { id: "sleeping-touch-sweet-dreams", text: "轻一点……好梦中。" },
+          { id: "sleeping-touch-sweet-dreams", text: "睡得正香呢……" },
         ],
       },
     ],
@@ -211,7 +211,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
         label: "刚进入专注",
         builtIns: [
           { id: "state-working-quiet", text: "我安静陪你。" },
-          { id: "state-working-focus", text: "先不打扰你啦，专心哦。" },
+          { id: "state-working-focus", text: "我安静待着。" },
         ],
       },
       {
@@ -220,17 +220,17 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
         label: "被点一下",
         builtIns: [
           { id: "working-click-with-you", text: "我陪着你。" },
-          { id: "working-click-reassured", text: "安心做事吧。" },
-          { id: "working-click-guard", text: "在这里守着你。" },
+          { id: "working-click-reassured", text: "我不打扰你。" },
+          { id: "working-click-guard", text: "我在旁边。" },
         ],
       },
       {
         id: "working:petting",
         group: "working",
-        label: "被摸摸头",
+        label: "被摸头",
         builtIns: [
           { id: "working-petting-yes", text: "嗯。" },
-          { id: "working-petting-cheer", text: "收到了，继续加油。" },
+          { id: "working-petting-cheer", text: "收到了。" },
         ],
       },
     ],
@@ -242,21 +242,21 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "rest:crying",
         group: "rest",
-        label: "打扰休息督促",
+        label: "休息中有移动",
         builtIns: [
           { id: "rest-crying-not-enough", text: "还没休息够呢～" },
           { id: "rest-crying-rest-more", text: "再休息一会儿吧～" },
-          { id: "rest-crying-close-eyes", text: "闭目养神一会儿好不好？" },
+          { id: "rest-crying-close-eyes", text: "还可以再歇歇。" },
         ],
       },
       {
         id: "rest:completion",
         group: "rest",
-        label: "休息结束庆祝",
+        label: "休息结束",
         builtIns: [
           { id: "rest-completion-done", text: "休息结束啦！" },
-          { id: "rest-completion-moving", text: "活动一下，感觉好多了～" },
-          { id: "rest-completion-recharged", text: "充满电啦，继续加油！" },
+          { id: "rest-completion-moving", text: "可以活动一下啦。" },
+          { id: "rest-completion-recharged", text: "回来继续陪你。" },
         ],
       },
     ],

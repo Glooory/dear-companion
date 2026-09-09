@@ -16,7 +16,7 @@ export class SharpImageDecoder implements ImageDecoder {
       });
       const metadata = await image.metadata();
       if (metadata.format !== format || !metadata.width || !metadata.height) {
-        throw new ImageInputError("decode-failed", "图片实际格式或解码结果无效");
+        throw new ImageInputError("decode-failed", "无法读取该照片，请换一张 PNG 或 WebP 再试。");
       }
       const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       return validateDecodedImage({
@@ -28,7 +28,7 @@ export class SharpImageDecoder implements ImageDecoder {
       });
     } catch (error) {
       if (error instanceof ImageInputError) throw error;
-      throw new ImageInputError("decode-failed", "图片无法解码");
+      throw new ImageInputError("decode-failed", "无法读取该照片，请换一张 PNG 或 WebP 再试。");
     }
   }
 }

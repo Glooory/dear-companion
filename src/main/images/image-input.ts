@@ -57,19 +57,19 @@ export function detectImageFormat(bytes: Uint8Array): PetAssetFormat | null {
 
 export function validateImageFileSize(byteSize: number): void {
   if (!Number.isSafeInteger(byteSize) || byteSize < 1) {
-    throw new ImageInputError("empty-file", "图片文件为空");
+    throw new ImageInputError("empty-file", "图片文件为空，请选择另一张照片。");
   }
   if (byteSize > MAX_IMAGE_BYTES) {
-    throw new ImageInputError("file-too-large", "单张图片不能超过 20 MB");
+    throw new ImageInputError("file-too-large", "照片文件超过 20 MB，请压缩后再试。");
   }
 }
 
 export function validateDecodedImage(input: DecodedImageInput): ValidatedDecodedImage {
   if (!Number.isInteger(input.width) || !Number.isInteger(input.height) || input.width < 1 || input.height < 1) {
-    throw new ImageInputError("decode-failed", "图片无法解码");
+    throw new ImageInputError("decode-failed", "无法读取该照片，请换一张 PNG 或 WebP 再试。");
   }
   if (input.width > MAX_IMAGE_DIMENSION || input.height > MAX_IMAGE_DIMENSION) {
-    throw new ImageInputError("dimensions-too-large", "图片宽高不能超过 8192 px");
+    throw new ImageInputError("dimensions-too-large", "照片的尺寸超过 8192×8192 px，请缩小后再试。");
   }
 
   let analysis;
@@ -77,13 +77,13 @@ export function validateDecodedImage(input: DecodedImageInput): ValidatedDecoded
     analysis = analyzeAlphaChannel(input.bitmap, input.width, input.height, input.stride ?? 4, input.alphaOffset ?? 3);
   } catch (error) {
     if (error instanceof Error && error.message.includes("fully transparent")) {
-      throw new ImageInputError("fully-transparent", "图片内容完全透明");
+      throw new ImageInputError("fully-transparent", "照片没有可见内容，请选择另一张照片。");
     }
-    throw new ImageInputError("decode-failed", "图片解码结果无效");
+    throw new ImageInputError("decode-failed", "无法读取照片，请换一张 PNG 或 WebP 再试。");
   }
 
   if (!analysis.hasTransparency) {
-    throw new ImageInputError("no-transparency", "图片必须包含透明背景");
+    throw new ImageInputError("no-transparency", "照片没有透明背景，请选择已抠好背景的 PNG 或 WebP。");
   }
   return { width: input.width, height: input.height, alphaBounds: analysis.bounds };
 }
@@ -96,7 +96,7 @@ export function validatePetPackSize(currentBytes: number, incomingBytes: number)
     incomingBytes < 0 ||
     currentBytes + incomingBytes > MAX_PET_PACK_BYTES
   ) {
-    throw new ImageInputError("pack-too-large", "单个伙伴素材包不能超过 250 MB");
+    throw new ImageInputError("pack-too-large", "单个伙伴的照片总计不能超过 250 MB，请先删除一些照片。");
   }
 }
 

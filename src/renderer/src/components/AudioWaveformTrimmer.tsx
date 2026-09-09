@@ -214,7 +214,7 @@ export function AudioWaveformTrimmer({
           <span>已选片段：{trimmedDuration.toFixed(1)} 秒</span>
           {isTrimmed && (
             <button type="button" className={styles.resetButton} onClick={onResetTrim} disabled={disabled}>
-              恢复完整
+              恢复完整长度
             </button>
           )}
         </div>

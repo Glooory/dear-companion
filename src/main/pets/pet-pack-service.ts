@@ -132,7 +132,7 @@ export class PetPackService {
       }
 
       if (current.activePetId === petId && existing.assets.length <= 1) {
-        throw new Error("使用中的伙伴需至少保留一张照片");
+        throw new Error("当前伙伴至少需要一张照片，请先导入新照片再删除。");
       }
 
       const assetPath = join(this.userDataPath, "pets", petId, "assets", targetAsset.fileName);
@@ -195,7 +195,7 @@ export class PetPackService {
       const voiceIds = collectVoiceAssetIds(input.dialogueSettings);
       for (const voiceId of voiceIds) {
         if (!(await this.resolveOwnedVoiceFilePath(input.id, voiceId))) {
-          throw new Error("对白声音不可用，请更换或删除后再保存");
+          throw new Error("有对白声音不可用，请更换或删除后再保存。");
         }
       }
       const settings = await this.settingsStore.update((latest) => {
@@ -308,15 +308,15 @@ export class PetPackService {
     const petId = parsePetIdentifier(petIdValue);
     const ext = extensionValue.toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
     if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
-      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+      throw new Error("请选择 MP3、WAV、OGG、WebM 或 M4A 音频。");
     }
     validateVoiceAudioFileSize(buffer.byteLength);
     const detected = detectVoiceAudioFormat(buffer);
     if (!detected) {
-      throw new Error("无法识别音频内容");
+      throw new Error("无法识别该音频，请选择其他文件。");
     }
     if (detected !== ext) {
-      throw new Error("音频内容与扩展名不匹配");
+      throw new Error("音频格式与文件扩展名不一致，请重新导出或选择其他文件。");
     }
 
     return this.enqueue(async () => {
@@ -336,16 +336,16 @@ export class PetPackService {
   async readVoiceSourceAsset(sourcePath: string): Promise<{ buffer: Buffer; ext: VoiceAudioFormat }> {
     const ext = extname(sourcePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
     if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
-      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+      throw new Error("请选择 MP3、WAV、OGG、WebM 或 M4A 音频。");
     }
 
     const bytes = await readVoiceSourceFile(sourcePath);
     const detected = detectVoiceAudioFormat(bytes);
     if (!detected) {
-      throw new Error("无法识别音频内容");
+      throw new Error("无法识别该音频，请选择其他文件。");
     }
     if (detected !== ext) {
-      throw new Error("音频内容与扩展名不匹配");
+      throw new Error("音频格式与文件扩展名不一致，请重新导出或选择其他文件。");
     }
     return { buffer: bytes, ext: detected };
   }
@@ -354,16 +354,16 @@ export class PetPackService {
     const petId = parsePetIdentifier(petIdValue);
     const ext = extname(sourcePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
     if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
-      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+      throw new Error("请选择 MP3、WAV、OGG、WebM 或 M4A 音频。");
     }
 
     const bytes = await readVoiceSourceFile(sourcePath);
     const detected = detectVoiceAudioFormat(bytes);
     if (!detected) {
-      throw new Error("无法识别音频内容");
+      throw new Error("无法识别该音频，请选择其他文件。");
     }
     if (detected !== ext) {
-      throw new Error("音频内容与扩展名不匹配");
+      throw new Error("音频格式与文件扩展名不一致，请重新导出或选择其他文件。");
     }
 
     return this.enqueue(async () => {
@@ -475,7 +475,7 @@ export class PetPackService {
       try {
         const bytes = await readSourceFile(sourcePath);
         const format = detectImageFormat(bytes);
-        if (!format) throw new ImageInputError("unsupported-type", "只支持透明 PNG 或 WebP 图片");
+        if (!format) throw new ImageInputError("unsupported-type", "请选择透明背景的 PNG 或 WebP 照片。");
         validatePetPackSize(currentBytes, bytes.byteLength);
         const decoded = await this.imageDecoder.decode(bytes, format);
 
@@ -487,7 +487,7 @@ export class PetPackService {
         try {
           await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
         } catch {
-          throw new ImageInputError("copy-failed", "无法保存图片副本");
+          throw new ImageInputError("copy-failed", "照片保存失败，请确认磁盘空间充足后再试。");
         }
 
         writtenPaths.push(destination);
@@ -555,14 +555,14 @@ async function readSourceFile(sourcePath: string): Promise<Buffer> {
   try {
     file = await open(sourcePath, "r");
     const fileStat = await file.stat();
-    if (!fileStat.isFile()) throw new ImageInputError("read-failed", "无法读取所选图片");
+    if (!fileStat.isFile()) throw new ImageInputError("read-failed", "无法读取该照片，请选择其他文件。");
     validateImageFileSize(fileStat.size);
     const bytes = await file.readFile();
     validateImageFileSize(bytes.byteLength);
     return bytes;
   } catch (error) {
     if (error instanceof ImageInputError) throw error;
-    throw new ImageInputError("read-failed", "无法读取所选图片");
+    throw new ImageInputError("read-failed", "无法读取该照片，请选择其他文件。");
   } finally {
     await file?.close().catch(() => undefined);
   }
@@ -573,14 +573,14 @@ async function readVoiceSourceFile(sourcePath: string): Promise<Buffer> {
   try {
     file = await open(sourcePath, "r");
     const fileStat = await file.stat();
-    if (!fileStat.isFile()) throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+    if (!fileStat.isFile()) throw new VoiceAudioInputError("read-failed", "无法读取该音频，请选择其他文件。");
     validateVoiceAudioFileSize(fileStat.size);
     const bytes = await file.readFile();
     validateVoiceAudioFileSize(bytes.byteLength);
     return bytes;
   } catch (error) {
     if (error instanceof VoiceAudioInputError) throw error;
-    throw new VoiceAudioInputError("read-failed", "无法读取所选音频");
+    throw new VoiceAudioInputError("read-failed", "无法读取该音频，请选择其他文件。");
   } finally {
     await file?.close().catch(() => undefined);
   }
@@ -633,7 +633,7 @@ function toImportFailure(index: number, error: unknown): ImageImportFailure {
   if (error instanceof ImageInputError) {
     return { index, code: error.code, message: error.message };
   }
-  return { index, code: "decode-failed", message: "图片无法解码" };
+  return { index, code: "decode-failed", message: "无法读取该照片，请换一张 PNG 或 WebP 再试。" };
 }
 
 function isPathInside(root: string, candidate: string): boolean {

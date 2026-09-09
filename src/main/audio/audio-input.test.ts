@@ -10,11 +10,11 @@ describe("audio input validation", () => {
     expect(detectAudioFormat(Buffer.from("not audio"))).toBeNull();
   });
 
-  it("accepts 1..20 MiB and rejects empty, non-finite, and oversized lengths", () => {
+  it("accepts 1..20 MB and rejects empty, non-finite, and oversized lengths", () => {
     expect(() => validateAudioFileSize(1)).not.toThrow();
     expect(() => validateAudioFileSize(MAX_AUDIO_FILE_BYTES)).not.toThrow();
     expect(() => validateAudioFileSize(0)).toThrow("为空");
-    expect(() => validateAudioFileSize(MAX_AUDIO_FILE_BYTES + 1)).toThrow("20 MiB");
+    expect(() => validateAudioFileSize(MAX_AUDIO_FILE_BYTES + 1)).toThrow("20 MB");
     expect(() => validateAudioFileSize(Number.NaN)).toThrow("为空");
   });
 });

@@ -39,7 +39,7 @@ export function WorkScheduleEditor({
       <div className="editor-heading-row">
         <div className="heading-with-tooltip">
           <h2>专注时段</h2>
-          <InfoTooltip text="在专注时段内，伙伴将保持安静，不主动走动或展示气泡。" />
+          <InfoTooltip text="在专注时段内，伙伴不会主动走动或说话；休息提醒仍会显示。" />
         </div>
         {!draft && (
           <button type="button" className="primary-button" disabled={disabled} onClick={() => setDraft(freshDraft())}>
@@ -112,7 +112,9 @@ export function WorkScheduleEditor({
         </div>
       ) : (
         <div className={styles.list}>
-          {schedules.length === 0 && <p className={styles.emptyState}>暂无专注时段。设定后伙伴在此期间会保持安静。</p>}
+          {schedules.length === 0 && (
+            <p className={styles.emptyState}>还没有专注时段。设置后，伙伴会在这些时段安静陪伴。</p>
+          )}
           {schedules.map((schedule) => (
             <div className={styles.row} key={schedule.id}>
               <button

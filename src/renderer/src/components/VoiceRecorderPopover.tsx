@@ -206,7 +206,7 @@ export function VoiceRecorderPopover({
       })
       .catch(() => {
         if (!mountedRef.current || operation !== operationRef.current) return;
-        setErrorMessage("无法加载现有声音，您可以重新录制或选择新音频。");
+        setErrorMessage("无法加载现有声音，可以重新录制或选择新音频。");
         setStatus("idle");
       });
   }, [initialTrimEnd, initialTrimStart, initialVoiceAssetId, petId, target]);
@@ -568,7 +568,7 @@ export function VoiceRecorderPopover({
   const remainingSeconds = Math.max(0, MAX_RECORD_SECONDS - Math.floor(elapsed));
   const progress = Math.min(1, elapsed / MAX_RECORD_SECONDS);
   const circumference = 2 * Math.PI * 42;
-  const title = mode === "replace" ? "编辑对白声音" : "添加对白声音";
+  const title = `${mode === "replace" ? "更换" : "添加"}${target === "reminder" ? "提醒语音" : "对白声音"}`;
 
   const modalContent = (
     <div className={styles.overlay} onMouseDown={(event) => event.target === event.currentTarget && close()}>
@@ -646,7 +646,7 @@ export function VoiceRecorderPopover({
                   <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                   <line x1="12" y1="19" x2="12" y2="22" />
                 </svg>
-                <span>{status === "requesting" ? "正在请求麦克风" : "开始录音"}</span>
+                <span>{status === "requesting" ? "正在等待麦克风权限…" : "开始录音"}</span>
               </button>
               <span className={styles.statusLabel}>最长 {MAX_RECORD_SECONDS} 秒</span>
             </>
@@ -729,7 +729,7 @@ export function VoiceRecorderPopover({
               disabled={status === "saving"}
               onClick={handleResetRecording}
             >
-              重新录制或更换
+              换一段声音
             </button>
             <button
               type="button"
@@ -737,7 +737,11 @@ export function VoiceRecorderPopover({
               disabled={status === "saving"}
               onClick={() => void handleSave()}
             >
-              {status === "saving" ? "保存声音中…" : "使用这段声音"}
+              {status === "saving"
+                ? "正在处理声音…"
+                : editorData.sourceType === "recorded"
+                  ? "使用这段录音"
+                  : "使用这段音频"}
             </button>
           </div>
         )}

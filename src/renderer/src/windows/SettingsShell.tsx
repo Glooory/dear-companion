@@ -158,7 +158,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     } catch (err) {
       console.error("Mutation failed:", err);
       const message = err instanceof Error ? err.message : String(err);
-      toast.error(`操作未成功：${message}`);
+      toast.error(message);
     } finally {
       setIsBusy(false);
     }
@@ -167,7 +167,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const createPet = (): void => {
     const name = newPetName.trim();
     if (!name || name.length > 80) {
-      toast.warning("请为伙伴起一个名字（最多 80 个字）。");
+      toast.warning("请输入伙伴名称，最多 80 个字。");
       return;
     }
     void runMutation(async () => {
@@ -189,7 +189,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       const report = await api.chooseAndImportPetAssets(selectedPetId);
       if (report.failures.length === 0) {
-        toast.success(`成功导入 ${report.imported.length} 张照片`);
+        toast.success(`已导入 ${report.imported.length} 张照片`);
       } else if (report.imported.length === 0) {
         const firstFailure = report.failures[0];
         toast.error(
@@ -248,7 +248,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     }
     const targetAssetIndex = selectedPet.assets.findIndex((a) => a.id === assetId);
     const label = targetAssetIndex >= 0 ? `照片 ${targetAssetIndex + 1}` : "这张照片";
-    if (!window.confirm(`确定要删除“${selectedPet.name}”的${label}吗？`)) return;
+    if (!window.confirm(`删除“${selectedPet.name}”的${label}后无法恢复。继续删除吗？`)) return;
 
     void runMutation(async () => {
       const next = await api.deletePetAsset(selectedPet.id, assetId);
@@ -390,7 +390,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       const next = await api.setAutostartEnabled(target);
       setAutostartStatus(next);
       if (next.errorCode) {
-        toast.error(`自启动设置失败（${autostartErrorMessage(next.errorCode)}）。原设置保持不变。`);
+        toast.error("开机启动没有设置成功。请检查系统设置后再试一次。");
       } else {
         toast.success(target ? "已开启开机启动" : "已关闭开机启动");
       }
@@ -416,21 +416,21 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const createWorkSchedule = (input: CreateWorkScheduleInput): void => {
     void runMutation(async () => {
       applyCompanionSnapshot(await api.createWorkSchedule(input));
-      toast.success("工作日程已添加");
+      toast.success("专注时段已添加");
     });
   };
 
   const updateWorkSchedule = (input: WorkSchedule): void => {
     void runMutation(async () => {
       applyCompanionSnapshot(await api.updateWorkSchedule(input));
-      toast.success("工作日程已更新");
+      toast.success("专注时段已更新");
     });
   };
 
   const deleteWorkSchedule = (id: string): void => {
     void runMutation(async () => {
       applyCompanionSnapshot(await api.deleteWorkSchedule(id));
-      toast.success("工作日程已删除");
+      toast.success("专注时段已删除");
     });
   };
 
@@ -588,7 +588,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     void runMutation(async () => {
       const report = await api.chooseAndImportAudio();
       if (report.failures.length === 0) {
-        toast.success(`成功导入 ${report.imported.length} 个声音文件`);
+        toast.success(`已导入 ${report.imported.length} 个声音文件`);
       } else if (report.imported.length === 0) {
         const firstFailure = report.failures[0];
         toast.error(
@@ -629,20 +629,8 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             className={clsx(styles.navButton, activeTab === "pets" && styles.active)}
             onClick={() => setActiveTab("pets")}
           >
-            <svg
-              viewBox="0 0 32 32"
-              width="14"
-              height="14"
-              fill="none"
-              aria-hidden="true"
-            >
-              <circle
-                cx="16"
-                cy="13.5"
-                r="11.3"
-                stroke="currentColor"
-                strokeWidth="2.5"
-              />
+            <svg viewBox="0 0 32 32" width="14" height="14" fill="none" aria-hidden="true">
+              <circle cx="16" cy="13.5" r="11.3" stroke="currentColor" strokeWidth="2.5" />
               <ellipse cx="11.7" cy="14.4" rx="1.6" ry="2.2" fill="currentColor" />
               <ellipse cx="20.8" cy="13.1" rx="1.6" ry="2.2" fill="currentColor" />
               <path
@@ -651,10 +639,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
-              <path
-                fill="currentColor"
-                d="M2.5 26c8.8-3 18.2-3 27 0l-.7 2.8c-8.3-2.3-17.3-2.3-25.6 0L2.5 26Z"
-              />
+              <path fill="currentColor" d="M2.5 26c8.8-3 18.2-3 27 0l-.7 2.8c-8.3-2.3-17.3-2.3-25.6 0L2.5 26Z" />
             </svg>
             <span>我的伙伴</span>
           </button>
@@ -677,7 +662,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               <circle cx="10" cy="10" r="7.5" />
               <polyline points="10,6 10,10 13,12" />
             </svg>
-            <span>休息健康</span>
+            <span>提醒与休息</span>
           </button>
           <button
             type="button"
@@ -765,7 +750,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                   <span className={styles.petName}>{pet.name}</span>
                   <div className={styles.petItemActions}>
                     {pet.id === snapshot.activePetId ? (
-                      <span className={styles.petActiveBadge}>使用中</span>
+                      <span className={styles.petActiveBadge}>当前伙伴</span>
                     ) : (
                       <button
                         type="button"
@@ -777,7 +762,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                           switchActivePet(pet.id);
                         }}
                       >
-                        使用
+                        设为当前
                       </button>
                     )}
                   </div>
@@ -788,20 +773,23 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
             {isCreatingPet ? (
               <div className={styles.newPetForm}>
-                <input
-                  autoFocus
-                  value={newPetName}
-                  maxLength={80}
-                  placeholder="新伙伴名称"
-                  onChange={(event) => setNewPetName(event.currentTarget.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") createPet();
-                    if (event.key === "Escape") {
-                      setIsCreatingPet(false);
-                      setNewPetName("");
-                    }
-                  }}
-                />
+                <label>
+                  <span className={styles.newPetLabel}>伙伴名称</span>
+                  <input
+                    autoFocus
+                    value={newPetName}
+                    maxLength={80}
+                    placeholder="例如：小宝"
+                    onChange={(event) => setNewPetName(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") createPet();
+                      if (event.key === "Escape") {
+                        setIsCreatingPet(false);
+                        setNewPetName("");
+                      }
+                    }}
+                  />
+                </label>
                 <div className={styles.newPetActions}>
                   <button
                     type="button"
@@ -855,7 +843,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                     <div className={styles.titleLine}>
                       <h2>{selectedPet.name}</h2>
                       {snapshot.activePetId === selectedPet.id && (
-                        <span className={styles.petActiveBadge}>当前使用</span>
+                        <span className={styles.petActiveBadge}>当前伙伴</span>
                       )}
                     </div>
                   </div>
@@ -1009,8 +997,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
 
                       <section className="editor-section">
                         <div className="heading-with-tooltip" style={{ marginBottom: "12px" }}>
-                          <h2>日常姿态与场景</h2>
-                          <InfoTooltip text="为不同生活情境分配照片。未指定的项目会自动沿用平时陪伴照片。" />
+                          <h2>生活场景照片</h2>
                         </div>
                         <CompanionBehaviorEditor
                           petId={selectedPet.id}
@@ -1042,7 +1029,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
                               disabled={isBusy || selectedPet.assets.length === 0}
                               onClick={saveDraft}
                             >
-                              {isBusy ? "保存中..." : saveSuccess ? "已保存 ✓" : "保存设置"}
+                              {isBusy ? "保存中…" : saveSuccess ? "已保存" : "保存设置"}
                             </button>
                           </Tooltip>
                         </div>
@@ -1064,7 +1051,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             <div className="editor-heading-row">
               <div className="heading-with-tooltip">
                 <h2>休息提醒</h2>
-                <InfoTooltip text="按设定时间提醒起身活动或喝水。默认保持静音，不打扰工作。" />
+                <InfoTooltip text="按设定时间提醒起身活动或喝水；声音默认关闭。" />
               </div>
               <button type="button" className="primary-button" disabled={isBusy} onClick={newReminder}>
                 添加休息提醒
@@ -1083,7 +1070,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             )}
             <div className={styles.reminderList}>
               {restSnapshot.reminders.length === 0 ? (
-                <p className={styles.emptyState}>暂无休息提醒。</p>
+                <p className={styles.emptyState}>还没有休息提醒。可以先添加一条适合自己的安排。</p>
               ) : (
                 restSnapshot.reminders.map((reminder) => {
                   const soundBadge = formatSoundBadge(reminder);
@@ -1236,10 +1223,9 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             <div className="settings-row-between">
               <div>
                 <div className="heading-with-tooltip">
-                  <h2>桌面显示</h2>
+                  <h2>桌面伙伴</h2>
                   <InfoTooltip text="隐藏后伙伴暂时离开桌面，可随时从系统托盘唤出。" />
                 </div>
-                <p className="supporting-copy">在桌面上显示伙伴</p>
               </div>
               <label className="toggle-control" style={{ marginBottom: 0 }}>
                 <input
@@ -1256,12 +1242,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             <div className="settings-row-between">
               <div>
                 <div className="heading-with-tooltip">
-                  <h2>开机自启动</h2>
+                  <h2>开机启动</h2>
                   <InfoTooltip text="电脑开机后自动在后台启动应用并常驻托盘。" />
                 </div>
-                {!autostartStatus?.supported && (
-                  <p className="supporting-copy">开发调试模式下不写入系统启动项，仅在安装版本中生效。</p>
-                )}
+                {!autostartStatus?.supported && <p className="supporting-copy">安装应用后可以设置开机启动。</p>}
               </div>
               {autostartStatus ? (
                 <label className="toggle-control" style={{ marginBottom: 0 }}>
@@ -1279,18 +1263,16 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             </div>
             {autostartStatus?.errorCode && (
               <p className={styles.inlineStatusError} role="status">
-                自启动设置失败（
-                {autostartErrorMessage(autostartStatus.errorCode)}
-                ）。原设置保持不变。
+                开机启动没有设置成功。请检查系统设置后再试一次。
               </p>
             )}
           </article>
           {petRendererStatus?.state === "safe-mode" && (
             <article className={clsx(styles.card, styles.recoveryCard)}>
-              <h2>伙伴窗口恢复</h2>
-              <p className="supporting-copy">受屏幕分辨率或系统渲染影响暂时停用，设置与提醒仍正常运行。</p>
+              <h2>伙伴暂时没有显示</h2>
+              <p className="supporting-copy">伙伴窗口暂时无法显示，设置和提醒仍可使用。</p>
               <button type="button" className="secondary-button" disabled={isBusy} onClick={retryPetRenderer}>
-                恢复伙伴窗口
+                重新显示伙伴
               </button>
             </article>
           )}
@@ -1298,25 +1280,10 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
       )}
 
       <footer className={styles.footer}>
-        <span>全本地离线运行 · 数据安全保存在此设备</span>
+        <span>照片、声音和设置只保存在这台设备上</span>
       </footer>
     </main>
   );
-}
-
-function autostartErrorMessage(errorCode: NonNullable<AutostartStatus["errorCode"]>): string {
-  switch (errorCode) {
-    case "os-read-failed":
-      return "无法读取系统状态";
-    case "os-write-failed":
-      return "系统拒绝写入";
-    case "readback-mismatch":
-      return "系统读回状态不一致";
-    case "settings-save-failed":
-      return "本地偏好保存失败";
-    case "rollback-failed":
-      return "系统状态恢复失败";
-  }
 }
 
 function petToUpdateInput(pet: PetConfig): PetUpdateInput {
@@ -1405,11 +1372,11 @@ function formatReminderWeekdays(weekdays: readonly Weekday[]): string {
 function formatTolerance(tolerance: CursorTolerance): string {
   switch (tolerance) {
     case "sensitive":
-      return "轻微移动即提醒";
+      return "稍微移动就督促";
     case "relaxed":
-      return "明显移动才提醒";
+      return "明显移动才督促";
     default:
-      return "适度移动后提醒";
+      return "移动一会儿再督促";
   }
 }
 
@@ -1419,12 +1386,12 @@ function formatSoundBadge(reminder: Pick<ReminderSchedule, "sounds" | "voiceAsse
 } {
   const { sounds, voiceAssetId } = reminder;
   const hasVoice = Boolean(voiceAssetId) && sounds.reminder;
-  if (hasVoice && sounds.crying) return { label: "🎙️ 对白语音+督促音", enabled: true };
-  if (hasVoice) return { label: "🎙️ 对白语音", enabled: true };
-  if (sounds.reminder && sounds.crying) return { label: "🔔 提示音+督促音", enabled: true };
-  if (sounds.reminder) return { label: "🔔 提示音", enabled: true };
-  if (sounds.crying) return { label: "🔔 仅督促音", enabled: true };
-  return { label: "🔕 静音", enabled: false };
+  if (hasVoice && sounds.crying) return { label: "提醒语音 + 督促音", enabled: true };
+  if (hasVoice) return { label: "提醒语音", enabled: true };
+  if (sounds.reminder && sounds.crying) return { label: "提醒音 + 督促音", enabled: true };
+  if (sounds.reminder) return { label: "提醒音", enabled: true };
+  if (sounds.crying) return { label: "仅督促音", enabled: true };
+  return { label: "静音", enabled: false };
 }
 
 function formatReminderTiming(reminder: ReminderSchedule): string {

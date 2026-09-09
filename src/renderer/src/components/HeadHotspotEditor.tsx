@@ -67,7 +67,7 @@ export function HeadHotspotEditor({
     <>
       <div
         className={styles.hotspot}
-        title="摸头感应区：光标在此区域来回移动可触发摸头互动"
+        title="摸头区域：光标在此区域来回移动可触发摸头互动"
         style={{
           left: visibleLeft + (hotspot.centerX - hotspot.radiusX) * visibleWidth,
           top: visibleTop + (hotspot.centerY - hotspot.radiusY) * visibleHeight,
@@ -80,7 +80,7 @@ export function HeadHotspotEditor({
           drag.current = null;
         }}
       >
-        <span className={styles.guideLabel}>摸头感应区</span>
+        <span className={styles.guideLabel}>摸头区域</span>
         {(["left", "right", "top", "bottom"] as const).map((kind) => (
           <span
             key={kind}

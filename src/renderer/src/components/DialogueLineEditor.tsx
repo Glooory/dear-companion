@@ -169,12 +169,12 @@ export function DialogueLineEditor({
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError, row.source === "custom" && styles.customRow)}>
       <div className={styles.main}>
-        <label className={styles.toggle} title={row.automaticEnabled ? "点击停用" : "点击启用"}>
+        <label className={styles.toggle} title={row.automaticEnabled ? "停用" : "启用"}>
           <input
             type="checkbox"
             checked={row.automaticEnabled}
             onChange={(e) => onToggleAutomatic(e.target.checked)}
-            aria-label="启用这句对白"
+            aria-label={row.automaticEnabled ? "停用这句对白" : "启用这句对白"}
           />
         </label>
 
@@ -203,7 +203,7 @@ export function DialogueLineEditor({
                 type="button"
                 className={styles.voicePlayBtn}
                 onClick={toggleVoiceAudition}
-                aria-label={isPlayingVoice ? "暂停对白声音" : "试听对白声音"}
+                aria-label={isPlayingVoice ? "停止试听对白声音" : "试听对白声音"}
               >
                 {isPlayingVoice ? (
                   <svg viewBox="0 0 10 10" width="8" height="8" fill="currentColor" aria-hidden="true">
@@ -215,7 +215,7 @@ export function DialogueLineEditor({
                     <polygon points="2.5,1.5 8.5,5 2.5,8.5" />
                   </svg>
                 )}
-                <span>{isPlayingVoice ? "暂停" : "试听"}</span>
+                <span>{isPlayingVoice ? "停止" : "试听"}</span>
               </button>
               {voiceUnavailable && <span role="status">声音不可用</span>}
               <button
@@ -287,12 +287,12 @@ export function DialogueLineEditor({
               className={styles.quickDialogueWrapper}
               title={
                 quickDialogueSelected
-                  ? "已设为常用（点击取消）。设为常用后，可在伙伴右键菜单中直接点击播放。"
+                  ? "已设为常用；取消后将从伙伴右键菜单移除。"
                   : quickDialogueDisabled
                     ? quickDialogueUnavailableReason
-                      ? `${quickDialogueUnavailableReason}。设为常用后可在伙伴右键菜单直接播放（每个伙伴最多 3 句）。`
+                      ? `${quickDialogueUnavailableReason}。每个伙伴最多可设 3 句常用对白。`
                       : "常用对白最多选择 3 句。可在上方常用对白区域移除已有项目后再添加。"
-                    : "设为常用后，可在伙伴右键菜单中直接点击使用。每个伙伴最多可设 3 句。"
+                    : "设为常用后，可以从伙伴右键菜单直接让它说出。每个伙伴最多可设 3 句。"
               }
             >
               <button
@@ -307,7 +307,7 @@ export function DialogueLineEditor({
                     : `设为常用：${row.currentText || row.defaultText || "未命名对白"}`
                 }
               >
-                <span>常用</span>
+                <span>{quickDialogueSelected ? "已设为常用" : "设为常用"}</span>
               </button>
             </span>
           )}
@@ -322,11 +322,11 @@ export function DialogueLineEditor({
               onClick={row.isModified ? onRestore : undefined}
               disabled={!row.isModified}
               aria-label={
-                row.isModified ? `恢复原句：${row.defaultText ?? row.currentText}` : "当前为内置原句，无需复原"
+                row.isModified ? `恢复原句：${row.defaultText ?? row.currentText}` : "当前为内置原句，无需恢复"
               }
               title={row.isModified ? `恢复原句：${row.defaultText ?? ""}` : "当前为内置原句（未修改）"}
             >
-              复原
+              恢复
             </button>
           ) : (
             <button

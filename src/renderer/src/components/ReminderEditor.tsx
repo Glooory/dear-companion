@@ -349,7 +349,7 @@ export function ReminderEditor({
 
     const trimmedMessage = value.message.trim();
     if (trimmedMessage.length === 0) {
-      newErrors.message = "请填写提醒气泡文案";
+      newErrors.message = "请填写提醒内容";
     } else if (trimmedMessage.length > 200) {
       newErrors.message = "提醒文案不能超过 200 字";
     }
@@ -704,7 +704,7 @@ export function ReminderEditor({
           <div className={styles.fieldGroup}>
             <div className={styles.fieldHeader}>
               <label htmlFor="cursor-tolerance-select">
-                <span>鼠标移动灵敏度</span>
+                <span>休息时允许移动</span>
               </label>
             </div>
             <select
@@ -718,9 +718,9 @@ export function ReminderEditor({
                 })
               }
             >
-              <option value="sensitive">轻微移动即提醒</option>
-              <option value="standard">适度移动后提醒</option>
-              <option value="relaxed">明显移动才提醒</option>
+              <option value="sensitive">稍微移动就督促</option>
+              <option value="standard">移动一会儿再督促</option>
+              <option value="relaxed">明显移动才督促</option>
             </select>
             <div className={styles.errorSlot} />
           </div>
@@ -758,8 +758,8 @@ export function ReminderEditor({
                   className={clsx(styles.voicePlayBtn, voiceUnavailable && styles.voiceUnavailable)}
                   disabled={disabled}
                   onClick={toggleVoiceAudition}
-                  aria-label={isPlayingVoice ? "停止试听" : "试听对白语音"}
-                  title={voiceUnavailable ? "对白语音文件缺失" : isPlayingVoice ? "停止试听" : "试听对白语音"}
+                  aria-label={isPlayingVoice ? "停止试听" : "试听提醒语音"}
+                  title={voiceUnavailable ? "提醒语音文件缺失" : isPlayingVoice ? "停止试听" : "试听提醒语音"}
                 >
                   {isPlayingVoice ? (
                     <svg viewBox="0 0 12 12" width="10" height="10" fill="currentColor" aria-hidden="true">
@@ -781,7 +781,7 @@ export function ReminderEditor({
                     if (isPlayingVoice) releaseAudition();
                     setShowRecorder(true);
                   }}
-                  aria-label="编辑对白语音"
+                  aria-label="编辑提醒语音"
                 >
                   编辑
                 </button>
@@ -798,7 +798,7 @@ export function ReminderEditor({
                       voiceTrimEnd: undefined,
                     });
                   }}
-                  aria-label="删除对白语音"
+                  aria-label="删除提醒语音"
                 >
                   删除
                 </button>
@@ -812,7 +812,7 @@ export function ReminderEditor({
                   if (isPlayingVoice) releaseAudition();
                   setShowRecorder(true);
                 }}
-                aria-label="添加对白语音"
+                aria-label="添加提醒语音"
               >
                 <svg
                   viewBox="0 0 12 12"
@@ -827,13 +827,13 @@ export function ReminderEditor({
                   <line x1="6" y1="2" x2="6" y2="10" />
                   <line x1="2" y1="6" x2="10" y2="6" />
                 </svg>
-                <span>对白语音</span>
+                <span>提醒语音</span>
               </button>
             )}
           </div>
         </div>
         <label className={styles.messageField}>
-          <span>提醒气泡文案</span>
+          <span>提醒内容</span>
           <textarea
             maxLength={200}
             value={value.message}
@@ -854,7 +854,7 @@ export function ReminderEditor({
       </div>
 
       <div className={styles.sectionCard}>
-        <h3 className={styles.sectionTitle}>声音与启用状态</h3>
+        <h3 className={styles.sectionTitle}>启用与声音</h3>
         <div className={styles.togglesGrid}>
           <label className={styles.toggleDetailed}>
             <div className={styles.toggleMain}>
@@ -866,7 +866,7 @@ export function ReminderEditor({
               />
               <strong>启用此条提醒</strong>
             </div>
-            <span className={styles.toggleSubtext}>是否在预定时间触发提醒</span>
+            <span className={styles.toggleSubtext}>关闭后保留设置，但不会按以上安排提醒</span>
           </label>
           <label className={styles.toggleDetailed}>
             <div className={styles.toggleMain}>
@@ -881,12 +881,12 @@ export function ReminderEditor({
                   })
                 }
               />
-              <strong>{value.voiceAssetId ? "播放对白语音" : "播放休息提示音"}</strong>
+              <strong>{value.voiceAssetId ? "播放提醒语音" : "播放休息提示音"}</strong>
             </div>
             <span className={styles.toggleSubtext}>
               {value.voiceAssetId
-                ? "到点弹出提醒气泡时播放上方录制的对白语音（替代默认提示音）"
-                : "到点弹出提醒气泡时播放默认提示铃声"}
+                ? "提醒出现时播放录制的语音，不再播放默认提示音"
+                : "提醒出现时播放默认提示音"}
             </span>
           </label>
           <label className={styles.toggleDetailed}>
@@ -902,17 +902,17 @@ export function ReminderEditor({
                   })
                 }
               />
-              <strong>督促继续休息时播放提示音</strong>
+              <strong>检测到移动时播放提示音</strong>
             </div>
             <span className={styles.toggleSubtext}>
-              休息期间检测到鼠标移动时发声督促。督促对白与配音随当前在场的伙伴切换
+              休息期间移动超过所选程度后播放；督促对白与配音随当前伙伴切换
             </span>
           </label>
 
           {onNavigateToPetDialogue && activePetName && (
             <div className={styles.companionContextNotice}>
               <span>
-                当前陪伴：<strong>{activePetName}</strong>
+                当前伙伴：<strong>{activePetName}</strong>
               </span>
               <button
                 type="button"
@@ -929,7 +929,7 @@ export function ReminderEditor({
       <div className="editor-actions">
         {onDelete && (
           <button type="button" className="danger-button" disabled={disabled} onClick={onDelete}>
-            删除
+            删除提醒
           </button>
         )}
         <button type="button" className="secondary-button" disabled={disabled} onClick={onCancel}>

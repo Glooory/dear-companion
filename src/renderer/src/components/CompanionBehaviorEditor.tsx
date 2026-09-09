@@ -25,27 +25,27 @@ const BEHAVIOR_CONFIGS: readonly BehaviorConfig[] = [
   {
     key: "idle",
     title: "平时陪伴",
-    hint: "日常漫步时展示的照片，支持选择多张轮流漫步。",
+    hint: "日常陪伴时显示，至少需要一张照片；选择多张时会轮流显示。",
   },
   {
     key: "drowsy",
-    title: "困倦打瞌睡",
-    hint: "空闲无互动时偶尔打哈欠或揉眼。未指定时沿用平时照片。",
+    title: "有点困了",
+    hint: "伙伴犯困时显示；未选择时会跳过这个场景。",
   },
   {
     key: "sleeping",
-    title: "安睡打盹",
-    hint: "长时间安静或休息时小憩。未指定时沿用平时照片。",
+    title: "睡觉",
+    hint: "伙伴睡觉时显示；未选择时会跳过这个场景。",
   },
   {
     key: "working",
-    title: "专注工作",
-    hint: "进入工作时段时展示。未指定时沿用平时照片。",
+    title: "专注陪伴",
+    hint: "专注时段内显示；未选择时使用平时陪伴照片。",
   },
   {
     key: "resting",
-    title: "定时休息",
-    hint: "定时休息提醒期间展示。未指定时沿用平时照片。",
+    title: "休息陪伴",
+    hint: "休息进行中显示；未选择时使用平时陪伴照片。",
   },
 ];
 
@@ -165,7 +165,7 @@ export function CompanionBehaviorEditor({
                         <button
                           type="button"
                           className={styles.tileRemoveBtn}
-                          title="从该情境中移除"
+                          title="从这个场景移除"
                           onClick={() => removeAsset(config.key, asset.id)}
                         >
                           ×

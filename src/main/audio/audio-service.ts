@@ -112,15 +112,15 @@ export class AudioService {
   async saveReminderVoice(buffer: Buffer, extensionValue: string): Promise<{ voiceId: string }> {
     const ext = extensionValue.toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
     if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
-      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+      throw new Error("请选择 MP3、WAV、OGG、WebM 或 M4A 音频。");
     }
     validateVoiceAudioFileSize(buffer.byteLength);
     const detected = detectVoiceAudioFormat(buffer);
     if (!detected) {
-      throw new Error("无法识别音频内容");
+      throw new Error("无法识别该音频，请选择其他文件。");
     }
     if (detected !== ext) {
-      throw new Error("音频内容与扩展名不匹配");
+      throw new Error("音频格式与文件扩展名不一致，请重新导出或选择其他文件。");
     }
 
     return this.enqueue(async () => {
@@ -138,15 +138,15 @@ export class AudioService {
   async readReminderVoiceSource(sourcePath: string): Promise<{ buffer: Buffer; ext: VoiceAudioFormat }> {
     const ext = extname(sourcePath).toLowerCase().replace(/^\./, "") as VoiceAudioFormat;
     if (!ALLOWED_VOICE_EXTENSIONS.has(ext)) {
-      throw new Error("只支持 webm、ogg、wav、mp3 或 m4a 音频格式");
+      throw new Error("请选择 MP3、WAV、OGG、WebM 或 M4A 音频。");
     }
     const bytes = await readVoiceSourceFile(sourcePath);
     const detected = detectVoiceAudioFormat(bytes);
     if (!detected) {
-      throw new Error("无法识别音频内容");
+      throw new Error("无法识别该音频，请选择其他文件。");
     }
     if (detected !== ext) {
-      throw new Error("音频内容与扩展名不匹配");
+      throw new Error("音频格式与文件扩展名不一致，请重新导出或选择其他文件。");
     }
     return { buffer: bytes, ext: detected };
   }
@@ -265,7 +265,7 @@ export class AudioService {
       try {
         const bytes = await readAudioFile(sourcePath);
         const format = detectAudioFormat(bytes);
-        if (!format) throw new AudioInputError("unsupported-type", "只支持 MP3、WAV 或 OGG 音频");
+        if (!format) throw new AudioInputError("unsupported-type", "请选择 MP3、WAV 或 OGG 音频。");
         const id = this.createUniqueId(usedIds);
         usedIds.add(id);
         const fileName = `${id}.${format}`;
@@ -275,7 +275,7 @@ export class AudioService {
           await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
         } catch {
           await rm(destination, { force: true }).catch(() => undefined);
-          throw new AudioInputError("copy-failed", "无法保存音频副本");
+          throw new AudioInputError("copy-failed", "音频保存失败，请确认磁盘空间充足后再试。");
         }
         writtenPaths.push(destination);
         imported.push({ id, fileName, format, byteSize: bytes.byteLength, available: true });
@@ -333,14 +333,14 @@ async function readAudioFile(sourcePath: string): Promise<Buffer> {
   try {
     file = await open(sourcePath, "r");
     const fileStat = await file.stat();
-    if (!fileStat.isFile()) throw new AudioInputError("read-failed", "无法读取所选音频");
+    if (!fileStat.isFile()) throw new AudioInputError("read-failed", "无法读取该音频，请选择其他文件。");
     validateAudioFileSize(fileStat.size);
     const bytes = await file.readFile();
     validateAudioFileSize(bytes.byteLength);
     return bytes;
   } catch (error) {
     if (error instanceof AudioInputError) throw error;
-    throw new AudioInputError("read-failed", "无法读取所选音频");
+    throw new AudioInputError("read-failed", "无法读取该音频，请选择其他文件。");
   } finally {
     await file?.close().catch(() => undefined);
   }
@@ -356,7 +356,7 @@ function resolveAvailableSource(source: AudioSource, settings: AppSettings, cue:
 
 function toFailure(index: number, error: unknown): AudioImportFailure {
   if (error instanceof AudioInputError) return { index, code: error.code, message: error.message };
-  return { index, code: "read-failed", message: "无法读取所选音频" };
+  return { index, code: "read-failed", message: "无法读取该音频，请选择其他文件。" };
 }
 
 function isPathInside(root: string, candidate: string): boolean {

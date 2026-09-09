@@ -45,8 +45,8 @@ export function PetGalleryManager({
     <section className={`editor-section ${styles.section}`}>
       <div className={styles.headerRow}>
         <div className="heading-with-tooltip">
-          <h2>照片与姿态标定</h2>
-          <InfoTooltip text="调整照片缩放比例与地面线。" />
+          <h2>调整照片</h2>
+          <InfoTooltip text="调整照片大小、左右位置、脚底位置和摸头区域。" />
         </div>
         <div className={styles.headerActions}>
           {activeAsset && onDeleteAsset && (

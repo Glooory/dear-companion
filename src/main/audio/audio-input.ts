@@ -14,10 +14,10 @@ export class AudioInputError extends Error {
 
 export function validateAudioFileSize(byteSize: number): void {
   if (!Number.isInteger(byteSize) || byteSize < 1) {
-    throw new AudioInputError("empty-file", "音频文件为空");
+    throw new AudioInputError("empty-file", "音频文件为空，请选择其他文件。");
   }
   if (byteSize > MAX_AUDIO_FILE_BYTES) {
-    throw new AudioInputError("file-too-large", "音频文件不能超过 20 MiB");
+    throw new AudioInputError("file-too-large", "音频超过 20 MB，请选择较小的文件。");
   }
 }
 

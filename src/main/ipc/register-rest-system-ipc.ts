@@ -175,9 +175,9 @@ export function registerRestSystemIpc(dependencies: Dependencies): () => void {
       requireSettings(event.sender.id);
       const owner = dependencies.windowManager.getOwnedWindow(event.sender.id);
       const selection = await dialog.showOpenDialog(owner, {
-        title: "导入本地音频",
+        title: "导入提示音",
         properties: ["openFile", "multiSelections"],
-        filters: [{ name: "音频", extensions: ["mp3", "wav", "ogg"] }],
+        filters: [{ name: "音频文件", extensions: ["mp3", "wav", "ogg"] }],
       });
       if (selection.canceled || selection.filePaths.length === 0) return { imported: [], failures: [] };
       const result = await dependencies.audioService.importAssets(selection.filePaths);

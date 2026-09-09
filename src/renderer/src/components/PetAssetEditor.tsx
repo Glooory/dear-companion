@@ -89,9 +89,9 @@ export function PetAssetEditor({
         <span
           className={styles.baseline}
           role="slider"
-          aria-label="地面线"
+          aria-label="脚底位置"
           aria-valuenow={normalization.baselineOffset}
-          title="按住上下拖拽调整地面线"
+          title="上下拖动调整脚底位置"
           onPointerDown={handleBaselinePointerDown}
         />
         <img
@@ -114,7 +114,7 @@ export function PetAssetEditor({
         />
       </div>
       <div className={styles.details}>
-        <h3>照片 {asset.id.slice(0, 8)}</h3>
+        <h3>当前照片</h3>
         <p className={styles.metadata}>
           {asset.format.toUpperCase()} · 原图 {asset.width}×{asset.height} px · 画面主体 {asset.alphaBounds.width}×
           {asset.alphaBounds.height} px
@@ -122,14 +122,14 @@ export function PetAssetEditor({
         <div className={styles.normalizationGrid}>
           <div className={styles.sliderField}>
             <div className="editor-heading-row" style={{ marginBottom: 4 }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#55514b" }}>缩放比例</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#55514b" }}>照片大小</span>
               <button
                 type="button"
                 className="secondary-button"
                 style={{ padding: "2px 7px", fontSize: "0.75rem" }}
                 onClick={() => update("scale", 1.0)}
               >
-                恢复 1.0×
+                恢复默认大小
               </button>
             </div>
             <div className={styles.sliderRow}>
@@ -146,7 +146,7 @@ export function PetAssetEditor({
           </div>
 
           <NumberControl
-            label="水平位移"
+            label="左右位置"
             value={normalization.offsetX}
             min={-512}
             max={512}
@@ -154,7 +154,7 @@ export function PetAssetEditor({
             onChange={(val) => update("offsetX", val)}
           />
           <NumberControl
-            label="地面线微调"
+            label="脚底位置"
             value={normalization.baselineOffset}
             min={-256}
             max={256}
@@ -171,9 +171,9 @@ export function PetAssetEditor({
                 checked={isHotspotEnabled}
                 onChange={(event) => handleToggleHotspot(event.currentTarget.checked)}
               />
-              <span>摸头感应区</span>
+              <span>摸头区域</span>
             </label>
-            <InfoTooltip text="光标在感应区内来回移动可触发摸头互动；关闭后此照片不响应摸头。" />
+            <InfoTooltip text="光标在区域内来回移动可触发摸头互动；关闭后，这张照片不会响应摸头。" />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {!isHotspotEnabled && <span style={{ fontSize: "0.75rem", color: "#8c877e" }}>未启用</span>}

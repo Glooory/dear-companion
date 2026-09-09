@@ -6,8 +6,8 @@ import {
   type AppSettings,
   type PetSystemSnapshot,
 } from "../../shared/contracts";
-import { IPC_CHANNELS } from "../../shared/ipc-channels";
 import { formatQuickDialogueLabel, resolveQuickDialogueCandidates } from "../../shared/dialogue-settings";
+import { IPC_CHANNELS } from "../../shared/ipc-channels";
 import type { CompanionStateController } from "../companion/companion-state-controller";
 import type { PetPackService } from "../pets/pet-pack-service";
 import type { SettingsStore } from "../settings/settings-store";
@@ -237,19 +237,17 @@ export function registerPetSystemIpc({
                   : []),
               {
                 label: companion.manualWorkActive
-                  ? companion.scheduledWorkActive
-                    ? "结束手动专注"
-                    : "结束专注"
+                  ? "结束专注陪伴"
                   : companion.scheduledWorkActive
                     ? "专注时段进行中"
-                    : "开始专注",
+                    : "陪我专注",
                 enabled: ordinaryEnabled && (!companion.scheduledWorkActive || companion.manualWorkActive),
                 click: () => companionController.setManualWork(!companion.manualWorkActive),
               },
               ...(companion.manualSelection !== "auto"
                 ? [
                     {
-                      label: "恢复自动状态",
+                      label: "恢复自动陪伴",
                       enabled: ordinaryEnabled,
                       click: () => companionController.selectManualState("auto"),
                     },
@@ -278,7 +276,7 @@ export function registerPetSystemIpc({
         },
         ...(isRestSessionActive() ? [{ label: "结束休息", click: endRestSession }] : []),
         { type: "separator" },
-        { label: "退出 挚伴", click: requestQuit },
+        { label: "退出挚伴", click: requestQuit },
       ]);
       menu.popup({ window: owner });
     } catch {
@@ -476,11 +474,11 @@ export function registerPetSystemIpc({
 function currentCompanionLabel(
   companion: ReturnType<NonNullable<PetSystemIpcDependencies["companionController"]>["getSnapshot"]>
 ): string {
-  if (companion.systemSuspended) return "当前状态：休息中";
-  if (companion.lifeState === "working") return "当前状态：专注工作中";
-  if (companion.lifeState === "sleeping") return "当前状态：打盹中";
-  if (companion.lifeState === "drowsy") return "当前状态：闭目小憩";
-  if (companion.manualSelection === "daily-calm") return "当前状态：安静模式";
-  const paceLabel = companion.pace === "quiet" ? "安静" : companion.pace === "lively" ? "活跃" : "惬意";
-  return `当前状态：自动 · ${paceLabel}`;
+  if (companion.systemSuspended) return "现在：休息中";
+  if (companion.lifeState === "working") return "现在：专注陪伴";
+  if (companion.lifeState === "sleeping") return "现在：睡觉";
+  if (companion.lifeState === "drowsy") return "现在：有点困了";
+  if (companion.manualSelection === "daily-calm") return "现在：安静陪伴";
+  const paceLabel = companion.pace === "quiet" ? "安静" : companion.pace === "lively" ? "爱玩" : "自然";
+  return `现在：自动陪伴 · ${paceLabel}`;
 }

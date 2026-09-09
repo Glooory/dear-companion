@@ -83,7 +83,7 @@ describe("PetPackService", () => {
       {
         index: 1,
         code: "unsupported-type",
-        message: "只支持透明 PNG 或 WebP 图片",
+        message: "请选择透明背景的 PNG 或 WebP 照片。",
       },
     ]);
     expect(JSON.stringify(result)).not.toContain(goodPath);
@@ -245,7 +245,9 @@ describe("PetPackService", () => {
     const { imported } = await service.importAssets("pet-1", [sourcePath]);
     await service.setActivePet("pet-1");
 
-    await expect(service.deleteAsset("pet-1", imported[0]!.id)).rejects.toThrow("使用中的伙伴需至少保留一张照片");
+    await expect(service.deleteAsset("pet-1", imported[0]!.id)).rejects.toThrow(
+      "当前伙伴至少需要一张照片，请先导入新照片再删除。"
+    );
   });
 
   it("updates dialogue settings for pet A without affecting pet B", async () => {

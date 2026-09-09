@@ -250,6 +250,17 @@
   background: #faf8f5;
 }
 
+.newPetForm label {
+  display: grid;
+  gap: 5px;
+}
+
+.newPetLabel {
+  color: #55514b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .newPetForm input {
   width: 100%;
   padding: 6px 8px;

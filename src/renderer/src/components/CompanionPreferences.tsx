@@ -8,17 +8,17 @@ const PACE_OPTIONS = [
   {
     value: "quiet",
     label: "安静",
-    tagline: "偶尔呼吸 · 几乎不走动",
+    tagline: "轻微呼吸 · 很少走动和说话",
   },
   {
     value: "natural",
-    label: "惬意",
-    tagline: "间歇走动 · 自然陪伴",
+    label: "自然",
+    tagline: "偶尔活动 · 适合日常陪伴",
   },
   {
     value: "lively",
-    label: "活跃",
-    tagline: "动作丰富 · 互动频繁",
+    label: "爱玩",
+    tagline: "更常走动和活动 · 偶尔主动说话",
   },
 ] as const;
 
@@ -53,7 +53,7 @@ export function CompanionPreferences({ pace, onPaceChange, onPreview }: Companio
     <div className={styles.preferences}>
       <div className={clsx("heading-with-tooltip", styles.headingRow)}>
         <h2 id="companion-pace-heading" className={styles.heading}>
-          陪伴节奏
+          陪伴方式
         </h2>
         <InfoTooltip text="调整伙伴在桌面的自主活动与走动频率。" />
       </div>
@@ -86,10 +86,10 @@ export function CompanionPreferences({ pace, onPaceChange, onPreview }: Companio
                     e.stopPropagation();
                     onPreview(option.value);
                   }}
-                  title={`试看${option.label}动作`}
-                  aria-label={`试看${option.label}动作`}
+                  title={`试试看${option.label}陪伴`}
+                  aria-label={`试试看${option.label}陪伴`}
                 >
-                  试看动作
+                  试试看
                 </button>
               </div>
             </div>

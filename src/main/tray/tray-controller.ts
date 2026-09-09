@@ -106,7 +106,7 @@ export class TrayController {
           ]
         : []),
       { type: "separator" },
-      { label: "退出 挚伴", click: this.requestQuit },
+      { label: "退出挚伴", click: this.requestQuit },
     ];
 
     // Electron opens an assigned context menu on primary click on macOS.

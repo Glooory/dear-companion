@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AudioSettingsV3, AudioSource, AudioSourceInput } from "@shared/contracts";
 import { playAudioSource } from "../audio/use-audio-playback";
-import { InfoTooltip } from "./Tooltip";
 import styles from "./AudioSettings.module.css";
 
 interface Props {
@@ -60,14 +59,11 @@ export function AudioSettings({ audio, disabled, onImport, onChange }: Props): R
     <article className={styles.card}>
       <div className="editor-heading-row">
         <div>
-          <div className="heading-with-tooltip">
-            <h2>提醒声音</h2>
-            <InfoTooltip text="声音默认保持静音。每条休息提醒可单独开启提示音。" />
-          </div>
-          <p className={styles.subtext}>设置全局声音来源。每条休息提醒可单独开启或关闭提示音。</p>
+          <h2>提醒声音</h2>
+          <p className={styles.subtext}>选择默认声音；是否播放由每条休息提醒单独设置。</p>
         </div>
         <button type="button" className="secondary-button" disabled={disabled} onClick={onImport}>
-          导入声音
+          导入提示音
         </button>
       </div>
 
@@ -77,7 +73,7 @@ export function AudioSettings({ audio, disabled, onImport, onChange }: Props): R
         return (
           <div className={styles.control} key={cue}>
             <label className={styles.source}>
-              <span>{cue === "reminder" ? "休息提醒提示音" : "督促继续休息提示音"}</span>
+              <span>{cue === "reminder" ? "休息提醒音" : "休息督促音"}</span>
               <select
                 disabled={disabled}
                 value={source.kind === "builtin" ? "builtin" : source.assetId}
@@ -99,7 +95,7 @@ export function AudioSettings({ audio, disabled, onImport, onChange }: Props): R
               onClick={() => handlePreview(cue, source)}
               title="试听声音"
             >
-              {isPlaying ? "■ 停止" : "▶ 试听"}
+              {isPlaying ? "停止" : "试听"}
             </button>
           </div>
         );
