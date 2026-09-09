@@ -12,27 +12,30 @@
 .dialogue {
   position: absolute;
   z-index: 7;
-  left: var(--dialogue-center-x, 50%);
-  transform: translateX(-50%);
-  width: fit-content;
-  max-width: 272px;
-  padding: 8px 14px;
-  border: 1px solid rgba(45, 42, 38, 0.1);
-  border-radius: 14px;
+  left: var(--dialogue-left, 12px);
+  width: var(--dialogue-width, max-content);
+  max-width: 260px;
+  padding: 7px 12px;
+  border: 1px solid rgba(45, 42, 38, 0.08);
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
   filter:
-    drop-shadow(0 2px 4px rgba(45, 42, 38, 0.08))
-    drop-shadow(0 1px 2px rgba(45, 42, 38, 0.05));
+    drop-shadow(0 2px 5px rgba(45, 42, 38, 0.08))
+    drop-shadow(0 1px 2px rgba(45, 42, 38, 0.04));
   color: #2d2a26;
   font-size: 13px;
   line-height: 1.4;
   font-weight: 500;
   text-align: center;
   cursor: default;
-  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-wrap: balance;
+  word-break: break-word;
+  overflow-wrap: break-word;
   overflow: visible;
   pointer-events: auto;
-  animation: bubbleIn 200ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation: bubbleIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .shell[data-placement="top"] .dialogue {
@@ -48,21 +51,21 @@
   position: absolute;
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
   left: var(--arrow-offset, 50%);
   transform: translateX(-50%);
 }
 
 .shell[data-placement="top"] .dialogue::after {
-  bottom: -6px;
-  border-top: 6px solid rgba(255, 255, 255, 0.96);
+  bottom: -5px;
+  border-top: 5px solid rgba(255, 255, 255, 0.96);
   border-bottom: none;
 }
 
 .shell[data-placement="bottom"] .dialogue::after {
-  top: -6px;
-  border-bottom: 6px solid rgba(255, 255, 255, 0.96);
+  top: -5px;
+  border-bottom: 5px solid rgba(255, 255, 255, 0.96);
   border-top: none;
 }
 
@@ -124,11 +127,17 @@
 
 @keyframes bubbleIn {
   from {
-    transform: translate(-50%, 4px) scale(0.94);
+    transform: translateY(3px) scale(0.96);
     opacity: 0;
   }
   to {
-    transform: translate(-50%, 0) scale(1);
+    transform: translateY(0) scale(1);
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialogue {
+    animation: none;
   }
 }

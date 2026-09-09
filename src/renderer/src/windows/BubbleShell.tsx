@@ -16,13 +16,34 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null);
   const [displayNow, setDisplayNow] = useState(0);
   const dialogueRef = useRef<HTMLSpanElement>(null);
-  const [dialogueWidth, setDialogueWidth] = useState(0);
+  const dialogue = bubbleSnapshot.dialogue;
 
   useLayoutEffect(() => {
-    if (dialogueRef.current) {
-      setDialogueWidth(dialogueRef.current.offsetWidth);
-    }
-  }, [bubbleSnapshot.dialogue]);
+    const el = dialogueRef.current;
+    if (!el || !dialogue) return;
+
+    // Reset width constraint to measure intrinsic line widths
+    el.style.removeProperty("--dialogue-width");
+
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const rects = Array.from(range.getClientRects());
+    const maxLineWidth = rects.length > 0 ? Math.max(...rects.map((r) => r.width)) : el.offsetWidth;
+    // 12px padding * 2 + 1px border * 2 = 26px, plus 2px subpixel buffer
+    const measuredWidth = Math.min(260, Math.ceil(maxLineWidth) + 28);
+
+    const half = measuredWidth / 2;
+    const minCenter = half + 12;
+    const maxCenter = Math.max(minCenter, 320 - half - 12);
+    const centerX = Math.max(minCenter, Math.min(maxCenter, bubbleSnapshot.tailOffsetX));
+    const left = Math.round(centerX - half);
+    const rawArrow = bubbleSnapshot.tailOffsetX - left;
+    const arrow = Math.max(12, Math.min(measuredWidth - 12, rawArrow));
+
+    el.style.setProperty("--dialogue-width", `${measuredWidth}px`);
+    el.style.setProperty("--dialogue-left", `${left}px`);
+    el.style.setProperty("--arrow-offset", `${arrow}px`);
+  }, [dialogue, bubbleSnapshot.tailOffsetX]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +120,6 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
 
   const prompt = restSnapshot?.runtime.prompt ?? null;
   const session = restSnapshot?.runtime.session ?? null;
-  const dialogue = bubbleSnapshot.dialogue;
   const remainingSeconds = session ? Math.max(0, Math.ceil((session.endsAt - displayNow) / 1_000)) : 0;
 
   const startRest = (): void => {
@@ -136,15 +156,16 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
       .catch(() => undefined);
   };
 
-  const halfWidth = dialogueWidth > 0 ? dialogueWidth / 2 : 60;
+  const halfWidth = 60;
   const minCenter = halfWidth + 12;
   const maxCenter = Math.max(minCenter, 320 - halfWidth - 12);
   const dialogueCenterX = Math.max(minCenter, Math.min(maxCenter, bubbleSnapshot.tailOffsetX));
-  const rawArrow = bubbleSnapshot.tailOffsetX - (dialogueCenterX - halfWidth);
-  const arrowOffset = Math.max(14, Math.min(dialogueWidth > 0 ? dialogueWidth - 14 : 106, rawArrow));
+  const dialogueLeft = Math.round(dialogueCenterX - halfWidth);
+  const rawArrow = bubbleSnapshot.tailOffsetX - dialogueLeft;
+  const arrowOffset = Math.max(12, Math.min(108, rawArrow));
 
   const dialogueStyle = {
-    "--dialogue-center-x": `${dialogueCenterX}px`,
+    "--dialogue-left": `${dialogueLeft}px`,
     "--arrow-offset": `${arrowOffset}px`,
   } as CSSProperties;
 
