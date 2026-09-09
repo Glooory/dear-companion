@@ -165,6 +165,13 @@ export function DialogueLineEditor({
   const errorId = `dialogue-error-${row.category}-${row.id}`;
   const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER);
   const trimmedAddress = address.trim();
+  const quickDialogueTitle = quickDialogueSelected
+    ? "已设为常用；取消后将从伙伴右键菜单移除。"
+    : quickDialogueDisabled
+      ? quickDialogueUnavailableReason
+        ? `${quickDialogueUnavailableReason}。每个伙伴最多可设 3 句常用对白。`
+        : "常用对白最多选择 3 句。可在上方常用对白区域移除已有项目后再添加。"
+      : "设为常用后，可以从伙伴右键菜单直接让它说出。每个伙伴最多可设 3 句。";
 
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError, row.source === "custom" && styles.customRow)}>
@@ -283,18 +290,7 @@ export function DialogueLineEditor({
           )}
 
           {onToggleQuickDialogue && (
-            <span
-              className={styles.quickDialogueWrapper}
-              title={
-                quickDialogueSelected
-                  ? "已设为常用；取消后将从伙伴右键菜单移除。"
-                  : quickDialogueDisabled
-                    ? quickDialogueUnavailableReason
-                      ? `${quickDialogueUnavailableReason}。每个伙伴最多可设 3 句常用对白。`
-                      : "常用对白最多选择 3 句。可在上方常用对白区域移除已有项目后再添加。"
-                    : "设为常用后，可以从伙伴右键菜单直接让它说出。每个伙伴最多可设 3 句。"
-              }
-            >
+            <span className={styles.quickDialogueWrapper} title={quickDialogueTitle}>
               <button
                 type="button"
                 className={clsx(styles.quickDialogueBtn, quickDialogueSelected && styles.quickDialogueBtnSelected)}
@@ -306,8 +302,9 @@ export function DialogueLineEditor({
                     ? `从常用对白移除：${row.currentText || row.defaultText || "未命名对白"}`
                     : `设为常用：${row.currentText || row.defaultText || "未命名对白"}`
                 }
+                title={quickDialogueTitle}
               >
-                <span>{quickDialogueSelected ? "已设为常用" : "设为常用"}</span>
+                <span>常用</span>
               </button>
             </span>
           )}

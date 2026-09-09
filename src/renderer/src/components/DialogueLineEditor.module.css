@@ -226,8 +226,8 @@
   align-items: center;
   justify-content: center;
   height: 28px;
-  width: 72px;
-  min-width: 72px;
+  width: 48px;
+  min-width: 48px;
   padding: 0 4px;
   border: 1px solid #dcd7cd;
   border-radius: 6px;
@@ -315,6 +315,7 @@
   border-color: #ede8e1;
   color: #a8a29e;
   background: #faf8f5;
+  pointer-events: none;
 }
 
 .lifecycleBtn {
