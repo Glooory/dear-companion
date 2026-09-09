@@ -942,6 +942,24 @@ export function toggleQuickDialogueReference(
   };
 }
 
+export const MAX_QUICK_DIALOGUE_MENU_LABEL_LENGTH = 14;
+
+export function formatQuickDialogueLabel(
+  text: string,
+  maxLength = MAX_QUICK_DIALOGUE_MENU_LABEL_LENGTH
+): string {
+  const trimmed = text.trim();
+  const segments = Array.from(segmenter.segment(trimmed));
+  if (segments.length > maxLength) {
+    const truncated = segments
+      .slice(0, maxLength)
+      .map((s) => s.segment)
+      .join("");
+    return `“${truncated}…”`;
+  }
+  return `“${trimmed}”`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

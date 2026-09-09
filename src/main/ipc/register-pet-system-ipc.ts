@@ -7,7 +7,7 @@ import {
   type PetSystemSnapshot,
 } from "../../shared/contracts";
 import { IPC_CHANNELS } from "../../shared/ipc-channels";
-import { resolveQuickDialogueCandidates } from "../../shared/dialogue-settings";
+import { formatQuickDialogueLabel, resolveQuickDialogueCandidates } from "../../shared/dialogue-settings";
 import type { CompanionStateController } from "../companion/companion-state-controller";
 import type { PetPackService } from "../pets/pet-pack-service";
 import type { SettingsStore } from "../settings/settings-store";
@@ -175,29 +175,28 @@ export function registerPetSystemIpc({
       const quickDialogues = activePet ? resolveQuickDialogueCandidates(activePet.dialogueSettings) : [];
       const quickDialogueEnabled = Boolean(activePet?.interactionBubblesEnabled) && ordinaryEnabled;
 
-      const quickDialogueMenu = quickDialogues.length
+      const quickDialogueItems = quickDialogues.length
         ? [
-            {
-              label: "常用对白",
+            { type: "separator" as const },
+            ...quickDialogues.map((line) => ({
+              label: formatQuickDialogueLabel(line.text),
               enabled: quickDialogueEnabled,
-              submenu: quickDialogues.map((line) => ({
-                label: `“${line.text}”`,
-                click: () =>
-                  windowManager.requestPetInteraction({
-                    type: "quick-dialogue",
-                    petId: activePet!.id,
-                    text: line.text,
-                    ...(activePet!.dialogueSettings.voiceEnabled && line.voiceAssetId
-                      ? {
-                          voiceAssetId: line.voiceAssetId,
-                          ...(line.voiceTrimStart !== undefined ? { voiceTrimStart: line.voiceTrimStart } : {}),
-                          ...(line.voiceTrimEnd !== undefined ? { voiceTrimEnd: line.voiceTrimEnd } : {}),
-                          voiceVolume: activePet!.dialogueSettings.voiceVolume,
-                        }
-                      : {}),
-                  }),
-              })),
-            },
+              click: () =>
+                windowManager.requestPetInteraction({
+                  type: "quick-dialogue",
+                  petId: activePet!.id,
+                  text: line.text,
+                  ...(activePet!.dialogueSettings.voiceEnabled && line.voiceAssetId
+                    ? {
+                        voiceAssetId: line.voiceAssetId,
+                        ...(line.voiceTrimStart !== undefined ? { voiceTrimStart: line.voiceTrimStart } : {}),
+                        ...(line.voiceTrimEnd !== undefined ? { voiceTrimEnd: line.voiceTrimEnd } : {}),
+                        voiceVolume: activePet!.dialogueSettings.voiceVolume,
+                      }
+                    : {}),
+                }),
+            })),
+            { type: "separator" as const },
           ]
         : [];
 
@@ -213,7 +212,7 @@ export function registerPetSystemIpc({
                 enabled: playEnabled,
                 click: () => windowManager.requestPetInteraction({ type: "play-now" }),
               },
-              ...quickDialogueMenu,
+              ...quickDialogueItems,
               {
                 label: "安静待着",
                 enabled: lifeStateSwitchEnabled,

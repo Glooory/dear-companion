@@ -283,27 +283,33 @@ export function DialogueLineEditor({
           )}
 
           {onToggleQuickDialogue && (
-            <button
-              type="button"
-              className={clsx(styles.quickDialogueBtn, quickDialogueSelected && styles.quickDialogueBtnSelected)}
-              onClick={onToggleQuickDialogue}
-              disabled={quickDialogueDisabled && !quickDialogueSelected}
-              aria-pressed={quickDialogueSelected}
-              aria-label={
-                quickDialogueSelected
-                  ? `从常用对白移除：${row.currentText || row.defaultText || "未命名对白"}`
-                  : `设为常用：${row.currentText || row.defaultText || "未命名对白"}`
-              }
+            <span
+              className={styles.quickDialogueWrapper}
               title={
                 quickDialogueSelected
-                  ? "已设为常用（点击取消）"
+                  ? "已设为常用（点击取消）。设为常用后，可在伙伴右键菜单中直接点击播放。"
                   : quickDialogueDisabled
-                    ? (quickDialogueUnavailableReason ?? "最多只能设置 3 句常用对白")
-                    : "设为常用"
+                    ? quickDialogueUnavailableReason
+                      ? `${quickDialogueUnavailableReason}。设为常用后可在伙伴右键菜单直接播放（每个伙伴最多 3 句）。`
+                      : "常用对白最多选择 3 句。可在上方常用对白区域移除已有项目后再添加。"
+                    : "设为常用后，可在伙伴右键菜单中直接点击使用。每个伙伴最多可设 3 句。"
               }
             >
-              <span>常用</span>
-            </button>
+              <button
+                type="button"
+                className={clsx(styles.quickDialogueBtn, quickDialogueSelected && styles.quickDialogueBtnSelected)}
+                onClick={onToggleQuickDialogue}
+                disabled={quickDialogueDisabled && !quickDialogueSelected}
+                aria-pressed={quickDialogueSelected}
+                aria-label={
+                  quickDialogueSelected
+                    ? `从常用对白移除：${row.currentText || row.defaultText || "未命名对白"}`
+                    : `设为常用：${row.currentText || row.defaultText || "未命名对白"}`
+                }
+              >
+                <span>常用</span>
+              </button>
+            </span>
           )}
 
           {row.source === "builtin" ? (

@@ -15,6 +15,8 @@ import {
   resolveQuickDialogueCandidates,
   toggleQuickDialogueReference,
   removeQuickDialogueReference,
+  formatQuickDialogueLabel,
+  MAX_QUICK_DIALOGUE_MENU_LABEL_LENGTH,
   type PetDialogueSettings,
 } from "./dialogue-settings";
 
@@ -1046,3 +1048,33 @@ describe("quick dialogue references and resolution", () => {
     expect(issues.some((i) => i.path === "address" && i.message.includes("常用对白"))).toBe(false);
   });
 });
+
+describe("formatQuickDialogueLabel", () => {
+  test("wraps short dialogues in Chinese quotes without ellipsis", () => {
+    expect(formatQuickDialogueLabel("在呢。")).toBe("“在呢。”");
+    expect(formatQuickDialogueLabel("今天也辛苦啦")).toBe("“今天也辛苦啦”");
+  });
+
+  test("preserves text at exact max length", () => {
+    const exactMaxChars = "一".repeat(MAX_QUICK_DIALOGUE_MENU_LABEL_LENGTH);
+    expect(countVisibleCharacters(exactMaxChars)).toBe(MAX_QUICK_DIALOGUE_MENU_LABEL_LENGTH);
+    expect(formatQuickDialogueLabel(exactMaxChars)).toBe(`“${exactMaxChars}”`);
+  });
+
+  test("truncates text exceeding max length and appends ellipsis", () => {
+    const fifteenChars = "一二三四五六七八九十一二三四五";
+    expect(countVisibleCharacters(fifteenChars)).toBe(15);
+    expect(formatQuickDialogueLabel(fifteenChars)).toBe("“一二三四五六七八九十一二三四…”");
+  });
+
+  test("handles grapheme clusters and emojis gracefully", () => {
+    const textWithEmoji = "🎉👨‍👩‍👧‍👦小葡萄在看你呢，加油哦！";
+    const formatted = formatQuickDialogueLabel(textWithEmoji, 5);
+    expect(formatted).toBe("“🎉👨‍👩‍👧‍👦小葡萄…”");
+  });
+
+  test("trims leading and trailing whitespace before formatting", () => {
+    expect(formatQuickDialogueLabel("   伸个懒腰吧   ")).toBe("“伸个懒腰吧”");
+  });
+});
+

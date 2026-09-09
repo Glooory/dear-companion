@@ -258,6 +258,16 @@
   color: #a8a29e;
 }
 
+.quickDialogueWrapper {
+  display: inline-flex;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.quickDialogueWrapper:has(:disabled) {
+  cursor: not-allowed;
+}
+
 .quickDialogueBtn {
   display: inline-flex;
   align-items: center;
