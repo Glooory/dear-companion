@@ -32,6 +32,10 @@ export interface DialogueLineEditorProps {
   readonly row: DialogueLineRowModel;
   readonly address: string;
   readonly voiceVolume: number;
+  readonly quickDialogueSelected?: boolean;
+  readonly quickDialogueDisabled?: boolean;
+  readonly quickDialogueUnavailableReason?: string;
+  readonly onToggleQuickDialogue?: () => void;
   readonly onTextChange: (text: string) => void;
   readonly onToggleAutomatic: (enabled: boolean) => void;
   readonly onVoiceChange: (voiceAssetId: string | undefined, trimStart?: number, trimEnd?: number) => void;
@@ -47,6 +51,10 @@ export function DialogueLineEditor({
   row,
   address,
   voiceVolume,
+  quickDialogueSelected,
+  quickDialogueDisabled,
+  quickDialogueUnavailableReason,
+  onToggleQuickDialogue,
   onTextChange,
   onToggleAutomatic,
   onVoiceChange,
@@ -297,6 +305,46 @@ export function DialogueLineEditor({
               aria-label={`预览对白：${row.currentText || row.defaultText || "未命名对白"}`}
             >
               预览
+            </button>
+          )}
+
+          {onToggleQuickDialogue && (
+            <button
+              type="button"
+              className={clsx(
+                styles.quickDialogueBtn,
+                quickDialogueSelected && styles.quickDialogueBtnSelected
+              )}
+              onClick={onToggleQuickDialogue}
+              disabled={quickDialogueDisabled && !quickDialogueSelected}
+              aria-pressed={quickDialogueSelected}
+              aria-label={
+                quickDialogueSelected
+                  ? `从常用对白移除：${row.currentText || row.defaultText || "未命名对白"}`
+                  : `设为常用：${row.currentText || row.defaultText || "未命名对白"}`
+              }
+              title={
+                quickDialogueSelected
+                  ? "已设为常用（点击取消）"
+                  : quickDialogueDisabled
+                    ? (quickDialogueUnavailableReason ?? "暂不可设为常用")
+                    : "设为常用"
+              }
+            >
+              <svg
+                viewBox="0 0 16 16"
+                width="12"
+                height="12"
+                fill={quickDialogueSelected ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9.5 2.5l4 4-2 2-1.5-1.5-3 3v2.5l-1 1-1-1v-2.5l-2.5-2.5 1-1h2.5l3-3-1.5-1.5 2-2z" />
+              </svg>
+              <span>{quickDialogueSelected ? "已设为常用" : "设为常用"}</span>
             </button>
           )}
 

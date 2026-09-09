@@ -9,6 +9,13 @@ import {
   restoreBuiltInCategory,
   restoreBuiltInLine,
   toggleCategoryAutomatic,
+  MAX_QUICK_DIALOGUES,
+  QUICK_DIALOGUE_BLOCKED_CATEGORIES,
+  resolveDialogueReference,
+  resolveQuickDialogueCandidates,
+  toggleQuickDialogueReference,
+  removeQuickDialogueReference,
+  type PetDialogueSettings,
 } from "./dialogue-settings";
 
 describe("dialogue catalog coverage", () => {
@@ -703,5 +710,339 @@ describe("dialogue voice settings and candidates", () => {
       voiceTrimStart: 0.2,
       voiceTrimEnd: 1.5,
     });
+  });
+});
+
+describe("quick dialogue references and resolution", () => {
+  test("constants are defined as specified", () => {
+    expect(MAX_QUICK_DIALOGUES).toBe(3);
+    expect(QUICK_DIALOGUE_BLOCKED_CATEGORIES).toEqual(["rest:crying", "rest:completion"]);
+  });
+
+  test("parses empty/default quickDialogueRefs and deep clones them", () => {
+    const defaultParsed = parsePetDialogueSettings({
+      address: "小葡萄",
+      categories: {},
+    });
+    expect(defaultParsed.quickDialogueRefs).toEqual([]);
+
+    const input = {
+      address: "小葡萄",
+      voiceEnabled: true,
+      voiceVolume: 0.8,
+      quickDialogueRefs: [
+        { category: "daily:click", lineId: "daily-click-here" },
+        { category: "working:click", lineId: "working-click-with-you" },
+      ],
+      categories: {},
+    };
+    const parsed = parsePetDialogueSettings(input);
+
+    expect(parsed.quickDialogueRefs).toEqual([
+      { category: "daily:click", lineId: "daily-click-here" },
+      { category: "working:click", lineId: "working-click-with-you" },
+    ]);
+    expect(parsed.quickDialogueRefs).not.toBe(input.quickDialogueRefs);
+    expect(parsed.quickDialogueRefs[0]).not.toBe(input.quickDialogueRefs[0]);
+  });
+
+  test("validates quickDialogueRefs structure, capacity, safe IDs, and categories", () => {
+    // Exceeding capacity (4 items)
+    const tooMany = {
+      address: "",
+      quickDialogueRefs: [
+        { category: "daily:click", lineId: "daily-click-here" },
+        { category: "daily:click", lineId: "daily-click-poke" },
+        { category: "daily:click", lineId: "daily-click-pat" },
+        { category: "working:click", lineId: "working-click-with-you" },
+      ],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(tooMany)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "常用对白最多选择 3 句",
+    });
+
+    // Duplicate reference pair
+    const duplicatePair = {
+      address: "",
+      quickDialogueRefs: [
+        { category: "daily:click", lineId: "daily-click-here" },
+        { category: "daily:click", lineId: "daily-click-here" },
+      ],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(duplicatePair)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "Duplicate quick dialogue reference",
+    });
+
+    // Unsafe line ID
+    const unsafeId = {
+      address: "",
+      quickDialogueRefs: [{ category: "daily:click", lineId: "../bad-id" }],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(unsafeId)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "Invalid dialogue identifier",
+    });
+
+    // Unknown category
+    const unknownCat = {
+      address: "",
+      quickDialogueRefs: [{ category: "unknown:category", lineId: "line-1" }],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(unknownCat)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "Unknown dialogue category: unknown:category",
+    });
+
+    // Blocked rest categories
+    const restCrying = {
+      address: "",
+      quickDialogueRefs: [{ category: "rest:crying", lineId: "rest-crying-1" }],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(restCrying)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "休息系统对白不能设为常用",
+    });
+
+    const restCompletion = {
+      address: "",
+      quickDialogueRefs: [{ category: "rest:completion", lineId: "rest-completion-1" }],
+      categories: {},
+    };
+    expect(getDialogueValidationIssues(restCompletion)).toContainEqual({
+      path: "quickDialogueRefs",
+      message: "休息系统对白不能设为常用",
+    });
+  });
+
+  test("validates placeholder requires address and duplicate resolved final text", () => {
+    // Line with [称呼] but address is empty
+    const missingAddress = {
+      address: "",
+      quickDialogueRefs: [{ category: "daily:click", lineId: "daily-click-here" }],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "[称呼]，在呢！" }],
+          customLines: [],
+        },
+      },
+    };
+    expect(getDialogueValidationIssues(missingAddress)).toContainEqual({
+      path: "address",
+      message: "常用对白包含称呼，请先设置称呼",
+    });
+
+    // Two quick dialogues resolving to duplicate final text
+    const duplicateFinalText = {
+      address: "小葡萄",
+      quickDialogueRefs: [
+        { category: "daily:click", lineId: "daily-click-here" },
+        { category: "daily:click", lineId: "custom-1" },
+      ],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "在呢！" }],
+          customLines: [{ id: "custom-1", automaticEnabled: true, text: "在呢！" }],
+        },
+      },
+    };
+    expect(getDialogueValidationIssues(duplicateFinalText)).toContainEqual({
+      path: "daily:click:custom-1",
+      message: "常用对白内容不能重复",
+    });
+  });
+
+  test("resolveDialogueReference resolves built-in, custom, overrides, voices, and addresses", () => {
+    const settings = parsePetDialogueSettings({
+      address: "小葡萄",
+      voiceEnabled: true,
+      voiceVolume: 0.8,
+      quickDialogueRefs: [],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [
+            {
+              lineId: "daily-click-here",
+              automaticEnabled: false,
+              text: "[称呼]，在呢。",
+              voiceAssetId: "voice-one",
+              voiceTrimStart: 0.2,
+              voiceTrimEnd: 1.4,
+            },
+          ],
+          customLines: [
+            {
+              id: "custom-1",
+              automaticEnabled: false,
+              text: "陪你一起呀",
+              voiceAssetId: "voice-two",
+            },
+          ],
+        },
+      },
+    });
+
+    // Resolves automatically disabled built-in line with address and voice metadata
+    expect(resolveDialogueReference({ category: "daily:click", lineId: "daily-click-here" }, settings)).toEqual({
+      lineId: "daily-click-here",
+      text: "小葡萄，在呢。",
+      voiceAssetId: "voice-one",
+      voiceTrimStart: 0.2,
+      voiceTrimEnd: 1.4,
+    });
+
+    // Resolves automatically disabled custom line
+    expect(resolveDialogueReference({ category: "daily:click", lineId: "custom-1" }, settings)).toEqual({
+      lineId: "custom-1",
+      text: "陪你一起呀",
+      voiceAssetId: "voice-two",
+    });
+
+    // Resolves unmodified built-in line
+    const unmodified = resolveDialogueReference({ category: "daily:click", lineId: "daily-click-whats-up" }, settings);
+    expect(unmodified).not.toBeNull();
+    expect(unmodified?.lineId).toBe("daily-click-whats-up");
+    expect(unmodified?.text.length).toBeGreaterThan(0);
+
+    // Returns null for stale or missing line ID
+    expect(resolveDialogueReference({ category: "daily:click", lineId: "non-existent" }, settings)).toBeNull();
+
+    // Returns null for blocked category
+    expect(resolveDialogueReference({ category: "rest:crying", lineId: "some-line" }, settings)).toBeNull();
+
+    // Returns null when address is required but empty
+    const noAddressSettings = parsePetDialogueSettings({
+      address: "",
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "[称呼]，在呢。" }],
+          customLines: [],
+        },
+      },
+    });
+    expect(
+      resolveDialogueReference({ category: "daily:click", lineId: "daily-click-here" }, noAddressSettings)
+    ).toBeNull();
+  });
+
+  test("resolveQuickDialogueCandidates maintains order and skips nulls", () => {
+    const settings = parsePetDialogueSettings({
+      address: "小葡萄",
+      quickDialogueRefs: [
+        { category: "daily:click", lineId: "daily-click-here" },
+        { category: "daily:click", lineId: "missing-stale" },
+        { category: "daily:click", lineId: "daily-click-whats-up" },
+      ],
+      categories: {},
+    });
+
+    const candidates = resolveQuickDialogueCandidates(settings);
+    expect(candidates).toHaveLength(2);
+    expect(candidates[0]?.lineId).toBe("daily-click-here");
+    expect(candidates[1]?.lineId).toBe("daily-click-whats-up");
+  });
+
+  test("toggleQuickDialogueReference and removeQuickDialogueReference mutate immutably", () => {
+    const initial = parsePetDialogueSettings({
+      address: "小葡萄",
+      quickDialogueRefs: [{ category: "daily:click", lineId: "daily-click-here" }],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [],
+          customLines: [{ id: "custom-1", automaticEnabled: true, text: "自建对白" }],
+        },
+      },
+    });
+
+    // Appending a second reference
+    const withSecond = toggleQuickDialogueReference(initial, { category: "daily:click", lineId: "custom-1" });
+    expect(withSecond.quickDialogueRefs).toEqual([
+      { category: "daily:click", lineId: "daily-click-here" },
+      { category: "daily:click", lineId: "custom-1" },
+    ]);
+    expect(withSecond).not.toBe(initial);
+
+    // Appending a third reference
+    const withThird = toggleQuickDialogueReference(withSecond, { category: "daily:click", lineId: "daily-click-whats-up" });
+    expect(withThird.quickDialogueRefs).toHaveLength(3);
+
+    // Appending a 4th reference is a no-op
+    const withFourth = toggleQuickDialogueReference(withThird, { category: "daily:click", lineId: "daily-click-see-you" });
+    expect(withFourth).toBe(withThird);
+    expect(withFourth.quickDialogueRefs).toHaveLength(3);
+
+    // Toggling an existing reference removes it
+    const toggledOff = toggleQuickDialogueReference(withThird, { category: "daily:click", lineId: "custom-1" });
+    expect(toggledOff.quickDialogueRefs).toEqual([
+      { category: "daily:click", lineId: "daily-click-here" },
+      { category: "daily:click", lineId: "daily-click-whats-up" },
+    ]);
+
+    // removeQuickDialogueReference on non-existent is a no-op
+    expect(removeQuickDialogueReference(toggledOff, { category: "daily:click", lineId: "custom-1" })).toBe(toggledOff);
+
+    // removeQuickDialogueReference removes matching reference
+    const removed = removeQuickDialogueReference(toggledOff, { category: "daily:click", lineId: "daily-click-here" });
+    expect(removed.quickDialogueRefs).toEqual([{ category: "daily:click", lineId: "daily-click-whats-up" }]);
+
+    // Restoring or editing builtIn line preserves quickDialogueRefs
+    const withOverride = parsePetDialogueSettings({
+      address: "小葡萄",
+      quickDialogueRefs: [{ category: "daily:click", lineId: "daily-click-here" }],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "新内容" }],
+          customLines: [],
+        },
+      },
+    });
+    const restored = restoreBuiltInLine(withOverride, "daily:click", "daily-click-here");
+    expect(restored.quickDialogueRefs).toEqual([{ category: "daily:click", lineId: "daily-click-here" }]);
+
+    // Supports settings objects where quickDialogueRefs is undefined
+    const legacyLike = {
+      address: "小葡萄",
+      categories: {},
+      voiceEnabled: false,
+      voiceVolume: 0.8,
+    } as unknown as PetDialogueSettings;
+    const toggledLegacy = toggleQuickDialogueReference(legacyLike, {
+      category: "daily:click",
+      lineId: "daily-click-here",
+    });
+    expect(toggledLegacy.quickDialogueRefs).toEqual([{ category: "daily:click", lineId: "daily-click-here" }]);
+    const removedLegacy = removeQuickDialogueReference(legacyLike, {
+      category: "daily:click",
+      lineId: "daily-click-here",
+    });
+    expect(removedLegacy).toBe(legacyLike);
+  });
+
+  test("does not resurrect built-in placeholder or template when override is blank", () => {
+    // Built-in line contains [称呼], but user override is empty whitespace
+    const blankOverride = {
+      address: "",
+      quickDialogueRefs: [{ category: "daily:click", lineId: "daily-click-here" }],
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "   " }],
+          customLines: [],
+        },
+      },
+    };
+    const issues = getDialogueValidationIssues(blankOverride);
+    // Line itself is flagged as empty
+    expect(issues).toContainEqual({
+      path: "daily:click:daily-click-here",
+      message: "对白内容不能为空",
+    });
+    // Should NOT resurrect built-in [称呼] and falsely report address missing
+    expect(issues.some((i) => i.path === "address" && i.message.includes("常用对白"))).toBe(false);
   });
 });

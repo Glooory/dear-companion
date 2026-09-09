@@ -282,7 +282,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
     if (issues.length > 0) {
       setPetSubTab("dialogues");
       setDialogueValidationAttempt((prev) => prev + 1);
-      toast.warning("对白设置中存在未填写的项目，请检查后再保存。");
+      toast.warning("对白设置中有需要处理的内容，请检查后再保存。");
       return;
     }
     const targetHeight = normalizeTargetHeight(targetHeightText);

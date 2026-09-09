@@ -22,6 +22,8 @@ import {
   parseUpdateWorkScheduleInput,
   resolvePetWindowSize,
   type PetConfig,
+  type PetInteractionRequest,
+  type QuickDialogueRequest,
 } from "./contracts";
 import { resolveDialogueLines } from "./dialogue-settings";
 
@@ -52,7 +54,7 @@ function createPet(): PetConfig {
     },
     companionPace: "natural",
     interactionBubblesEnabled: true,
-    dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
+    dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, quickDialogueRefs: [], categories: {} },
   };
 }
 
@@ -69,9 +71,9 @@ describe("settings contracts", () => {
     expect(resolvePetWindowSize(400)).toEqual({ width: 376, height: 344 });
   });
 
-  it("uses privacy-preserving schema v7 first-run defaults", () => {
+  it("uses privacy-preserving schema v8 first-run defaults", () => {
     expect(DEFAULT_APP_SETTINGS).toEqual({
-      schemaVersion: 7,
+      schemaVersion: 8,
       activePetId: null,
       petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
       autostartEnabled: false,
@@ -93,7 +95,7 @@ describe("settings contracts", () => {
     expect(() => migrateAppSettings({ schemaVersion: 4 })).toThrow("Unsupported settings schema version");
   });
 
-  it("round-trips v7 into newly allocated nested values", () => {
+  it("round-trips v8 into newly allocated nested values", () => {
     const pet = createPet();
     const input = { ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [pet] };
     const parsed = parseAppSettings(input);
@@ -104,9 +106,10 @@ describe("settings contracts", () => {
     expect(parsed.pets[0]?.assets).not.toBe(pet.assets);
     expect(parsed.pets[0]?.actionSlots).not.toBe(pet.actionSlots);
     expect(parsed.pets[0]?.dialogueSettings).not.toBe(pet.dialogueSettings);
+    expect(parsed.pets[0]?.dialogueSettings.quickDialogueRefs).not.toBe(pet.dialogueSettings.quickDialogueRefs);
   });
 
-  it("migrates v5 dialogue settings to explicit voice defaults and schema v7", () => {
+  it("migrates v5 dialogue settings to explicit voice defaults, empty quickDialogueRefs and schema v8", () => {
     const pet = createPet();
     const legacyPet = {
       ...pet,
@@ -122,16 +125,17 @@ describe("settings contracts", () => {
     const migration = migrateAppSettings(legacy);
 
     expect(migration.migrated).toBe(true);
-    expect(migration.settings.schemaVersion).toBe(7);
+    expect(migration.settings.schemaVersion).toBe(8);
     expect(migration.settings.pets[0]?.dialogueSettings).toEqual({
       address: "小葡萄",
       voiceEnabled: false,
       voiceVolume: 0.8,
+      quickDialogueRefs: [],
       categories: {},
     });
   });
 
-  it("migrates v6 legacy reminders to schema v7 fixed schedules", () => {
+  it("migrates v6 legacy reminders to schema v8 fixed schedules", () => {
     const legacyReminder = {
       id: "reminder-1",
       enabled: true,
@@ -160,11 +164,56 @@ describe("settings contracts", () => {
 
     const migration = migrateAppSettings(legacy);
     expect(migration.migrated).toBe(true);
-    expect(migration.settings.schemaVersion).toBe(7);
+    expect(migration.settings.schemaVersion).toBe(8);
     expect(migration.settings.reminders[0]).toEqual({
       ...legacyReminder,
       mode: "fixed",
     });
+  });
+
+  it("migrates schema v7 settings to schema v8 with empty quickDialogueRefs and cloned arrays", () => {
+    const pet = createPet();
+    // Dialogue settings omitting quickDialogueRefs in schema V7
+    const v7DialogueSettings = {
+      address: "小葡萄",
+      voiceEnabled: true,
+      voiceVolume: 0.9,
+      categories: {
+        "daily:click": {
+          builtInOverrides: [{ lineId: "daily-click-here", text: "在呢！" }],
+          customLines: [],
+        },
+      },
+    };
+    const v7Pet = {
+      ...pet,
+      dialogueSettings: v7DialogueSettings,
+    };
+    const v7Settings = {
+      schemaVersion: 7,
+      activePetId: v7Pet.id,
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: {
+        reminderSource: { kind: "builtin" as const, id: "gentle-chime" as const },
+        cryingSource: { kind: "builtin" as const, id: "soft-whimper" as const },
+        assets: [],
+      },
+      reminders: [],
+      workSchedules: [],
+      pets: [v7Pet],
+    };
+
+    const migration = migrateAppSettings(v7Settings);
+    expect(migration.migrated).toBe(true);
+    expect(migration.settings.schemaVersion).toBe(8);
+    expect(migration.settings.pets[0]?.dialogueSettings.quickDialogueRefs).toEqual([]);
+    expect(migration.settings.pets[0]?.dialogueSettings.voiceEnabled).toBe(true);
+    expect(migration.settings.pets[0]?.dialogueSettings.voiceVolume).toBe(0.9);
+    expect(migration.settings.pets[0]?.dialogueSettings.address).toBe("小葡萄");
+    expect(migration.settings.pets[0]?.dialogueSettings.quickDialogueRefs).not.toBe(
+      migration.settings.pets[0]?.dialogueSettings.categories
+    );
   });
 
   it("rejects a stale active pet or active pet without idle", () => {
@@ -376,6 +425,7 @@ describe("settings contracts", () => {
             customLines: [],
           },
         },
+        quickDialogueRefs: [],
       },
     };
     const saved = parseAppSettings({ ...DEFAULT_APP_SETTINGS, activePetId: pet.id, pets: [stalePet] });
@@ -607,6 +657,29 @@ describe("settings contracts", () => {
     expect(() => parseDialoguePreviewRequest({ petId: "pet-1", text: "ok", voiceVolume: 1.5 })).toThrow(
       "Invalid voice volume"
     );
+  });
+
+  it("supports quick dialogue request structure as a pet interaction variant", () => {
+    const quickReq: QuickDialogueRequest = {
+      type: "quick-dialogue",
+      petId: "pet-1",
+      text: "今天也辛苦啦。",
+      voiceAssetId: "voice-1",
+      voiceTrimStart: 0.2,
+      voiceTrimEnd: 1.5,
+      voiceVolume: 0.8,
+    };
+
+    const interaction: PetInteractionRequest = quickReq;
+    expect(interaction.type).toBe("quick-dialogue");
+    if (interaction.type === "quick-dialogue") {
+      expect(interaction.petId).toBe("pet-1");
+      expect(interaction.text).toBe("今天也辛苦啦。");
+      expect(interaction.voiceAssetId).toBe("voice-1");
+      expect(interaction.voiceTrimStart).toBe(0.2);
+      expect(interaction.voiceTrimEnd).toBe(1.5);
+      expect(interaction.voiceVolume).toBe(0.8);
+    }
   });
 
   it("parses create and update reminder inputs with optional voice configuration", () => {

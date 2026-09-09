@@ -255,6 +255,55 @@
   color: #a8a29e;
 }
 
+.quickDialogueBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  width: 98px;
+  min-width: 98px;
+  padding: 0 6px;
+  border: 1px solid #dcd7cd;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #55514b;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-sizing: border-box;
+  white-space: nowrap;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.quickDialogueBtn:hover:not(:disabled) {
+  border-color: #3d7363;
+  color: #2f5c4f;
+  background: rgba(61, 115, 99, 0.06);
+}
+
+.quickDialogueBtnSelected {
+  border-color: #3d7363;
+  background: rgba(61, 115, 99, 0.12);
+  color: #20483d;
+  font-weight: 600;
+}
+
+.quickDialogueBtnSelected:hover:not(:disabled) {
+  background: rgba(61, 115, 99, 0.18);
+}
+
+.quickDialogueBtn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  border-color: #ede8e1;
+  color: #a8a29e;
+  background: #faf8f5;
+}
+
 .voiceUnavailable {
   border-color: #d4a29a;
   background: #fff4f2;

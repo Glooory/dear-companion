@@ -1,4 +1,9 @@
-import { parsePetDialogueSettings, type PetDialogueSettings } from "./dialogue-settings";
+import {
+  clonePetDialogueSettings,
+  parsePetDialogueSettings,
+  type PetDialogueSettings,
+  type QuickDialogueReference,
+} from "./dialogue-settings";
 
 export type WindowKind = "pet" | "settings" | "bubble";
 
@@ -215,10 +220,15 @@ export interface DialoguePreviewRequest {
   voiceVolume?: number;
 }
 
+export interface QuickDialogueRequest extends DialoguePreviewRequest {
+  type: "quick-dialogue";
+}
+
 export type PetInteractionRequest =
   | { type: "play-now" }
   | { type: "preview-pace"; pace: CompanionPace }
-  | ({ type: "preview-dialogue" } & DialoguePreviewRequest);
+  | ({ type: "preview-dialogue" } & DialoguePreviewRequest)
+  | QuickDialogueRequest;
 
 export interface CompanionSystemSnapshot {
   workSchedules: readonly WorkSchedule[];
@@ -247,7 +257,18 @@ export interface AppSettingsV7 {
   pets: readonly PetConfig[];
 }
 
-export type AppSettings = AppSettingsV7;
+export interface AppSettingsV8 {
+  schemaVersion: 8;
+  activePetId: string | null;
+  petWindow: PetWindowSettings;
+  autostartEnabled: boolean;
+  audio: AudioSettingsV3;
+  reminders: readonly ReminderSchedule[];
+  workSchedules: readonly WorkSchedule[];
+  pets: readonly PetConfig[];
+}
+
+export type AppSettings = AppSettingsV8;
 
 export interface ReminderOccurrence {
   occurrenceId: string;
@@ -526,7 +547,7 @@ export const DEFAULT_PET_LIFE_STATES: Readonly<PetLifeStates> = Object.freeze({
 });
 
 export const DEFAULT_APP_SETTINGS = Object.freeze({
-  schemaVersion: 7,
+  schemaVersion: 8,
   activePetId: null,
   petWindow: Object.freeze({
     x: null,
@@ -606,8 +627,11 @@ export function parsePetRendererStatus(value: unknown): PetRendererStatus {
 export function migrateAppSettings(value: unknown): SettingsMigrationResult {
   if (!isRecord(value)) throw new Error("Unsupported settings schema version");
 
+  if (value.schemaVersion === 8) {
+    return { migrated: false, settings: parseAppSettingsV8(value) };
+  }
   if (value.schemaVersion === 7) {
-    return { migrated: false, settings: parseAppSettingsV7(value) };
+    return { migrated: true, settings: migrateAppSettingsFromV7(value) };
   }
   if (value.schemaVersion === 6) {
     return { migrated: true, settings: migrateAppSettingsFromV6(value) };
@@ -970,6 +994,49 @@ function validateActivePet(activePetId: string | null, pets: readonly Pick<PetCo
   }
 }
 
+function parseAppSettingsV8(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v8 settings"
+): AppSettingsV8 {
+  assertExactKeys(
+    value,
+    ["schemaVersion", "activePetId", "petWindow", "autostartEnabled", "audio", "reminders", "workSchedules", "pets"],
+    errorMessage
+  );
+  if (value.schemaVersion !== 8) throw new Error(errorMessage);
+  const foundation = parseCommonFoundationFields(value);
+  if (!Array.isArray(value.pets)) throw new Error("Invalid pet collection");
+  const pets = value.pets.map(parsePetConfig);
+  assertUnique(
+    pets.map((pet) => pet.id),
+    "Duplicate pet identifier"
+  );
+  const activePetId = parseNullableIdentifier(value.activePetId, "active pet identifier");
+  validateActivePet(activePetId, pets);
+  if (!Array.isArray(value.reminders)) throw new Error("Invalid reminder collection");
+  const reminders = value.reminders.map(parseReminderSchedule);
+  assertUnique(
+    reminders.map((reminder) => reminder.id),
+    "Duplicate reminder identifier"
+  );
+  if (!Array.isArray(value.workSchedules)) throw new Error("Invalid work schedule collection");
+  const workSchedules = value.workSchedules.map(parseWorkSchedule);
+  assertUnique(
+    workSchedules.map((schedule) => schedule.id),
+    "Duplicate work schedule identifier"
+  );
+  const audio = parseAudioSettings(value.audio);
+  return {
+    schemaVersion: 8,
+    activePetId,
+    ...foundation,
+    audio,
+    reminders,
+    workSchedules,
+    pets,
+  };
+}
+
 function parseAppSettingsV7(
   value: Record<string, unknown>,
   errorMessage = "Invalid schema v7 settings"
@@ -1010,6 +1077,37 @@ function parseAppSettingsV7(
     reminders,
     workSchedules,
     pets,
+  };
+}
+
+function migrateAppSettingsFromV7(
+  value: Record<string, unknown>,
+  errorMessage = "Invalid schema v7 settings"
+): AppSettingsV8 {
+  const v7 = parseAppSettingsV7(value, errorMessage);
+  return {
+    ...v7,
+    schemaVersion: 8,
+    reminders: v7.reminders.map(cloneReminder),
+    workSchedules: v7.workSchedules.map(cloneWorkSchedule),
+    pets: v7.pets.map((pet) => ({
+      ...pet,
+      assets: pet.assets.map((asset) => ({ ...asset })),
+      actionSlots: {
+        idle: [...pet.actionSlots.idle],
+        resting: [...pet.actionSlots.resting],
+      },
+      actionTemplates: { ...pet.actionTemplates },
+      lifeStates: {
+        drowsy: { enabled: pet.lifeStates.drowsy.enabled, assetIds: [...pet.lifeStates.drowsy.assetIds] },
+        sleeping: { enabled: pet.lifeStates.sleeping.enabled, assetIds: [...pet.lifeStates.sleeping.assetIds] },
+        workingAssetIds: [...pet.lifeStates.workingAssetIds],
+      },
+      dialogueSettings: {
+        ...clonePetDialogueSettings(pet.dialogueSettings),
+        quickDialogueRefs: Object.freeze([]) as readonly QuickDialogueReference[],
+      },
+    })),
   };
 }
 
@@ -1067,13 +1165,16 @@ function migrateLegacyReminder(reminder: LegacyReminderSchedule): FixedReminderS
 function migrateAppSettingsFromV6(
   value: Record<string, unknown>,
   errorMessage = "Invalid schema v6 settings"
-): AppSettingsV7 {
+): AppSettingsV8 {
   const v6 = parseAppSettingsV6(value, errorMessage);
-  return {
-    ...v6,
-    schemaVersion: 7,
-    reminders: v6.reminders.map(migrateLegacyReminder),
-  };
+  return migrateAppSettingsFromV7(
+    {
+      ...v6,
+      schemaVersion: 7,
+      reminders: v6.reminders.map(migrateLegacyReminder),
+    },
+    errorMessage
+  );
 }
 
 function parseReminderSchedule(value: unknown): ReminderSchedule {

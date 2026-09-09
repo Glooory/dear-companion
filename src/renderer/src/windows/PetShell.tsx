@@ -408,6 +408,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           performCurrentPhotoAction("bounce", 850);
           return;
         }
+        if (request.type === "quick-dialogue") {
+          if (request.petId !== activePet.id) return;
+          previewDialogue({
+            text: request.text,
+            voiceAssetId: request.voiceAssetId,
+            voiceTrimStart: request.voiceTrimStart,
+            voiceTrimEnd: request.voiceTrimEnd,
+            voiceVolume: request.voiceVolume,
+          });
+          return;
+        }
         if (request.type === "preview-dialogue") {
           if (request.petId !== activePet.id) return;
           previewDialogue({

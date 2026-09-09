@@ -7,6 +7,7 @@ import {
   type PetSystemSnapshot,
 } from "../../shared/contracts";
 import { IPC_CHANNELS } from "../../shared/ipc-channels";
+import { resolveQuickDialogueCandidates } from "../../shared/dialogue-settings";
 import type { CompanionStateController } from "../companion/companion-state-controller";
 import type { PetPackService } from "../pets/pet-pack-service";
 import type { SettingsStore } from "../settings/settings-store";
@@ -151,16 +152,55 @@ export function registerPetSystemIpc({
     }
   };
 
-  const showContextMenuListener = (event: IpcMainEvent): void => {
+  const showContextMenuListener = async (event: IpcMainEvent): Promise<void> => {
     try {
       if (windowManager.getWindowKind(event.sender.id) !== "pet") return;
+      const ownerBefore = windowManager.getOwnedWindow(event.sender.id);
+      if (!ownerBefore || ownerBefore.isDestroyed()) return;
+
+      const snapshot = await petPackService.getSnapshot();
+      if (!active) return;
+      if (windowManager.getWindowKind(event.sender.id) !== "pet") return;
       const owner = windowManager.getOwnedWindow(event.sender.id);
+      if (!owner || owner.isDestroyed()) return;
+
+      const activePet = snapshot.pets.find((p) => p.id === snapshot.activePetId);
       const visible = windowManager.isPetVisible();
       const companion = companionController?.getSnapshot();
       const ordinaryEnabled = !companion?.systemSuspended;
       const lifeStateSwitchEnabled = ordinaryEnabled && companion?.lifeState !== "working";
       const playEnabled =
         lifeStateSwitchEnabled && (companion?.lifeState === "daily-calm" || companion?.lifeState === "daily-playful");
+
+      const quickDialogues = activePet ? resolveQuickDialogueCandidates(activePet.dialogueSettings) : [];
+      const quickDialogueEnabled = Boolean(activePet?.interactionBubblesEnabled) && ordinaryEnabled;
+
+      const quickDialogueMenu = quickDialogues.length
+        ? [
+            {
+              label: "常用对白",
+              enabled: quickDialogueEnabled,
+              submenu: quickDialogues.map((line) => ({
+                label: `“${line.text}”`,
+                click: () =>
+                  windowManager.requestPetInteraction({
+                    type: "quick-dialogue",
+                    petId: activePet!.id,
+                    text: line.text,
+                    ...(activePet!.dialogueSettings.voiceEnabled && line.voiceAssetId
+                      ? {
+                          voiceAssetId: line.voiceAssetId,
+                          ...(line.voiceTrimStart !== undefined ? { voiceTrimStart: line.voiceTrimStart } : {}),
+                          ...(line.voiceTrimEnd !== undefined ? { voiceTrimEnd: line.voiceTrimEnd } : {}),
+                          voiceVolume: activePet!.dialogueSettings.voiceVolume,
+                        }
+                      : {}),
+                  }),
+              })),
+            },
+          ]
+        : [];
+
       const menu = Menu.buildFromTemplate([
         ...(companionController && companion
           ? [
@@ -173,6 +213,7 @@ export function registerPetSystemIpc({
                 enabled: playEnabled,
                 click: () => windowManager.requestPetInteraction({ type: "play-now" }),
               },
+              ...quickDialogueMenu,
               {
                 label: "安静待着",
                 enabled: lifeStateSwitchEnabled,

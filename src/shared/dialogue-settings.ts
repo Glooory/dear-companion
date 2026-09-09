@@ -7,11 +7,18 @@ export const MAX_REST_DIALOGUE_LINE_LENGTH = 15;
 export const MAX_CUSTOM_LINES_PER_CATEGORY = 20;
 export const MAX_CUSTOM_LINES_PER_REST_CATEGORY = 5;
 export const MAX_BUILT_IN_OVERRIDES_PER_CATEGORY = 64;
+export const MAX_QUICK_DIALOGUES = 3;
+export const QUICK_DIALOGUE_BLOCKED_CATEGORIES = Object.freeze(["rest:crying", "rest:completion"] as const);
 
 const IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
 export function isSafeIdentifier(value: unknown): value is string {
   return typeof value === "string" && IDENTIFIER_PATTERN.test(value);
+}
+
+export interface QuickDialogueReference {
+  readonly category: DialogueCategory;
+  readonly lineId: string;
 }
 
 export interface BuiltInDialogueOverride {
@@ -42,6 +49,7 @@ export interface PetDialogueSettings {
   readonly categories: Readonly<Partial<Record<DialogueCategory, DialogueCategorySettings>>>;
   readonly voiceEnabled: boolean;
   readonly voiceVolume: number;
+  readonly quickDialogueRefs: readonly QuickDialogueReference[];
 }
 
 export interface DialogueValidationIssue {
@@ -53,6 +61,7 @@ export const EMPTY_PET_DIALOGUE_SETTINGS: PetDialogueSettings = Object.freeze({
   address: "",
   voiceEnabled: false,
   voiceVolume: 0.8,
+  quickDialogueRefs: Object.freeze([]) as readonly QuickDialogueReference[],
   categories: Object.freeze({}),
 });
 
@@ -79,6 +88,7 @@ export function clonePetDialogueSettings(settings: PetDialogueSettings): PetDial
     categories: clonedCategories,
     voiceEnabled: settings.voiceEnabled,
     voiceVolume: settings.voiceVolume,
+    quickDialogueRefs: Object.freeze((settings.quickDialogueRefs ?? []).map((ref) => ({ ...ref }))),
   };
 }
 
@@ -325,6 +335,110 @@ export function getDialogueValidationIssues(value: unknown): readonly DialogueVa
     }
   }
 
+  if (value.quickDialogueRefs !== undefined) {
+    if (!Array.isArray(value.quickDialogueRefs)) {
+      issues.push({ path: "quickDialogueRefs", message: "Invalid quick dialogue references" });
+    } else if (value.quickDialogueRefs.length > MAX_QUICK_DIALOGUES) {
+      issues.push({ path: "quickDialogueRefs", message: "常用对白最多选择 3 句" });
+    } else {
+      const seenRefs = new Set<string>();
+      for (const ref of value.quickDialogueRefs) {
+        if (!isRecord(ref)) {
+          issues.push({ path: "quickDialogueRefs", message: "Invalid quick dialogue reference" });
+          continue;
+        }
+        const hasValidCategory =
+          typeof ref.category === "string" && DIALOGUE_CATEGORIES.includes(ref.category as DialogueCategory);
+        if (!hasValidCategory) {
+          issues.push({ path: "quickDialogueRefs", message: `Unknown dialogue category: ${String(ref.category)}` });
+          continue;
+        }
+        if (
+          QUICK_DIALOGUE_BLOCKED_CATEGORIES.includes(
+            ref.category as (typeof QUICK_DIALOGUE_BLOCKED_CATEGORIES)[number]
+          )
+        ) {
+          issues.push({ path: "quickDialogueRefs", message: "休息系统对白不能设为常用" });
+          continue;
+        }
+        if (!isSafeIdentifier(ref.lineId)) {
+          issues.push({ path: "quickDialogueRefs", message: "Invalid dialogue identifier" });
+          continue;
+        }
+        const refKey = `${ref.category}:${ref.lineId}`;
+        if (seenRefs.has(refKey)) {
+          issues.push({ path: "quickDialogueRefs", message: "Duplicate quick dialogue reference" });
+        }
+        seenRefs.add(refKey);
+      }
+
+      if (isRecord(value.categories)) {
+        const address = typeof value.address === "string" ? value.address.trim() : "";
+        let reportedAddressIssue = false;
+        const seenFinalTexts = new Set<string>();
+
+        for (const ref of value.quickDialogueRefs) {
+          if (
+            !isRecord(ref) ||
+            typeof ref.category !== "string" ||
+            !DIALOGUE_CATEGORIES.includes(ref.category as DialogueCategory) ||
+            QUICK_DIALOGUE_BLOCKED_CATEGORIES.includes(
+              ref.category as (typeof QUICK_DIALOGUE_BLOCKED_CATEGORIES)[number]
+            ) ||
+            !isSafeIdentifier(ref.lineId)
+          ) {
+            continue;
+          }
+
+          const catKey = ref.category as DialogueCategory;
+          const catVal = value.categories[catKey];
+          let template: string | undefined;
+
+          const meta = getDialogueTriggerMeta(catKey);
+          const builtIn = meta.builtIns.find((b) => b.id === ref.lineId);
+          if (builtIn) {
+            let overrideText: string | undefined;
+            if (isRecord(catVal) && Array.isArray(catVal.builtInOverrides)) {
+              const override = catVal.builtInOverrides.find((o) => isRecord(o) && o.lineId === ref.lineId);
+              if (override && typeof override.text === "string") {
+                overrideText = override.text.trim();
+              }
+            }
+            template = overrideText !== undefined ? (overrideText.length > 0 ? overrideText : undefined) : builtIn.text;
+          } else if (isRecord(catVal) && Array.isArray(catVal.customLines)) {
+            const custom = catVal.customLines.find((c) => isRecord(c) && c.id === ref.lineId);
+            if (custom && typeof custom.text === "string") {
+              template = custom.text.trim();
+            }
+          }
+
+          if (template === undefined || template.length === 0) {
+            continue;
+          }
+
+          if (template.includes(ADDRESS_PLACEHOLDER)) {
+            if (address.length === 0) {
+              if (!reportedAddressIssue) {
+                issues.push({ path: "address", message: "常用对白包含称呼，请先设置称呼" });
+                reportedAddressIssue = true;
+              }
+              continue;
+            }
+            template = template.replaceAll(ADDRESS_PLACEHOLDER, address).trim();
+          }
+
+          if (template.length > 0) {
+            if (seenFinalTexts.has(template)) {
+              issues.push({ path: `${ref.category}:${ref.lineId}`, message: "常用对白内容不能重复" });
+            } else {
+              seenFinalTexts.add(template);
+            }
+          }
+        }
+      }
+    }
+  }
+
   return issues;
 }
 
@@ -333,6 +447,7 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
   const allowedRootKeys = ["address", "categories"];
   if ("voiceEnabled" in value) allowedRootKeys.push("voiceEnabled");
   if ("voiceVolume" in value) allowedRootKeys.push("voiceVolume");
+  if ("quickDialogueRefs" in value) allowedRootKeys.push("quickDialogueRefs");
   assertExactKeys(value, allowedRootKeys, "Invalid dialogue settings");
 
   const issues = getDialogueValidationIssues(value);
@@ -343,6 +458,17 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
   const address = (value.address as string).trim();
   const voiceEnabled = typeof value.voiceEnabled === "boolean" ? value.voiceEnabled : false;
   const voiceVolume = typeof value.voiceVolume === "number" ? Math.max(0, Math.min(1, value.voiceVolume)) : 0.8;
+  const quickDialogueRefs: QuickDialogueReference[] = [];
+  if (Array.isArray(value.quickDialogueRefs)) {
+    for (const ref of value.quickDialogueRefs) {
+      if (!isRecord(ref)) continue;
+      assertExactKeys(ref, ["category", "lineId"], "Invalid quick dialogue reference");
+      quickDialogueRefs.push({
+        category: ref.category as DialogueCategory,
+        lineId: ref.lineId as string,
+      });
+    }
+  }
   const rawCategories = value.categories as Record<string, unknown>;
   const normalizedCategories: Partial<Record<DialogueCategory, DialogueCategorySettings>> = {};
 
@@ -408,6 +534,7 @@ export function parsePetDialogueSettings(value: unknown): PetDialogueSettings {
     categories: Object.freeze(normalizedCategories),
     voiceEnabled,
     voiceVolume,
+    quickDialogueRefs: Object.freeze(quickDialogueRefs),
   };
 }
 
@@ -570,6 +697,7 @@ export function restoreBuiltInLine(
     categories: Object.freeze(nextCategories),
     voiceEnabled: settings.voiceEnabled,
     voiceVolume: settings.voiceVolume,
+    quickDialogueRefs: Object.freeze((settings.quickDialogueRefs ?? []).map((r) => ({ ...r }))),
   };
 }
 
@@ -602,6 +730,7 @@ export function restoreBuiltInCategory(settings: PetDialogueSettings, category: 
     categories: Object.freeze(nextCategories),
     voiceEnabled: settings.voiceEnabled,
     voiceVolume: settings.voiceVolume,
+    quickDialogueRefs: Object.freeze((settings.quickDialogueRefs ?? []).map((r) => ({ ...r }))),
   };
 }
 
@@ -674,6 +803,142 @@ export function toggleCategoryAutomatic(
     categories: Object.freeze(nextCategories),
     voiceEnabled: settings.voiceEnabled,
     voiceVolume: settings.voiceVolume,
+    quickDialogueRefs: Object.freeze((settings.quickDialogueRefs ?? []).map((r) => ({ ...r }))),
+  };
+}
+
+export function resolveDialogueReference(
+  reference: QuickDialogueReference,
+  settings: PetDialogueSettings | null | undefined
+): ResolvedDialogueCandidate | null {
+  if (!settings) return null;
+  if (!isRecord(reference)) return null;
+  if (
+    QUICK_DIALOGUE_BLOCKED_CATEGORIES.includes(
+      reference.category as (typeof QUICK_DIALOGUE_BLOCKED_CATEGORIES)[number]
+    )
+  ) {
+    return null;
+  }
+  if (!DIALOGUE_CATEGORIES.includes(reference.category)) {
+    return null;
+  }
+
+  const catSettings = settings.categories[reference.category];
+  const meta = getDialogueTriggerMeta(reference.category);
+  const builtIn = meta.builtIns.find((b) => b.id === reference.lineId);
+
+  let rawText: string | undefined;
+  let voiceAssetId: string | undefined;
+  let voiceTrimStart: number | undefined;
+  let voiceTrimEnd: number | undefined;
+
+  if (builtIn) {
+    const override = catSettings?.builtInOverrides.find((o) => o.lineId === reference.lineId);
+    rawText = override?.text !== undefined ? override.text.trim() : builtIn.text;
+    voiceAssetId = override?.voiceAssetId;
+    voiceTrimStart = override?.voiceTrimStart;
+    voiceTrimEnd = override?.voiceTrimEnd;
+  } else if (catSettings?.customLines) {
+    const custom = catSettings.customLines.find((c) => c.id === reference.lineId);
+    if (custom) {
+      rawText = custom.text.trim();
+      voiceAssetId = custom.voiceAssetId;
+      voiceTrimStart = custom.voiceTrimStart;
+      voiceTrimEnd = custom.voiceTrimEnd;
+    }
+  }
+
+  if (!rawText || rawText.length === 0) {
+    return null;
+  }
+
+  const address = settings.address?.trim() ?? "";
+  let text = rawText;
+  if (text.includes(ADDRESS_PLACEHOLDER)) {
+    if (address.length === 0) {
+      return null;
+    }
+    text = text.replaceAll(ADDRESS_PLACEHOLDER, address).trim();
+  }
+
+  if (text.length === 0) {
+    return null;
+  }
+
+  return {
+    lineId: reference.lineId,
+    text,
+    ...(voiceAssetId ? { voiceAssetId } : {}),
+    ...(voiceTrimStart !== undefined ? { voiceTrimStart } : {}),
+    ...(voiceTrimEnd !== undefined ? { voiceTrimEnd } : {}),
+  };
+}
+
+export function resolveQuickDialogueCandidates(
+  settings: PetDialogueSettings | null | undefined
+): readonly ResolvedDialogueCandidate[] {
+  if (!settings || !Array.isArray(settings.quickDialogueRefs)) return Object.freeze([]);
+  const result: ResolvedDialogueCandidate[] = [];
+  for (const ref of settings.quickDialogueRefs) {
+    const candidate = resolveDialogueReference(ref, settings);
+    if (candidate) {
+      result.push(candidate);
+    }
+  }
+  return Object.freeze(result);
+}
+
+export function removeQuickDialogueReference(
+  settings: PetDialogueSettings,
+  reference: QuickDialogueReference
+): PetDialogueSettings {
+  const refs = settings.quickDialogueRefs ?? [];
+  const existingIndex = refs.findIndex(
+    (r) => r.category === reference.category && r.lineId === reference.lineId
+  );
+  if (existingIndex === -1) {
+    return settings;
+  }
+  const nextRefs = refs
+    .filter((_, index) => index !== existingIndex)
+    .map((r) => ({ ...r }));
+  const cloned = clonePetDialogueSettings(settings);
+  return {
+    ...cloned,
+    quickDialogueRefs: Object.freeze(nextRefs),
+  };
+}
+
+export function toggleQuickDialogueReference(
+  settings: PetDialogueSettings,
+  reference: QuickDialogueReference
+): PetDialogueSettings {
+  const refs = settings.quickDialogueRefs ?? [];
+  const existingIndex = refs.findIndex(
+    (r) => r.category === reference.category && r.lineId === reference.lineId
+  );
+  if (existingIndex !== -1) {
+    return removeQuickDialogueReference(settings, reference);
+  }
+  if (refs.length >= MAX_QUICK_DIALOGUES) {
+    return settings;
+  }
+  if (
+    QUICK_DIALOGUE_BLOCKED_CATEGORIES.includes(
+      reference.category as (typeof QUICK_DIALOGUE_BLOCKED_CATEGORIES)[number]
+    )
+  ) {
+    return settings;
+  }
+  const nextRefs = [
+    ...refs.map((r) => ({ ...r })),
+    { category: reference.category, lineId: reference.lineId },
+  ];
+  const cloned = clonePetDialogueSettings(settings);
+  return {
+    ...cloned,
+    quickDialogueRefs: Object.freeze(nextRefs),
   };
 }
 

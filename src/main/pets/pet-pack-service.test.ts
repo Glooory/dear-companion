@@ -46,7 +46,13 @@ describe("PetPackService", () => {
         lifeStates: DEFAULT_PET_LIFE_STATES,
         companionPace: "natural",
         interactionBubblesEnabled: true,
-        dialogueSettings: { address: "", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
+        dialogueSettings: {
+          address: "",
+          voiceEnabled: false,
+          voiceVolume: 0.8,
+          quickDialogueRefs: [],
+          categories: {},
+        },
       },
     ]);
     expect(snapshot.activePetId).toBeNull();
@@ -145,7 +151,7 @@ describe("PetPackService", () => {
       },
       companionPace: "lively",
       interactionBubblesEnabled: false,
-      dialogueSettings: { address: "小葡萄", voiceEnabled: false, voiceVolume: 0.8, categories: {} },
+      dialogueSettings: { address: "小葡萄", voiceEnabled: false, voiceVolume: 0.8, categories: {}, quickDialogueRefs: [] },
     };
 
     const updated = await service.updatePet(update);
@@ -401,6 +407,7 @@ describe("PetPackService", () => {
             customLines: [],
           },
         },
+        quickDialogueRefs: [],
       },
     };
 

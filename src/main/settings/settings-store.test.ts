@@ -302,7 +302,7 @@ describe("SettingsStore", () => {
     expect(JSON.parse(await readFile(settingsPath, "utf8"))).toEqual(legacy);
   });
 
-  it("migrates schema v6 file with fixed reminder to schema v7 and preserves original in backup", async () => {
+  it("migrates schema v6 file with fixed reminder to schema v8 and preserves original in backup", async () => {
     const userDataPath = await createUserDataPath();
     const legacyV6 = {
       schemaVersion: 6,
@@ -337,7 +337,7 @@ describe("SettingsStore", () => {
 
     const loaded = await new SettingsStore(userDataPath).load();
 
-    expect(loaded.schemaVersion).toBe(7);
+    expect(loaded.schemaVersion).toBe(8);
     expect(loaded.reminders).toHaveLength(1);
     expect(loaded.reminders[0]).toEqual({
       id: "reminder-v6",
@@ -353,10 +353,92 @@ describe("SettingsStore", () => {
     });
 
     const rewrittenPrimary = JSON.parse(await readFile(settingsPath, "utf8"));
-    expect(rewrittenPrimary.schemaVersion).toBe(7);
+    expect(rewrittenPrimary.schemaVersion).toBe(8);
     expect(rewrittenPrimary.reminders[0]?.mode).toBe("fixed");
 
     const preservedBackup = await readFile(backupPath, "utf8");
     expect(JSON.parse(preservedBackup)).toEqual(legacyV6);
+  });
+
+  it("migrates schema v7 file to schema v8 and preserves original in backup", async () => {
+    const userDataPath = await createUserDataPath();
+    const legacyV7 = {
+      schemaVersion: 7,
+      activePetId: "pet-1",
+      petWindow: { x: null, y: null, displayId: null, height: 180, visible: true },
+      autostartEnabled: false,
+      audio: {
+        reminderSource: { kind: "builtin", id: "gentle-chime" },
+        cryingSource: { kind: "builtin", id: "soft-whimper" },
+        assets: [],
+      },
+      reminders: [],
+      workSchedules: [],
+      pets: [
+        {
+          id: "pet-1",
+          name: "Mochi",
+          targetHeight: 180,
+          assets: [
+            {
+              id: "asset-1",
+              fileName: "asset-1.png",
+              format: "png",
+              byteSize: 100,
+              width: 100,
+              height: 200,
+              alphaBounds: { x: 10, y: 20, width: 80, height: 170 },
+              normalization: { scale: 1, offsetX: 0, offsetY: 0, baselineOffset: 0 },
+              headHotspot: null,
+            },
+          ],
+          actionSlots: { idle: ["asset-1"], resting: [] },
+          actionTemplates: {
+            idleIntervalMs: 12_000,
+            blinkIntervalMs: 8_000,
+            cuteDurationMs: 900,
+            pettingDurationMs: 1_000,
+            angryDurationMs: 1_500,
+            dragAngryVelocity: 1_200,
+          },
+          lifeStates: {
+            drowsy: { enabled: false, assetIds: [] },
+            sleeping: { enabled: false, assetIds: [] },
+            workingAssetIds: [],
+          },
+          companionPace: "natural",
+          interactionBubblesEnabled: true,
+          dialogueSettings: {
+            address: "小葡萄",
+            voiceEnabled: true,
+            voiceVolume: 0.85,
+            categories: {
+              "daily:click": {
+                builtInOverrides: [{ lineId: "daily-click-here", text: "在呢！" }],
+                customLines: [],
+              },
+            },
+          },
+        },
+      ],
+    };
+    const settingsPath = join(userDataPath, "settings.json");
+    const backupPath = join(userDataPath, "settings.backup.json");
+    await writeFile(settingsPath, JSON.stringify(legacyV7, null, 2), "utf8");
+
+    const loaded = await new SettingsStore(userDataPath).load();
+
+    expect(loaded.schemaVersion).toBe(8);
+    expect(loaded.pets[0]?.dialogueSettings.quickDialogueRefs).toEqual([]);
+    expect(loaded.pets[0]?.dialogueSettings.voiceEnabled).toBe(true);
+    expect(loaded.pets[0]?.dialogueSettings.voiceVolume).toBe(0.85);
+    expect(loaded.pets[0]?.dialogueSettings.address).toBe("小葡萄");
+
+    const rewrittenPrimary = JSON.parse(await readFile(settingsPath, "utf8"));
+    expect(rewrittenPrimary.schemaVersion).toBe(8);
+    expect(rewrittenPrimary.pets[0]?.dialogueSettings.quickDialogueRefs).toEqual([]);
+
+    const preservedBackup = await readFile(backupPath, "utf8");
+    expect(JSON.parse(preservedBackup)).toEqual(legacyV7);
   });
 });

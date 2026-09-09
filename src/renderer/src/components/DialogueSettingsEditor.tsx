@@ -11,9 +11,14 @@ import {
   getDialogueValidationIssues,
   MAX_CUSTOM_LINES_PER_CATEGORY,
   MAX_CUSTOM_LINES_PER_REST_CATEGORY,
+  MAX_QUICK_DIALOGUES,
+  QUICK_DIALOGUE_BLOCKED_CATEGORIES,
+  resolveDialogueReference,
   restoreBuiltInCategory,
   restoreBuiltInLine,
   toggleCategoryAutomatic,
+  toggleQuickDialogueReference,
+  removeQuickDialogueReference,
   type PetDialogueSettings,
 } from "@shared/dialogue-settings";
 import { DialogueLineEditor, type DialogueLineRowModel } from "./DialogueLineEditor";
@@ -175,9 +180,44 @@ export function DialogueSettingsEditor({
   }, [validationIssues]);
   const addressIssue = isFieldTouched("address") ? issueMap.get("address") : undefined;
 
+  const quickSummaries = useMemo(() => {
+    return (settings.quickDialogueRefs ?? []).map((ref) => {
+      const resolved = resolveDialogueReference(ref, settings);
+      return {
+        category: ref.category,
+        lineId: ref.lineId,
+        text: resolved ? resolved.text : "对白暂不可用",
+        resolved: Boolean(resolved),
+      };
+    });
+  }, [settings]);
+
+  const quickCount = settings.quickDialogueRefs?.length ?? 0;
+
+  const quickIssue = useMemo(() => {
+    if (validationAttempt === 0) return undefined;
+    const direct = validationIssues.find((i) => i.path === "quickDialogueRefs");
+    if (direct) return direct.message;
+    const lineIssue = validationIssues.find((i) =>
+      (settings.quickDialogueRefs ?? []).some((ref) => `${ref.category}:${ref.lineId}` === i.path)
+    );
+    if (lineIssue) return lineIssue.message;
+    const addressErr = validationIssues.find((i) => i.path === "address" && i.message.includes("常用对白"));
+    if (addressErr) return addressErr.message;
+    return undefined;
+  }, [validationAttempt, validationIssues, settings.quickDialogueRefs]);
+
+  const handleToggleQuickDialogue = (category: DialogueCategory, lineId: string): void => {
+    onChange(toggleQuickDialogueReference(settings, { category, lineId }));
+  };
+
   const focusIssue = (path: string): void => {
     if (path === "address") {
       document.getElementById("address-input")?.focus();
+      return;
+    }
+    if (path === "quickDialogueRefs") {
+      document.getElementById("quick-dialogue-section")?.focus();
       return;
     }
     const category = DIALOGUE_GROUPS.flatMap((group) => group.triggers).find((trigger) =>
@@ -428,10 +468,11 @@ export function DialogueSettingsEditor({
   };
 
   const handleDeleteCustomLine = (category: DialogueCategory, lineId: string): void => {
-    const catSettings = settings.categories[category] ?? { builtInOverrides: [], customLines: [] };
+    const cleaned = removeQuickDialogueReference(settings, { category, lineId });
+    const catSettings = cleaned.categories[category] ?? { builtInOverrides: [], customLines: [] };
     const nextCustom = catSettings.customLines.filter((l) => l.id !== lineId);
 
-    const nextCategories = { ...settings.categories };
+    const nextCategories = { ...cleaned.categories };
     if (nextCustom.length === 0 && catSettings.builtInOverrides.length === 0) {
       delete nextCategories[category];
     } else {
@@ -442,7 +483,7 @@ export function DialogueSettingsEditor({
     }
 
     onChange({
-      ...settings,
+      ...cleaned,
       categories: nextCategories,
     });
   };
@@ -580,6 +621,70 @@ export function DialogueSettingsEditor({
             )}
           </div>
         </div>
+
+        {/* Row 3: Quick Dialogues */}
+        <section
+          id="quick-dialogue-section"
+          className={styles.quickDialogueSection}
+          aria-labelledby="quick-dialogue-title"
+          tabIndex={-1}
+        >
+          <div className={styles.quickDialogueHeading}>
+            <span id="quick-dialogue-title" className={styles.label}>
+              常用对白
+            </span>
+            <span className={styles.quickDialogueCount} aria-label={`已选 ${quickCount} 句，最多 ${MAX_QUICK_DIALOGUES} 句`}>
+              已选 {quickCount} / {MAX_QUICK_DIALOGUES}
+            </span>
+          </div>
+
+          <div className={styles.quickDialogueSummary}>
+            {quickSummaries.map((summary) => (
+              <div
+                key={`${summary.category}:${summary.lineId}`}
+                className={clsx(styles.quickDialogueChip, !summary.resolved && styles.quickDialogueChipUnavailable)}
+              >
+                <span
+                  className={styles.quickDialogueChipText}
+                  title={summary.text}
+                  aria-label={summary.text}
+                >
+                  {summary.text}
+                </span>
+                <button
+                  type="button"
+                  className={styles.quickDialogueChipRemoveBtn}
+                  onClick={() => handleToggleQuickDialogue(summary.category, summary.lineId)}
+                  aria-label={`从常用对白移除：${summary.text}`}
+                  title={`从常用对白移除：${summary.text}`}
+                >
+                  <svg
+                    viewBox="0 0 12 12"
+                    width="10"
+                    height="10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="2" y1="2" x2="10" y2="10" />
+                    <line x1="10" y1="2" x2="2" y2="10" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className={clsx(styles.quickDialogueStatus, quickIssue && styles.quickDialogueStatusAlert)}
+            role={quickIssue ? "alert" : "status"}
+          >
+            {quickIssue ?? (quickCount >= MAX_QUICK_DIALOGUES
+              ? "已经选满，取消一句后可以继续添加。"
+              : "选出最多 3 句，在伙伴的右键菜单中随时播放。")}
+          </div>
+        </section>
       </div>
 
       {/* Status Notice if feature is off */}
@@ -741,31 +846,66 @@ export function DialogueSettingsEditor({
               </div>
 
               <div className={styles.triggerLines}>
-                {allRows.map((row) => (
-                  <DialogueLineEditor
-                    key={row.id}
-                    petId={petId}
-                    row={row}
-                    address={settings.address}
-                    voiceVolume={settings.voiceVolume}
-                    onTextChange={(text) => updateLineText(trigger.id, row.id, text)}
-                    onToggleAutomatic={(auto) => updateLineAutomatic(trigger.id, row.id, auto)}
-                    onVoiceChange={(voiceId, trimStart, trimEnd) =>
-                      updateLineVoice(trigger.id, row.id, voiceId, trimStart, trimEnd)
-                    }
-                    onPreview={onPreviewDialogue}
-                    onRestore={
-                      row.source === "builtin" && row.isModified
-                        ? () => handleRestoreBuiltIn(trigger.id, row.id)
-                        : undefined
-                    }
-                    onDelete={row.source === "custom" ? () => handleDeleteCustomLine(trigger.id, row.id) : undefined}
-                    onInputFocus={(el) => {
-                      lastFocusedInputRef.current = { category: trigger.id, lineId: row.id, inputEl: el };
-                    }}
-                    onBlur={() => markFieldTouched(`${trigger.id}:${row.id}`)}
-                  />
-                ))}
+                {allRows.map((row) => {
+                  const isBlockedCategory =
+                    trigger.id.startsWith("rest:") ||
+                    (QUICK_DIALOGUE_BLOCKED_CATEGORIES as readonly string[]).includes(trigger.id);
+                  const isQuickSelected = (settings.quickDialogueRefs ?? []).some(
+                    (ref) => ref.category === trigger.id && ref.lineId === row.id
+                  );
+                  const isLimitReached = (settings.quickDialogueRefs?.length ?? 0) >= MAX_QUICK_DIALOGUES;
+                  const lineText = (row.currentText ?? "").trim();
+                  const isLineBlank = lineText.length === 0;
+                  const isPlaceholderMissingAddress =
+                    lineText.includes(ADDRESS_PLACEHOLDER) && settings.address.trim().length === 0;
+                  const hasLineIssue = Boolean(row.issue);
+
+                  const quickDisabled =
+                    !isQuickSelected && (isLimitReached || isLineBlank || isPlaceholderMissingAddress || hasLineIssue);
+
+                  let quickUnavailableReason: string | undefined;
+                  if (isLimitReached) {
+                    quickUnavailableReason = "常用对白最多选择 3 句";
+                  } else if (isLineBlank) {
+                    quickUnavailableReason = "对白内容为空，不可设为常用";
+                  } else if (isPlaceholderMissingAddress) {
+                    quickUnavailableReason = "对白包含称呼，设置称呼后才可设为常用";
+                  } else if (hasLineIssue) {
+                    quickUnavailableReason = row.issue;
+                  }
+
+                  return (
+                    <DialogueLineEditor
+                      key={row.id}
+                      petId={petId}
+                      row={row}
+                      address={settings.address}
+                      voiceVolume={settings.voiceVolume}
+                      quickDialogueSelected={!isBlockedCategory ? isQuickSelected : undefined}
+                      quickDialogueDisabled={!isBlockedCategory ? quickDisabled : undefined}
+                      quickDialogueUnavailableReason={!isBlockedCategory ? quickUnavailableReason : undefined}
+                      onToggleQuickDialogue={
+                        !isBlockedCategory ? () => handleToggleQuickDialogue(trigger.id, row.id) : undefined
+                      }
+                      onTextChange={(text) => updateLineText(trigger.id, row.id, text)}
+                      onToggleAutomatic={(auto) => updateLineAutomatic(trigger.id, row.id, auto)}
+                      onVoiceChange={(voiceId, trimStart, trimEnd) =>
+                        updateLineVoice(trigger.id, row.id, voiceId, trimStart, trimEnd)
+                      }
+                      onPreview={onPreviewDialogue}
+                      onRestore={
+                        row.source === "builtin" && row.isModified
+                          ? () => handleRestoreBuiltIn(trigger.id, row.id)
+                          : undefined
+                      }
+                      onDelete={row.source === "custom" ? () => handleDeleteCustomLine(trigger.id, row.id) : undefined}
+                      onInputFocus={(el) => {
+                        lastFocusedInputRef.current = { category: trigger.id, lineId: row.id, inputEl: el };
+                      }}
+                      onBlur={() => markFieldTouched(`${trigger.id}:${row.id}`)}
+                    />
+                  );
+                })}
               </div>
 
               <div className={styles.triggerFooter}>
