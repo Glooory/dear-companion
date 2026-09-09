@@ -1,8 +1,16 @@
 .row {
+  container-type: inline-size;
   padding: 8px 12px;
   border: 1px solid #ede8e1;
   border-radius: 8px;
   background: #faf8f5;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.customRow {
+  border-left: 3px solid #3d7363;
 }
 
 .hasError {
@@ -12,45 +20,39 @@
 
 .main {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) auto;
-  align-items: flex-start;
-  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 8px;
 }
 
 .toggle {
+  grid-column: 1;
+  grid-row: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  min-width: 28px;
-  height: 32px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  border-radius: 4px;
-  transition: background 120ms ease;
-}
-
-.toggle:hover {
-  background: rgba(0, 0, 0, 0.04);
+  margin: 0;
+  padding: 0;
 }
 
 .toggle input {
   cursor: pointer;
   accent-color: #3d7363;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   margin: 0;
-}
-
-.inputWrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: block;
 }
 
 .input {
+  grid-column: 2;
+  grid-row: 1;
   width: 100%;
+  min-width: 0;
   height: 32px;
   padding: 0 10px;
   border: 1px solid #dcd7cd;
@@ -61,9 +63,20 @@
   box-sizing: border-box;
 }
 
-.preview {
+.input:focus {
+  outline: none;
+  border-color: #3d7363;
+  box-shadow: 0 0 0 2px rgba(61, 115, 99, 0.15);
+}
+
+.previewRow {
+  grid-column: 2 / -1;
   font-size: 0.78rem;
-  padding: 2px 4px;
+  padding: 2px 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .previewNotice {
@@ -76,45 +89,22 @@
   font-weight: 500;
 }
 
-.inlineError {
+.inlineErrorRow {
+  grid-column: 2 / -1;
   font-size: 0.75rem;
   color: #b91c1c;
+  min-width: 0;
+  padding: 2px 2px 0;
 }
 
 .meta {
+  grid-column: 3;
+  grid-row: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 32px;
   flex-shrink: 0;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  box-sizing: border-box;
-  line-height: 1;
-}
-
-.badgeBuiltin {
-  background: #f0ebe2;
-  color: #6e6a64;
-}
-
-.badgeModified {
-  background: #e6f0ec;
-  color: #24473d;
-}
-
-.badgeCustom {
-  background: #eff6f3;
-  color: #24473d;
 }
 
 .voiceCapsule {
@@ -130,6 +120,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
   box-sizing: border-box;
 }
 
@@ -149,6 +140,8 @@
   font: inherit;
   font-size: 0.7rem;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .voicePlayBtn:hover {
@@ -169,6 +162,8 @@
   font: inherit;
   font-size: 0.7rem;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .voiceActionBtn:hover {
@@ -190,6 +185,8 @@
   font: inherit;
   font-size: 0.7rem;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .voiceDeleteBtn:hover {
@@ -202,7 +199,7 @@
   align-items: center;
   gap: 4px;
   height: 28px;
-  padding: 0 9px;
+  padding: 0 8px;
   border: 1px dashed #dcd7cd;
   border-radius: 6px;
   background: transparent;
@@ -211,9 +208,17 @@
   font-weight: 500;
   cursor: pointer;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     border-color 150ms ease,
     color 150ms ease;
+}
+
+.addVoiceBtn:hover {
+  border-color: #3d7363;
+  color: #2f5c4f;
+  background: rgba(61, 115, 99, 0.04);
 }
 
 .previewBtn {
@@ -221,7 +226,9 @@
   align-items: center;
   justify-content: center;
   height: 28px;
-  padding: 0 9px;
+  width: 48px;
+  min-width: 48px;
+  padding: 0 4px;
   border: 1px solid #dcd7cd;
   border-radius: 6px;
   background: #ffffff;
@@ -230,16 +237,12 @@
   font-weight: 500;
   cursor: pointer;
   box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition:
     border-color 150ms ease,
     color 150ms ease,
     background-color 150ms ease;
-}
-
-.actionBtn {
-  height: 28px;
-  padding: 0 8px;
-  box-sizing: border-box;
 }
 
 .previewBtn:hover {
@@ -259,11 +262,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
   height: 28px;
-  width: 98px;
-  min-width: 98px;
-  padding: 0 6px;
+  width: 48px;
+  min-width: 48px;
+  padding: 0 4px;
   border: 1px solid #dcd7cd;
   border-radius: 6px;
   background: #ffffff;
@@ -273,6 +275,7 @@
   cursor: pointer;
   box-sizing: border-box;
   white-space: nowrap;
+  flex-shrink: 0;
   transition:
     border-color 150ms ease,
     color 150ms ease,
@@ -297,11 +300,64 @@
 }
 
 .quickDialogueBtn:disabled {
-  opacity: 0.48;
+  opacity: 0.42;
   cursor: not-allowed;
   border-color: #ede8e1;
   color: #a8a29e;
   background: #faf8f5;
+}
+
+.lifecycleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  width: 48px;
+  min-width: 48px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.lifecycleBtnDisabled {
+  border: 1px solid #ede8e1;
+  background: #f7f4ef;
+  color: #b0aba3;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.restoreBtnActive {
+  border: 1px solid #dcd7cd;
+  background: #ffffff;
+  color: #3d7363;
+}
+
+.restoreBtnActive:hover {
+  border-color: #3d7363;
+  background: rgba(61, 115, 99, 0.08);
+  color: #24473d;
+}
+
+.deleteBtn {
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+}
+
+.deleteBtn:hover {
+  border-color: #ef4444;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .voiceUnavailable {
@@ -310,14 +366,21 @@
   color: #8f3025;
 }
 
-@media (max-width: 680px) {
+@container (max-width: 460px) {
   .main {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
   .meta {
     grid-column: 1 / -1;
+    grid-row: 2;
     padding-top: 2px;
     flex-wrap: wrap;
+  }
+
+  .previewRow,
+  .inlineErrorRow {
+    grid-column: 1 / -1;
+    grid-row: auto;
   }
 }

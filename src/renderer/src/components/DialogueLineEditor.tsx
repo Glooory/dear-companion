@@ -166,14 +166,8 @@ export function DialogueLineEditor({
   const hasPlaceholder = row.currentText.includes(ADDRESS_PLACEHOLDER);
   const trimmedAddress = address.trim();
 
-  const badgeClass = clsx(
-    styles.badge,
-    row.source === "builtin" ? styles.badgeBuiltin : styles.badgeCustom,
-    row.isModified && styles.badgeModified
-  );
-
   return (
-    <div className={clsx(styles.row, row.issue && styles.hasError)}>
+    <div className={clsx(styles.row, row.issue && styles.hasError, row.source === "custom" && styles.customRow)}>
       <div className={styles.main}>
         <label className={styles.toggle} title={row.automaticEnabled ? "点击停用" : "点击启用"}>
           <input
@@ -184,43 +178,23 @@ export function DialogueLineEditor({
           />
         </label>
 
-        <div className={styles.inputWrapper}>
-          <input
-            ref={inputRef}
-            id={inputId}
-            type="text"
-            className={styles.input}
-            value={row.currentText}
-            onChange={(e) => onTextChange(e.target.value)}
-            onFocus={() => {
-              if (inputRef.current && onInputFocus) {
-                onInputFocus(inputRef.current);
-              }
-            }}
-            onBlur={onBlur}
-            aria-invalid={Boolean(row.issue)}
-            aria-describedby={row.issue ? errorId : undefined}
-            placeholder={row.source === "builtin" ? row.defaultText : "输入对白内容"}
-          />
-
-          {hasPlaceholder && (
-            <div className={styles.preview}>
-              {trimmedAddress.length === 0 ? (
-                <span className={styles.previewNotice}>设置称呼后，这句才会生效</span>
-              ) : (
-                <span className={styles.previewText}>
-                  预览：{row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}
-                </span>
-              )}
-            </div>
-          )}
-
-          {row.issue && (
-            <div id={errorId} className={styles.inlineError} role="alert">
-              {row.issue}
-            </div>
-          )}
-        </div>
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="text"
+          className={styles.input}
+          value={row.currentText}
+          onChange={(e) => onTextChange(e.target.value)}
+          onFocus={() => {
+            if (inputRef.current && onInputFocus) {
+              onInputFocus(inputRef.current);
+            }
+          }}
+          onBlur={onBlur}
+          aria-invalid={Boolean(row.issue)}
+          aria-describedby={row.issue ? errorId : undefined}
+          placeholder={row.source === "builtin" ? row.defaultText : "输入对白内容"}
+        />
 
         <div className={styles.meta}>
           {row.voiceAssetId ? (
@@ -311,10 +285,7 @@ export function DialogueLineEditor({
           {onToggleQuickDialogue && (
             <button
               type="button"
-              className={clsx(
-                styles.quickDialogueBtn,
-                quickDialogueSelected && styles.quickDialogueBtnSelected
-              )}
+              className={clsx(styles.quickDialogueBtn, quickDialogueSelected && styles.quickDialogueBtnSelected)}
               onClick={onToggleQuickDialogue}
               disabled={quickDialogueDisabled && !quickDialogueSelected}
               aria-pressed={quickDialogueSelected}
@@ -327,53 +298,63 @@ export function DialogueLineEditor({
                 quickDialogueSelected
                   ? "已设为常用（点击取消）"
                   : quickDialogueDisabled
-                    ? (quickDialogueUnavailableReason ?? "暂不可设为常用")
+                    ? (quickDialogueUnavailableReason ?? "最多只能设置 3 句常用对白")
                     : "设为常用"
               }
             >
-              <svg
-                viewBox="0 0 16 16"
-                width="12"
-                height="12"
-                fill={quickDialogueSelected ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M9.5 2.5l4 4-2 2-1.5-1.5-3 3v2.5l-1 1-1-1v-2.5l-2.5-2.5 1-1h2.5l3-3-1.5-1.5 2-2z" />
-              </svg>
-              <span>{quickDialogueSelected ? "已设为常用" : "设为常用"}</span>
+              <span>常用</span>
             </button>
           )}
 
-          <span className={badgeClass}>
-            {row.source === "builtin" ? (row.isModified ? "内置 · 已修改" : "内置") : "我的"}
-          </span>
-
-          {row.source === "builtin" && row.isModified && onRestore && (
+          {row.source === "builtin" ? (
             <button
               type="button"
-              className={clsx("ghost-button compact-button", styles.actionBtn)}
-              onClick={onRestore}
-              aria-label={`恢复原句：${row.defaultText ?? row.currentText}`}
+              className={clsx(
+                styles.lifecycleBtn,
+                row.isModified ? styles.restoreBtnActive : styles.lifecycleBtnDisabled
+              )}
+              onClick={row.isModified ? onRestore : undefined}
+              disabled={!row.isModified}
+              aria-label={
+                row.isModified ? `恢复原句：${row.defaultText ?? row.currentText}` : "当前为内置原句，无需复原"
+              }
+              title={row.isModified ? `恢复原句：${row.defaultText ?? ""}` : "当前为内置原句（未修改）"}
             >
-              恢复原句
+              复原
             </button>
-          )}
-
-          {row.source === "custom" && onDelete && (
+          ) : (
             <button
               type="button"
-              className={clsx("ghost-button compact-button danger", styles.actionBtn)}
+              className={clsx(styles.lifecycleBtn, styles.deleteBtn)}
               onClick={onDelete}
               aria-label={`删除对白：${row.currentText || "未命名对白"}`}
+              title="删除这句自定义对白"
             >
               删除
             </button>
           )}
         </div>
+
+        {hasPlaceholder && (
+          <div className={styles.previewRow}>
+            {trimmedAddress.length === 0 ? (
+              <span className={styles.previewNotice}>设置称呼后，这句才会生效</span>
+            ) : (
+              <span
+                className={styles.previewText}
+                title={`预览：${row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}`}
+              >
+                预览：{row.currentText.replaceAll(ADDRESS_PLACEHOLDER, trimmedAddress)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {row.issue && (
+          <div id={errorId} className={styles.inlineErrorRow} role="alert">
+            {row.issue}
+          </div>
+        )}
       </div>
 
       {showRecorder && (
