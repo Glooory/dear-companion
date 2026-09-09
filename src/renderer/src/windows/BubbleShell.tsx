@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { clsx } from "clsx";
-import type { BubbleSystemSnapshot, ReleaseHardeningApi, RestSystemSnapshot } from "@shared/contracts";
+import type { BubbleSystemSnapshot, PetConfig, ReleaseHardeningApi, RestSystemSnapshot } from "@shared/contracts";
+import { DEFAULT_BUBBLE_THEME, extractPetThemeColor, type PetThemeColor } from "@shared/pet-theme-color";
 import styles from "./BubbleShell.module.css";
 
 interface BubbleShellProps {
@@ -14,23 +15,26 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
     tailOffsetX: 160,
   });
   const [restSnapshot, setRestSnapshot] = useState<RestSystemSnapshot | null>(null);
+  const [themeColor, setThemeColor] = useState<PetThemeColor>(DEFAULT_BUBBLE_THEME);
   const [displayNow, setDisplayNow] = useState(0);
-  const dialogueRef = useRef<HTMLSpanElement>(null);
+  const dialogueRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
   const dialogue = bubbleSnapshot.dialogue;
 
   useLayoutEffect(() => {
-    const el = dialogueRef.current;
-    if (!el || !dialogue) return;
+    const wrapperEl = dialogueRef.current;
+    const textEl = textRef.current;
+    if (!wrapperEl || !textEl || !dialogue) return;
 
     // Reset width constraint to measure intrinsic line widths
-    el.style.removeProperty("--dialogue-width");
+    wrapperEl.style.removeProperty("--dialogue-width");
 
     const range = document.createRange();
-    range.selectNodeContents(el);
+    range.selectNodeContents(textEl);
     const rects = Array.from(range.getClientRects());
-    const maxLineWidth = rects.length > 0 ? Math.max(...rects.map((r) => r.width)) : el.offsetWidth;
-    // 12px padding * 2 + 1px border * 2 = 26px, plus 2px subpixel buffer
-    const measuredWidth = Math.min(260, Math.ceil(maxLineWidth) + 28);
+    const maxLineWidth = rects.length > 0 ? Math.max(...rects.map((r) => r.width)) : textEl.offsetWidth;
+    // 14px padding * 2 + 1px border * 2 = 30px, plus 2px subpixel buffer
+    const measuredWidth = Math.min(260, Math.ceil(maxLineWidth) + 32);
 
     const half = measuredWidth / 2;
     const minCenter = half + 12;
@@ -38,15 +42,68 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
     const centerX = Math.max(minCenter, Math.min(maxCenter, bubbleSnapshot.tailOffsetX));
     const left = Math.round(centerX - half);
     const rawArrow = bubbleSnapshot.tailOffsetX - left;
-    const arrow = Math.max(12, Math.min(measuredWidth - 12, rawArrow));
+    const arrow = Math.max(16, Math.min(measuredWidth - 16, rawArrow));
 
-    el.style.setProperty("--dialogue-width", `${measuredWidth}px`);
-    el.style.setProperty("--dialogue-left", `${left}px`);
-    el.style.setProperty("--arrow-offset", `${arrow}px`);
+    wrapperEl.style.setProperty("--dialogue-width", `${measuredWidth}px`);
+    wrapperEl.style.setProperty("--dialogue-left", `${left}px`);
+    wrapperEl.style.setProperty("--arrow-offset", `${arrow}px`);
   }, [dialogue, bubbleSnapshot.tailOffsetX]);
 
   useEffect(() => {
     let cancelled = false;
+
+    const updateThemeFromPet = (activePet: PetConfig | null): void => {
+      if (!activePet || activePet.assets.length === 0) {
+        setThemeColor(DEFAULT_BUBBLE_THEME);
+        return;
+      }
+      const idleAssetId = activePet.actionSlots.idle[0] ?? activePet.assets[0]?.id;
+      if (!idleAssetId) {
+        setThemeColor(DEFAULT_BUBBLE_THEME);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        if (cancelled) return;
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = 32;
+          canvas.height = 32;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, 32, 32);
+          const imageData = ctx.getImageData(0, 0, 32, 32);
+          const extracted = extractPetThemeColor(imageData.data);
+          if (!cancelled) {
+            setThemeColor(extracted);
+          }
+        } catch {
+          // Fallback safely to default
+        }
+      };
+      img.onerror = () => {
+        if (!cancelled) setThemeColor(DEFAULT_BUBBLE_THEME);
+      };
+      img.src = petAssetUrl(activePet.id, idleAssetId);
+    };
+
+    void api.getPetSystemSnapshot().then(
+      (snap) => {
+        if (!cancelled && snap) {
+          const activePet = snap.pets.find((p) => p.id === snap.activePetId) ?? null;
+          updateThemeFromPet(activePet);
+        }
+      },
+      () => undefined
+    );
+
+    const unsubscribePet = api.onPetSystemChanged((snap) => {
+      if (!cancelled) {
+        const activePet = snap.pets.find((p) => p.id === snap.activePetId) ?? null;
+        updateThemeFromPet(activePet);
+      }
+    });
+
     void api.getBubbleSystemSnapshot().then(
       (snap) => {
         if (!cancelled && snap) setBubbleSnapshot(snap);
@@ -70,6 +127,7 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
 
     return () => {
       cancelled = true;
+      unsubscribePet();
       unsubscribeRest();
       unsubscribeBubble();
     };
@@ -162,15 +220,25 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
   const dialogueCenterX = Math.max(minCenter, Math.min(maxCenter, bubbleSnapshot.tailOffsetX));
   const dialogueLeft = Math.round(dialogueCenterX - halfWidth);
   const rawArrow = bubbleSnapshot.tailOffsetX - dialogueLeft;
-  const arrowOffset = Math.max(12, Math.min(108, rawArrow));
+  const arrowOffset = Math.max(16, Math.min(104, rawArrow));
 
   const dialogueStyle = {
     "--dialogue-left": `${dialogueLeft}px`,
     "--arrow-offset": `${arrowOffset}px`,
   } as CSSProperties;
 
+  const shellThemeStyle = {
+    "--bubble-hue": `${themeColor.hue}`,
+    "--bubble-sat": `${themeColor.saturation}%`,
+    "--bubble-lit": `${themeColor.lightness}%`,
+  } as CSSProperties;
+
   return (
-    <main className={styles.shell} data-placement={bubbleSnapshot.placement}>
+    <main
+      className={styles.shell}
+      data-placement={bubbleSnapshot.placement}
+      style={shellThemeStyle}
+    >
       {prompt && (
         <section
           className={clsx(styles.restBubble, "rest-bubble")}
@@ -219,18 +287,42 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
       )}
 
       {!prompt && !session && dialogue && (
-        <span
+        <div
           ref={dialogueRef}
-          className={clsx(styles.dialogue, "pet-dialogue")}
+          className={clsx(styles.dialogueWrapper, "pet-dialogue")}
           role="status"
           data-pet-interactive="true"
           style={dialogueStyle}
         >
-          {dialogue}
-        </span>
+          <div className={styles.dialogue}>
+            <span ref={textRef} className={styles.dialogueText}>
+              {dialogue}
+            </span>
+            <svg
+              className={styles.dialogueTail}
+              viewBox="0 0 18 9"
+              width="18"
+              height="9"
+              aria-hidden="true"
+            >
+              <path
+                d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0 Z"
+                className={styles.tailFill}
+              />
+              <path
+                d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0"
+                className={styles.tailStroke}
+              />
+            </svg>
+          </div>
+        </div>
       )}
     </main>
   );
+}
+
+function petAssetUrl(petId: string, assetId: string): string {
+  return `app://renderer/pet-assets/${encodeURIComponent(petId)}/${encodeURIComponent(assetId)}`;
 }
 
 function formatCountdown(totalSeconds: number): string {
