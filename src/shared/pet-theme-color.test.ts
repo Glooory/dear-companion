@@ -17,43 +17,58 @@ describe("extractPetThemeColor", () => {
 
   it("returns default theme for monochrome / grayscale pixels", () => {
     const data = new Uint8Array([
-      20, 20, 20, 255,   // dark gray
-      240, 240, 240, 255, // light gray
-      128, 128, 128, 255, // mid gray
-    ]);
-    expect(extractPetThemeColor(data)).toEqual(DEFAULT_BUBBLE_THEME);
-  });
-
-  it("correctly extracts warm golden/orange hue for pet fur colors", () => {
-    // Warm ginger fur: R=210, G=130, B=60 (approx 28° hue)
-    const data = new Uint8Array([
-      210, 130, 60, 255,
-      220, 140, 70, 255,
-      200, 120, 50, 255,
+      20, 20, 20, 255,
+      240, 240, 240, 255,
+      128, 128, 128, 255,
     ]);
     const result = extractPetThemeColor(data);
-    expect(result.hue).toBeGreaterThanOrEqual(20);
-    expect(result.hue).toBeLessThanOrEqual(35);
-    expect(result.saturation).toBeGreaterThanOrEqual(22);
-    expect(result.saturation).toBeLessThanOrEqual(36);
+    expect(result.isMonochrome).toBe(true);
+    expect(result.textColor).toBe("#2d2a26");
   });
 
-  it("averages hues circularly across 0/360 degree red boundary", () => {
-    // Red-purple (355°) and Red-orange (5°) should average to ~0°, not 180°
-    // 355°: high R, low G, very slight B (e.g. 255, 10, 30)
-    // 5°: high R, slight G, low B (e.g. 255, 30, 10)
+  it("extracts dominant blue even when mixed with other colored noise without muddying", () => {
+    // 6 blue pixels (approx 213°) and 2 warm yellow/orange pixels (approx 35°)
+    // With bucket quantization, the blue bucket wins clearly without being pulled towards green!
+    const data = new Uint8Array([
+      50, 130, 230, 255,
+      60, 140, 240, 255,
+      45, 125, 225, 255,
+      55, 135, 235, 255,
+      50, 130, 230, 255,
+      60, 140, 240, 255,
+      220, 140, 50, 255, // yellow/orange noise
+      210, 130, 40, 255, // yellow/orange noise
+    ]);
+    const result = extractPetThemeColor(data);
+    expect(result.isMonochrome).toBe(false);
+    expect(result.hue).toBeGreaterThanOrEqual(200);
+    expect(result.hue).toBeLessThanOrEqual(225);
+    expect(result.borderColor).toContain("hsl(");
+    // Lightness is ~55%, so text is deepened to high-contrast ink (22%)
+    expect(result.textColor).toContain("22%)");
+  });
+
+  it("uses direct text color when dominant color is naturally dark (Option A)", () => {
+    // Deep midnight navy (L ~ 24%): R=20, G=45, B=100
+    const data = new Uint8Array([
+      20, 45, 100, 255,
+      25, 50, 105, 255,
+      18, 42, 95, 255,
+    ]);
+    const result = extractPetThemeColor(data);
+    expect(result.isMonochrome).toBe(false);
+    expect(result.hue).toBeGreaterThanOrEqual(200);
+    expect(result.hue).toBeLessThanOrEqual(230);
+    // Naturally dark, so textColor keeps the natural dark lightness (< 30%)
+    expect(result.textColor).toContain("24%)");
+  });
+
+  it("averages hues circularly across 0/360 degree red boundary within bucket", () => {
     const data = new Uint8Array([
       255, 10, 30, 255,
       255, 30, 10, 255,
     ]);
     const result = extractPetThemeColor(data);
     expect(result.hue >= 350 || result.hue <= 10).toBe(true);
-  });
-
-  it("clamps saturation into the aesthetic safe range (22%-36%)", () => {
-    // Highly saturated pure color
-    const vivid = new Uint8Array([255, 0, 0, 255]);
-    const result = extractPetThemeColor(vivid);
-    expect(result.saturation).toBe(36);
   });
 });

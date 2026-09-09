@@ -16,6 +16,7 @@ export function registerAppScheme(): void {
         secure: true,
         stream: true,
         supportFetchAPI: true,
+        corsEnabled: true,
       },
     },
   ]);
@@ -36,10 +37,17 @@ export async function registerAppProtocol(
 ): Promise<void> {
   const resolvedRendererRoot = resolve(rendererRoot);
   const localFileSession = session.fromPartition("app-local-resources", { cache: false });
-  const fetchLocalFile: LocalFileFetcher = (canonicalPath, request) => {
+  const fetchLocalFile: LocalFileFetcher = async (canonicalPath, request) => {
     const headers = request?.headers ? Object.fromEntries(request.headers.entries()) : undefined;
-    return localFileSession.fetch(pathToFileURL(canonicalPath).toString(), {
+    const response = await localFileSession.fetch(pathToFileURL(canonicalPath).toString(), {
       headers,
+    });
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set("access-control-allow-origin", "*");
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
     });
   };
 

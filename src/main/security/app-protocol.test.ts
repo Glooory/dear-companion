@@ -209,7 +209,7 @@ describe("application protocol", () => {
     expect((await requestRenderer("app://renderer/pet-voices/pet_1/voice-1")).status).toBe(403);
   });
 
-  it("registers app scheme with standard, secure, stream, and fetch privileges", () => {
+  it("registers app scheme with standard, secure, stream, fetch, and cors privileges", () => {
     registerAppScheme();
     expect(protocol.registerSchemesAsPrivileged).toHaveBeenCalledWith([
       {
@@ -219,6 +219,7 @@ describe("application protocol", () => {
           secure: true,
           stream: true,
           supportFetchAPI: true,
+          corsEnabled: true,
         },
       },
     ]);

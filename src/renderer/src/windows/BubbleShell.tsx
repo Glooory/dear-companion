@@ -51,8 +51,10 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
+    let requestSeq = 0;
 
     const updateThemeFromPet = (activePet: PetConfig | null): void => {
+      const currentSeq = ++requestSeq;
       if (!activePet || activePet.assets.length === 0) {
         setThemeColor(DEFAULT_BUBBLE_THEME);
         return;
@@ -62,29 +64,58 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
         setThemeColor(DEFAULT_BUBBLE_THEME);
         return;
       }
-      const img = new Image();
-      img.onload = () => {
-        if (cancelled) return;
+      const url = petAssetUrl(activePet.id, idleAssetId);
+
+      const processImage = (source: ImageBitmap | HTMLImageElement): void => {
         try {
+          if (cancelled || currentSeq !== requestSeq) return;
           const canvas = document.createElement("canvas");
-          canvas.width = 32;
-          canvas.height = 32;
+          canvas.width = 48;
+          canvas.height = 48;
           const ctx = canvas.getContext("2d", { willReadFrequently: true });
           if (!ctx) return;
-          ctx.drawImage(img, 0, 0, 32, 32);
-          const imageData = ctx.getImageData(0, 0, 32, 32);
+          ctx.drawImage(source, 0, 0, 48, 48);
+          const imageData = ctx.getImageData(0, 0, 48, 48);
           const extracted = extractPetThemeColor(imageData.data);
-          if (!cancelled) {
+          if (!cancelled && currentSeq === requestSeq) {
             setThemeColor(extracted);
           }
         } catch {
-          // Fallback safely to default
+          if (!cancelled && currentSeq === requestSeq) {
+            setThemeColor(DEFAULT_BUBBLE_THEME);
+          }
+        } finally {
+          if ("close" in source && typeof source.close === "function") {
+            source.close();
+          }
         }
       };
-      img.onerror = () => {
-        if (!cancelled) setThemeColor(DEFAULT_BUBBLE_THEME);
-      };
-      img.src = petAssetUrl(activePet.id, idleAssetId);
+
+      void fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error("fetch failed");
+          return res.blob();
+        })
+        .then((blob) => createImageBitmap(blob))
+        .then((bitmap) => {
+          if (!cancelled && currentSeq === requestSeq) {
+            processImage(bitmap);
+          } else {
+            bitmap.close();
+          }
+        })
+        .catch(() => {
+          if (cancelled || currentSeq !== requestSeq) return;
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            if (!cancelled && currentSeq === requestSeq) processImage(img);
+          };
+          img.onerror = () => {
+            if (!cancelled && currentSeq === requestSeq) setThemeColor(DEFAULT_BUBBLE_THEME);
+          };
+          img.src = url;
+        });
     };
 
     void api.getPetSystemSnapshot().then(
@@ -228,9 +259,8 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
   } as CSSProperties;
 
   const shellThemeStyle = {
-    "--bubble-hue": `${themeColor.hue}`,
-    "--bubble-sat": `${themeColor.saturation}%`,
-    "--bubble-lit": `${themeColor.lightness}%`,
+    "--bubble-border": themeColor.borderColor,
+    "--bubble-text": themeColor.textColor,
   } as CSSProperties;
 
   return (
