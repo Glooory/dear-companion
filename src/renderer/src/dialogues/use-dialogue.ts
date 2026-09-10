@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isDialogueCategory, type DialogueCategory } from "@shared/dialogue-catalog";
-import { DialogueSelector } from "@shared/dialogue-selector";
+import { DIALOGUE_DISPLAY_DURATION_MS, DialogueSelector } from "@shared/dialogue-selector";
 import {
   resolveDialogueCandidates,
   type PetDialogueSettings,
@@ -118,7 +118,7 @@ export function useDialogue(
         timer.current = null;
         stopVoice();
         setDialogue(null);
-      }, 2_800);
+      }, DIALOGUE_DISPLAY_DURATION_MS);
       return selected;
     },
     [clear, dialogueSettings, enabled, petId, stopVoice, voicePlayback]
@@ -155,7 +155,7 @@ export function useDialogue(
         timer.current = null;
         stopVoice();
         setDialogue(null);
-      }, 2_800);
+      }, DIALOGUE_DISPLAY_DURATION_MS);
     },
     [clear, dialogueSettings?.voiceVolume, petId, stopVoice, voicePlayback]
   );

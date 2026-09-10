@@ -1,5 +1,6 @@
 export const AUTOMATIC_DIALOGUE_COOLDOWN_MS = 60_000;
-export const INTERACTION_DIALOGUE_COOLDOWN_MS = 4_000;
+export const DIALOGUE_DISPLAY_DURATION_MS = 3_000;
+export const INTERACTION_DIALOGUE_COOLDOWN_MS = DIALOGUE_DISPLAY_DURATION_MS;
 
 export class DialogueSelector {
   private readonly lastSelectedAt = new Map<string, number>();

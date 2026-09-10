@@ -41,6 +41,7 @@ export function usePetInteractions({
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const drag = useRef<DragSession | null>(null);
   const suppressClick = useRef(false);
+  const primaryClickArmed = useRef(false);
 
   if (previousRuntimeState !== runtimeState) {
     setPreviousRuntimeState(runtimeState);
@@ -68,9 +69,11 @@ export function usePetInteractions({
   }, []);
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
+    primaryClickArmed.current = false;
     if (event.button !== 0 || state === "hidden" || runtimeState) return;
     const target = event.target as HTMLElement | null;
     if (!target?.closest?.('[data-pet-drag="true"]')) return;
+    primaryClickArmed.current = true;
     onDragSessionChange?.(true, event);
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {
@@ -94,6 +97,7 @@ export function usePetInteractions({
         const moved = Math.hypot(event.screenX - session.samples[0]!.x, event.screenY - session.samples[0]!.y) > 4;
         if (!session.moved && moved) onDragStarted?.();
         session.moved ||= moved;
+        if (moved) primaryClickArmed.current = false;
       }
       session.lastScreenX = event.screenX;
       session.lastScreenY = event.screenY;
@@ -139,9 +143,11 @@ export function usePetInteractions({
   };
 
   const onClick = (event: MouseEvent<HTMLElement>): void => {
+    const armed = primaryClickArmed.current;
+    primaryClickArmed.current = false;
     if (runtimeState) return;
     const target = event.target as HTMLElement | null;
-    if (!target?.closest?.('[data-pet-drag="true"]')) return;
+    if (!armed && !target?.closest?.('[data-pet-drag="true"]')) return;
     if (suppressClick.current) {
       suppressClick.current = false;
       return;
@@ -170,7 +176,10 @@ export function usePetInteractions({
       onPointerDown,
       onPointerMove,
       onPointerUp,
-      onPointerCancel: onPointerUp,
+      onPointerCancel: (event: PointerEvent<HTMLElement>) => {
+        primaryClickArmed.current = false;
+        onPointerUp(event);
+      },
       onPointerLeave,
       onClick,
       onContextMenu,
