@@ -87,7 +87,7 @@ describe("PetPackService", () => {
       },
     ]);
     expect(JSON.stringify(result)).not.toContain(goodPath);
-    expect(await readFile(join(userDataPath, "pets/pet-1/assets/asset-1.png"))).toEqual(pngBytes);
+    expect(await readFile(join(userDataPath, "pets", "pet-1", "assets", "asset-1.png"))).toEqual(pngBytes);
     expect((await service.getSnapshot()).pets[0]?.actionSlots.idle).toEqual(["asset-1"]);
   });
 
@@ -151,7 +151,13 @@ describe("PetPackService", () => {
       },
       companionPace: "lively",
       interactionBubblesEnabled: false,
-      dialogueSettings: { address: "小葡萄", voiceEnabled: false, voiceVolume: 0.8, categories: {}, quickDialogueRefs: [] },
+      dialogueSettings: {
+        address: "小葡萄",
+        voiceEnabled: false,
+        voiceVolume: 0.8,
+        categories: {},
+        quickDialogueRefs: [],
+      },
     };
 
     const updated = await service.updatePet(update);
@@ -160,7 +166,7 @@ describe("PetPackService", () => {
 
     expect(updated.pets[0]).toMatchObject({ name: "Mochi II", targetHeight: 200 });
     expect(active.activePetId).toBe("pet-1");
-    expect(copiedPath).toContain("pets/pet-1/assets/asset-1.png");
+    expect(copiedPath).toContain(join("pets", "pet-1", "assets", "asset-1.png"));
     expect(await readFile(sourcePath)).toEqual(pngBytes);
     expect(await readFile(copiedPath!)).toEqual(pngBytes);
     expect(await service.resolveAssetPath("pet-1", "asset-2")).toBeNull();

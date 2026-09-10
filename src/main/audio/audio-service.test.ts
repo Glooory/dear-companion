@@ -39,8 +39,10 @@ describe("AudioService", () => {
     ]);
     expect(result.failures[0]).toMatchObject({ index: 1, code: "unsupported-type" });
     expect(JSON.stringify(result)).not.toContain(validPath);
-    expect(await readFile(join(userDataPath, "audio/assets/sound-1.wav"))).toEqual(Buffer.from("RIFFxxxxWAVEpayload"));
-    expect(await service.resolveAssetPath("sound-1")).toContain("audio/assets/sound-1.wav");
+    expect(await readFile(join(userDataPath, "audio", "assets", "sound-1.wav"))).toEqual(
+      Buffer.from("RIFFxxxxWAVEpayload")
+    );
+    expect(await service.resolveAssetPath("sound-1")).toContain(join("audio", "assets", "sound-1.wav"));
     expect(await service.resolveAssetPath("../sound-1")).toBeNull();
   });
 
@@ -75,7 +77,7 @@ describe("AudioService", () => {
     expect(voiceId).toBeTruthy();
 
     const resolved = await service.resolveReminderVoicePath(voiceId);
-    expect(resolved).toContain("audio/reminder-voices");
+    expect(resolved).toContain(join("audio", "reminder-voices"));
     expect(await service.resolveReminderVoicePath("non-existent")).toBeNull();
 
     const availability = await service.getReminderVoiceAvailability([voiceId, "unknown-id"]);
