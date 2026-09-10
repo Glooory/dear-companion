@@ -1,25 +1,7 @@
 import type { ActionSlot, PetConfig } from "./contracts";
+import type { MotionTemplate } from "./companion-motion";
 
-export type ActionTemplate =
-  | "still"
-  | "asset-swap"
-  | "bounce"
-  | "curious-tilt"
-  | "wiggle"
-  | "sway"
-  | "rhythm-sway"
-  | "peep-approach"
-  | "posture-shift"
-  | "stretch"
-  | "scale-nod"
-  | "petting-sink"
-  | "nuzzle"
-  | "purr-swell"
-  | "land"
-  | "drowsy-catch"
-  | "fast-shake"
-  | "gentle-breathe"
-  | "nod";
+export type ActionTemplate = MotionTemplate;
 
 export type ActionOverlay = "protest-bubble" | "tears";
 

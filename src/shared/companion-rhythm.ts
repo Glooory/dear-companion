@@ -80,36 +80,47 @@ export function nextAutoCuteDelay(pace: CompanionPace, random: () => number): nu
   return randomDuration(COMPANION_PACE_PROFILES[pace].autoCuteRangeMs, random);
 }
 
-export function createPeepApproachSteps(random: () => number, initialDirection?: -1 | 1): number[] {
-  const direction = initialDirection ?? (finiteRandom(random) < 0.5 ? -1 : 1);
-  return createPacingSteps(direction, 6, 10, random);
+export interface ApproachStep {
+  deltaX: number;
+  atMs: number;
 }
 
-export function createPostureShiftSteps(direction: -1 | 1, random: () => number): number[] {
+export interface ApproachPlan {
+  durationMs: number;
+  steps: readonly [ApproachStep, ApproachStep];
+}
+
+export const APPROACH_DURATION_MS = 800;
+export const APPROACH_STEP_TIMES_MS = [260, 580] as const;
+
+export function createApproachPlan(
+  random: () => number,
+  initialDirection?: -1 | 1
+): ApproachPlan {
+  const direction = initialDirection ?? (finiteRandom(random) < 0.5 ? -1 : 1);
+  const deltas = createSteps(direction, 12, 18, random, 2);
+  return {
+    durationMs: APPROACH_DURATION_MS,
+    steps: [
+      { deltaX: deltas[0]!, atMs: APPROACH_STEP_TIMES_MS[0] },
+      { deltaX: deltas[1]!, atMs: APPROACH_STEP_TIMES_MS[1] },
+    ],
+  };
+}
+
+export function createBodyPushSteps(direction: -1 | 1, random: () => number): number[] {
   return createSteps(direction, 6, 10, random);
 }
 
-export const createWaddleSteps = createPeepApproachSteps;
-export const createDirectedWaddleSteps = createPostureShiftSteps;
-
-function createPacingSteps(direction: -1 | 1, minimum: number, maximum: number, random: () => number): number[] {
+function createSteps(
+  direction: -1 | 1,
+  minimum: number,
+  maximum: number,
+  random: () => number,
+  fixedStepCount?: number
+): number[] {
   const distance = Math.round(minimum + (maximum - minimum) * finiteRandom(random));
-  const halfCount = 3;
-  const baseStep = Math.floor(distance / halfCount);
-  const remainder = distance - baseStep * halfCount;
-
-  const outward = Array.from(
-    { length: halfCount },
-    (_, index) => direction * (baseStep + (index >= halfCount - remainder ? 1 : 0))
-  );
-  const inward = outward.map((step) => -step).reverse();
-
-  return [...outward, ...inward];
-}
-
-function createSteps(direction: -1 | 1, minimum: number, maximum: number, random: () => number): number[] {
-  const distance = Math.round(minimum + (maximum - minimum) * finiteRandom(random));
-  const stepCount = 4 + Math.round(2 * finiteRandom(random));
+  const stepCount = fixedStepCount ?? 4 + Math.round(2 * finiteRandom(random));
   const baseStep = Math.floor(distance / stepCount);
   const remainder = distance - baseStep * stepCount;
 

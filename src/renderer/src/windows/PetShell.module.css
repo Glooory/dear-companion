@@ -15,15 +15,48 @@
 .actor {
   position: absolute;
   inset: 0;
-  transform: perspective(500px) rotateX(var(--pet-tilt-y, 0deg)) rotateY(var(--pet-tilt-x, 0deg));
-  transform-origin: 50% 82%;
-  transition: transform 140ms ease-out;
+  touch-action: none;
+}
+
+.attentionLayer,
+.actionLayer,
+.overlayLayer {
+  position: absolute;
+  inset: 0;
+  transform-origin: var(--motion-origin, center bottom);
+  touch-action: none;
+}
+
+.attentionLayer {
+  transform: translate(var(--attention-x, 0), var(--attention-y, 0)) rotate(var(--attention-rotate, 0deg));
+  transition: transform var(--attention-duration, 110ms) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.overlayLayer {
+  z-index: 6;
+  pointer-events: none;
+}
+
+.interactionHitbox {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 5;
+  cursor: grab;
+  background: transparent;
+}
+
+.shell[data-state="dragging"] .interactionHitbox {
+  cursor: grabbing;
 }
 
 .presenceStage {
   position: absolute;
   inset: 0;
   transform-origin: 50% 88%;
+  touch-action: none;
 }
 
 .presenceEnter,
@@ -140,93 +173,147 @@
 
 .tearsWrap {
   position: absolute;
-  top: 44%;
-  left: 52%;
+  top: var(--overlay-y, 0);
+  left: var(--overlay-x, 0);
+  width: 34px;
+  height: 42px;
+  transform: translate(-50%, 0);
   pointer-events: none;
-  animation: tearsFall 700ms ease-in both;
+}
+
+.tearPrimary,
+.tearSecondary {
+  position: absolute;
+  animation: tearsFall 760ms ease-in both;
+}
+
+.tearPrimary {
+  left: 0;
+}
+
+.tearSecondary {
+  right: 0;
+  width: 18px;
+  height: 18px;
+  animation-delay: 220ms;
 }
 
 .heartWrap {
   position: absolute;
-  z-index: 6;
-  top: 26%;
-  left: 58%;
+  top: var(--overlay-y, 0);
+  left: var(--overlay-x, 0);
+  width: 40px;
+  height: 48px;
+  transform: translate(-50%, -50%);
   pointer-events: none;
+}
+
+.heartPrimary,
+.heartSecondary {
+  position: absolute;
+  left: 4px;
+  top: 8px;
   animation: heartRise 900ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
 
-.shell[data-state="crying"] .actor {
-  animation: petAngry 0.3s ease-in-out infinite;
+.heartSecondary {
+  left: 22px;
+  top: 14px;
+  width: 18px;
+  height: 18px;
+  animation-delay: 180ms;
 }
 
-.shell[data-state="celebrating"] .actor {
-  animation: petCute 0.65s ease-in-out infinite alternate;
+.actionLayer[data-motion]:not([data-motion="still"]):not([data-motion="asset-swap"]) {
+  animation-duration: var(--motion-duration, 0ms);
+  animation-fill-mode: both;
 }
 
-:global(.action-bounce) :global(.pet-image-frame.photo-idle) {
-  animation: petBounce 600ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+.actionLayer[data-motion="gentle-breathe"] {
+  animation-name: gentleBreathe;
+  animation-timing-function: ease-in-out;
 }
 
-:global(.action-curious-tilt) :global(.pet-image-frame.photo-idle) {
-  animation: petCuriousTilt 620ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+.actionLayer[data-motion="weight-shift"],
+.actionLayer[data-motion="working-shift"] {
+  animation-name: weightShift;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-:global(.action-wiggle) :global(.pet-image-frame.photo-idle) {
-  animation: petWiggle 560ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+.actionLayer[data-motion="toe-rise"] {
+  animation-name: toeRise;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-:global(.action-sway) :global(.pet-image-frame.photo-idle) {
-  animation: petSway 820ms ease-in-out both;
+.actionLayer[data-motion="observe-lean"],
+.actionLayer[data-motion="two-step-approach"] {
+  animation-name: observeLean;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-:global(.action-peep-approach) :global(.pet-image-frame.photo-idle) {
-  animation: petPeepApproach 1.6s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+.actionLayer[data-motion="body-step"] {
+  animation-name: bodyStep;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-:global(.action-posture-shift) :global(.pet-image-frame.photo-idle) {
-  animation: petPostureShift 800ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+.actionLayer[data-motion="soft-lift"] {
+  animation-name: softLift;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:global(.action-stretch) :global(.pet-image-frame.photo-idle) {
-  animation: petStretch 1.8s ease-in-out both;
+.actionLayer[data-motion="calm-lean"] {
+  animation-name: calmLean;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-:global(.action-rhythm-sway) :global(.pet-image-frame.photo-idle) {
-  animation: petRhythmSway 1.1s ease-in-out both;
+.actionLayer[data-motion="playful-hop"] {
+  animation-name: playfulHop;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:global(.action-scale-nod) :global(.pet-image-frame.photo-idle),
-:global(.action-petting-sink) :global(.pet-image-frame.photo-idle) {
-  animation: petPettingSink 850ms ease-in-out both;
+.actionLayer[data-motion="playful-double-hop"] {
+  animation-name: playfulDoubleHop;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-:global(.action-nuzzle) :global(.pet-image-frame.photo-idle) {
-  animation: petNuzzle 850ms cubic-bezier(0.25, 0.8, 0.25, 1) both;
+.shell[data-state="celebrating"] .actionLayer[data-motion="playful-double-hop"] {
+  animation-iteration-count: 2;
 }
 
-:global(.action-purr-swell) :global(.pet-image-frame.photo-idle) {
-  animation: petPurrSwell 900ms ease-in-out both;
+.actionLayer[data-motion="drowsy-dip"] {
+  animation-name: drowsyDip;
+  animation-timing-function: ease-in-out;
 }
 
-:global(.action-land) :global(.pet-image-frame.photo-idle) {
-  animation: petLand 380ms cubic-bezier(0.18, 0.85, 0.32, 1.2) both;
+.actionLayer[data-motion="petting-lean"] {
+  animation-name: pettingLean;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-:global(.action-drowsy-catch) :global(.pet-image-frame.photo-idle) {
-  animation: petDrowsyCatch 1.6s ease-in-out both;
+.actionLayer[data-motion="settle"] {
+  animation-name: settle;
+  animation-timing-function: cubic-bezier(0.18, 0.85, 0.32, 1);
 }
 
-:global(.action-fast-shake) :global(.pet-image-frame.photo-idle),
-.shell[data-state="angry"] :global(.pet-image-frame.photo-idle) {
-  animation: petAngry 520ms linear 2;
+.actionLayer[data-motion="angry-shake"] {
+  animation-name: angryShake;
+  animation-timing-function: linear;
 }
 
-:global(.action-gentle-breathe) :global(.pet-image-frame.photo-idle) {
-  animation: petBreathe 1.6s ease-in-out both;
+.actionLayer[data-motion="crying-tremble"] {
+  animation-name: cryingTremble;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
-:global(.action-nod) :global(.pet-image-frame.photo-idle) {
-  animation: petNod 720ms ease-in-out both;
+.actionLayer[data-motion="wake-sway"] {
+  animation-name: wakeSway;
+  animation-timing-function: ease-in-out;
+}
+
+.actionLayer[data-motion="reduced-pulse"] {
+  animation-name: reducedPulse;
+  animation-timing-function: ease-out;
 }
 
 .shell[data-presence="hidden"] *,
@@ -268,247 +355,227 @@
   .presenceExit {
     animation-duration: 0.01ms !important;
   }
-}
 
-@keyframes petBounce {
-  0%,
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
-  14% {
-    transform: translateY(2px) scale(1.04, 0.96);
-  }
-  40% {
-    transform: translateY(-10px) scale(0.96, 1.02);
-  }
-  68% {
-    transform: translateY(1px) scale(1.025, 0.975);
-  }
-  85% {
-    transform: translateY(-1px) scale(0.995, 1.005);
+  .heartPrimary,
+  .heartSecondary,
+  .tearPrimary,
+  .tearSecondary {
+    animation-name: overlayFade;
+    animation-duration: 160ms;
+    animation-delay: 0ms;
   }
 }
 
-@keyframes petCuriousTilt {
-  0%,
-  100% {
-    transform: rotate(0) scale(1, 1);
+@keyframes overlayFade {
+  from {
+    opacity: 0;
   }
-  35% {
-    transform: rotate(-6deg) translateY(-3px) scale(0.98, 1.02);
-  }
+  30%,
   70% {
-    transform: rotate(-2deg) translateY(0) scale(1, 1);
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 
-@keyframes petWiggle {
+@keyframes gentleBreathe {
   0%,
   100% {
-    transform: rotate(0) scale(1, 1);
-  }
-  20% {
-    transform: rotate(-3.5deg) scale(1.02, 0.98);
-  }
-  40% {
-    transform: rotate(3.5deg) scale(0.98, 1.02);
-  }
-  60% {
-    transform: rotate(-2deg) scale(1.01, 0.99);
-  }
-  80% {
-    transform: rotate(1deg) scale(1, 1);
-  }
-}
-
-@keyframes petSway {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  30% {
-    transform: rotate(-4deg);
-  }
-  70% {
-    transform: rotate(4deg);
-  }
-}
-
-@keyframes petPeepApproach {
-  0%,
-  100% {
-    transform: rotate(0) translateY(0) scale(1, 1);
-  }
-  28%,
-  68% {
-    transform: rotate(-2.5deg) translateY(-2px) scale(1.015, 1.015);
-  }
-  85% {
-    transform: rotate(-0.5deg) translateY(0) scale(1, 1);
-  }
-}
-
-@keyframes petPostureShift {
-  0% {
-    transform: translateY(0) scale(1, 1);
-  }
-  30% {
-    transform: translateY(-3px) scale(0.99, 1.02);
-  }
-  70% {
-    transform: translateY(1px) scale(1.015, 0.985);
-  }
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
-}
-
-@keyframes petStretch {
-  0%,
-  100% {
-    transform: scale(1, 1) translateY(0) rotate(0);
-  }
-  40% {
-    transform: scale(0.985, 1.035) translateY(-4px) rotate(1deg);
-  }
-  75% {
-    transform: scale(1.01, 0.99) translateY(1px) rotate(0);
-  }
-}
-
-@keyframes petRhythmSway {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  25% {
-    transform: rotate(-1.6deg);
-  }
-  75% {
-    transform: rotate(1.6deg);
-  }
-}
-
-@keyframes petPettingSink {
-  0%,
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
-  35% {
-    transform: translateY(5px) scale(1.05, 0.95);
-  }
-  70% {
-    transform: translateY(-2px) scale(0.98, 1.02);
-  }
-}
-
-@keyframes petNuzzle {
-  0%,
-  100% {
-    transform: rotate(0) translateY(0) scale(1, 1);
-  }
-  30% {
-    transform: rotate(4.5deg) translateY(2px) scale(1.02, 0.98);
-  }
-  65% {
-    transform: rotate(-2deg) translateY(-1px) scale(0.99, 1.01);
-  }
-}
-
-@keyframes petPurrSwell {
-  0%,
-  100% {
-    transform: scale(1, 1) translateY(0);
-  }
-  40% {
-    transform: scale(1.035, 1.035) translateY(-2px);
-  }
-  75% {
-    transform: scale(0.985, 0.985) translateY(1px);
-  }
-}
-
-@keyframes petLand {
-  0% {
-    transform: translateY(0) scale(1, 1);
-  }
-  28% {
-    transform: translateY(3px) scale(1.05, 0.95);
-  }
-  62% {
-    transform: translateY(-2px) scale(0.98, 1.02);
-  }
-  100% {
-    transform: translateY(0) scale(1, 1);
-  }
-}
-
-@keyframes petDrowsyCatch {
-  0%,
-  100% {
-    transform: rotate(0) translateY(0);
+    transform: scaleY(1);
   }
   45% {
-    transform: rotate(4deg) translateY(5px);
-  }
-  55% {
-    transform: rotate(-2deg) translateY(-2px);
-  }
-  72% {
-    transform: rotate(1deg) translateY(1px);
+    transform: scaleY(1.007);
   }
 }
 
-@keyframes petAngry {
+@keyframes weightShift {
   0%,
   100% {
     transform: translateX(0) rotate(0);
   }
-  20% {
-    transform: translateX(-7px) rotate(-2deg);
-  }
-  40% {
-    transform: translateX(7px) rotate(2deg);
-  }
-  60% {
-    transform: translateX(-6px) rotate(-2deg);
-  }
-  80% {
-    transform: translateX(6px) rotate(2deg);
+  34%,
+  66% {
+    transform: translateX(var(--motion-shift-x, var(--motion-x))) rotate(var(--motion-shift-rotate, var(--motion-rotate-soft)));
   }
 }
 
-@keyframes petCute {
-  0% {
-    transform: translateY(0) rotate(0);
-  }
-  50% {
-    transform: translateY(-5px) rotate(2deg);
-  }
+@keyframes toeRise {
+  0%,
   100% {
-    transform: translateY(0) rotate(0);
+    transform: translateY(0);
+  }
+  35%,
+  58% {
+    transform: translateY(var(--motion-rise-neg));
   }
 }
 
-@keyframes petBreathe {
+@keyframes observeLean {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  20%,
+  48%,
+  86% {
+    transform: translateX(var(--motion-x)) rotate(var(--motion-rotate));
+  }
+  32.5%,
+  72.5% {
+    transform: translate(var(--motion-x), var(--motion-rise-neg)) rotate(var(--motion-rotate));
+  }
+}
+
+@keyframes softLift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  36% {
+    transform: translateY(var(--motion-down-neg));
+  }
+}
+
+@keyframes calmLean {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  42% {
+    transform: translate(var(--motion-x), var(--motion-rise-neg)) rotate(var(--motion-rotate-soft));
+  }
+}
+
+@keyframes bodyStep {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  20%,
+  70% {
+    transform: translateX(var(--motion-x-neg)) rotate(var(--motion-rotate-soft-neg));
+  }
+  42% {
+    transform: translate(var(--motion-x), var(--motion-rise-neg)) rotate(var(--motion-rotate-soft));
+  }
+}
+
+@keyframes playfulHop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  38% {
+    transform: translateY(var(--motion-hop-neg));
+  }
+  72% {
+    transform: translateY(var(--motion-rise));
+  }
+}
+
+@keyframes playfulDoubleHop {
+  0%,
+  46%,
+  100% {
+    transform: translateY(0);
+  }
+  22% {
+    transform: translateY(var(--motion-hop-neg));
+  }
+  68% {
+    transform: translateY(var(--motion-hop-small-neg));
+  }
+}
+
+@keyframes drowsyDip {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0);
+  }
+  40%,
+  58% {
+    transform: translate(var(--motion-x), var(--motion-down)) rotate(var(--motion-rotate));
+  }
+}
+
+@keyframes pettingLean {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0) scale(1);
+  }
+  38%,
+  62% {
+    transform: translate(var(--motion-x), var(--motion-rise)) rotate(var(--motion-rotate-soft)) scale(1.004);
+  }
+}
+
+@keyframes settle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  36% {
+    transform: translateY(var(--motion-rise));
+  }
+}
+
+@keyframes angryShake {
+  0%,
+  8%,
+  92%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  20%,
+  48%,
+  76% {
+    transform: translateX(var(--motion-shake-x-neg)) rotate(-0.8deg);
+  }
+  34%,
+  62% {
+    transform: translateX(var(--motion-shake-x)) rotate(0.8deg);
+  }
+}
+
+@keyframes cryingTremble {
+  0%,
+  22%,
+  52%,
+  78%,
+  100% {
+    transform: translate(0, var(--motion-rise));
+  }
+  30%,
+  68% {
+    transform: translate(1px, var(--motion-rise));
+  }
+  38%,
+  60% {
+    transform: translate(-1px, var(--motion-rise));
+  }
+}
+
+@keyframes wakeSway {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0);
+  }
+  32% {
+    transform: translateX(var(--motion-x)) rotate(var(--motion-rotate-soft));
+  }
+  66% {
+    transform: translateX(var(--motion-x-neg)) rotate(var(--motion-rotate-soft-neg));
+  }
+}
+
+@keyframes reducedPulse {
   0%,
   100% {
     transform: scale(1);
-    opacity: 1;
   }
   50% {
-    transform: scale(1.018, 1.025);
-    opacity: 0.98;
-  }
-}
-
-@keyframes petNod {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  45% {
-    transform: rotate(2.5deg) translateY(3px);
+    transform: scale(1.003);
   }
 }
 

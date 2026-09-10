@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { resolveMotion } from "./companion-motion";
 import {
+  APPROACH_DURATION_MS,
   COMPANION_PACE_PROFILES,
-  createDirectedWaddleSteps,
-  createWaddleSteps,
+  createApproachPlan,
+  createBodyPushSteps,
   MINIMUM_AWAKE_MS,
   nextAutoCuteDelay,
   nextRhythmStep,
@@ -14,25 +16,42 @@ describe("companion rhythm", () => {
     expect(nextAutoCuteDelay("lively", () => 1)).toBe(COMPANION_PACE_PROFILES.lively.autoCuteRangeMs[1]);
   });
 
-  it("creates back-and-forth waddle pacing steps that return to the starting position", () => {
-    const leftPacing = createWaddleSteps(() => 0);
-    expect(leftPacing).toEqual([-2, -2, -2, 2, 2, 2]);
-    expect(leftPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0);
+  it("creates two approach steps that synchronize timing and keep their new position", () => {
+    expect(createApproachPlan(() => 0, -1)).toEqual({
+      durationMs: 800,
+      steps: [
+        { deltaX: -6, atMs: 260 },
+        { deltaX: -6, atMs: 580 },
+      ],
+    });
 
-    const rightPacing = createWaddleSteps(() => 1);
-    expect(rightPacing).toEqual([3, 3, 4, -4, -3, -3]);
-    expect(rightPacing.reduce((sum, delta) => sum + delta, 0)).toBe(0);
+    const maximum = createApproachPlan(() => 1, 1);
+    expect(maximum.steps.map((step) => step.deltaX)).toEqual([9, 9]);
+    expect(maximum.durationMs - maximum.steps[1].atMs).toBe(220);
+
+    expect(createApproachPlan(() => Number.NaN, 1)).toEqual({
+      durationMs: 800,
+      steps: [
+        { deltaX: 6, atMs: 260 },
+        { deltaX: 6, atMs: 580 },
+      ],
+    });
 
     for (let r = 0; r <= 1; r += 0.1) {
-      const steps = createWaddleSteps(() => r);
-      expect(steps).toHaveLength(6);
-      expect(steps.reduce((sum, delta) => sum + delta, 0)).toBe(0);
+      const plan = createApproachPlan(() => r, 1);
+      expect(plan.steps).toHaveLength(2);
+      expect(plan.durationMs).toBe(APPROACH_DURATION_MS);
+      const totalDelta = plan.steps.reduce((sum, step) => sum + step.deltaX, 0);
+      expect(totalDelta).toBeGreaterThanOrEqual(12);
+      expect(totalDelta).toBeLessThanOrEqual(18);
     }
+
+    expect(resolveMotion("two-step-approach", false).durationMs).toBe(APPROACH_DURATION_MS);
   });
 
-  it("creates shorter waddle steps in the requested pointer direction", () => {
-    expect(createDirectedWaddleSteps(-1, () => 0)).toEqual([-1, -1, -2, -2]);
-    expect(createDirectedWaddleSteps(1, () => 1)).toEqual([1, 1, 2, 2, 2, 2]);
+  it("creates shorter body-push steps in the requested pointer direction", () => {
+    expect(createBodyPushSteps(-1, () => 0)).toEqual([-1, -1, -2, -2]);
+    expect(createBodyPushSteps(1, () => 1)).toEqual([1, 1, 2, 2, 2, 2]);
   });
 
   it("enters available sleep states only after the awake floor", () => {

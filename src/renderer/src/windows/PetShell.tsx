@@ -1,18 +1,47 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+} from "react";
 import { clsx } from "clsx";
-import { resolveAction, type ActionTemplate, type ResolvedAction } from "@shared/action-fallback";
-import { createPeepApproachSteps, createPostureShiftSteps } from "@shared/companion-rhythm";
-import type {
-  ActionSlot,
-  CompanionLifeState,
-  CompanionSystemSnapshot,
-  PetAsset,
-  PetConfig,
-  PetSystemSnapshot,
-  RestSystemApi,
-  RestSystemSnapshot,
+import { resolveAction, type ResolvedAction } from "@shared/action-fallback";
+import {
+  determineAssetSwapStep,
+  getInitialActionTimeout,
+  getWeightShiftAmplitude,
+  resolveMotion,
+  resolveNextMotionDirection,
+  scaleMotionDip,
+  selectAmbientMotion,
+  selectClickMotion,
+  selectPersonalityMotion,
+  shouldSwapPersonalityPhoto,
+  unionMotionRect,
+  type MotionDirection,
+  type MotionTemplate,
+} from "@shared/companion-motion";
+import { createApproachPlan, createBodyPushSteps } from "@shared/companion-rhythm";
+import {
+  PET_WINDOW_HEIGHT,
+  PET_WINDOW_WIDTH,
+  type ActionSlot,
+  type CompanionLifeState,
+  type CompanionSystemSnapshot,
+  type PetAsset,
+  type PetConfig,
+  type PettingGestureResult,
+  type PetSystemSnapshot,
+  type RestSystemApi,
+  type RestSystemSnapshot,
 } from "@shared/contracts";
-import { WakeSequence } from "@shared/wake-sequence";
+import { computeHeadHotspotGeometry } from "@shared/head-hotspot";
+import { computeAssetGeometry } from "@shared/image-normalization";
+import { WAKE_SEQUENCE_EXPIRY_MS, WakeSequence } from "@shared/wake-sequence";
 import { useAudioPlayback } from "../audio/use-audio-playback";
 import { PhotoTransition } from "../components/PhotoTransition";
 import { useDialogue } from "../dialogues/use-dialogue";
@@ -22,9 +51,6 @@ import { usePetInteractions } from "../interactions/use-pet-interactions";
 import { usePetPresenceTransition } from "../interactions/use-pet-presence-transition";
 import { usePettingGesture } from "../interactions/use-petting-gesture";
 import styles from "./PetShell.module.css";
-
-const CLICK_ACTION_VARIANTS: readonly ActionTemplate[] = ["bounce", "curious-tilt", "wiggle", "nod"];
-const PETTING_ACTION_VARIANTS: readonly ActionTemplate[] = ["petting-sink", "nuzzle", "purr-swell"];
 
 interface PetShellProps {
   api: RestSystemApi;
@@ -38,23 +64,92 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const [actionState, setActionState] = useState<{
     petId: string;
     action: ResolvedAction;
+    direction: MotionDirection;
     phase: "active" | "returning";
   } | null>(null);
   const [frameIndex, setFrameIndex] = useState(0);
   const [heartVisible, setHeartVisible] = useState(false);
+  const [doubleHeart, setDoubleHeart] = useState(false);
   const [pageVisible, setPageVisible] = useState(document.visibilityState === "visible");
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
   const [dailyIndex, setDailyIndex] = useState(0);
+  const [motionRunId, setMotionRunId] = useState(0);
+  const [heartRunId, setHeartRunId] = useState(0);
+  const [displayedAssets, setDisplayedAssets] = useState<{
+    current: PetAsset;
+    outgoing: PetAsset | null;
+  } | null>(null);
+
+  const handleDisplayedAssetChange = useCallback(
+    (current: PetAsset, outgoing: PetAsset | null): void => {
+      setDisplayedAssets({ current, outgoing });
+    },
+    []
+  );
+
+  const actionLayerRef = useRef<HTMLDivElement | null>(null);
   const actionTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const actionCompletion = useRef<(() => void) | null>(null);
   const wakeSequence = useRef(new WakeSequence());
+  const [wakePhotoOverride, setWakePhotoOverride] = useState<string | null>(null);
+  const wakeResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingWakeDip = useRef(false);
   const previousLifeState = useRef<CompanionLifeState | null>(null);
   const previousRuntimeState = useRef<string | null>(null);
+  const previousClickMotion = useRef<MotionTemplate | null>(null);
+  const previousAmbientMotion = useRef<MotionTemplate | null>(null);
+  const previousPersonalityMotion = useRef<MotionTemplate | null>(null);
+  const previousMotionDirection = useRef<MotionDirection | null>(null);
+
+  const resolveDirection = useCallback((template: MotionTemplate): MotionDirection => {
+    const { direction, nextHistory } = resolveNextMotionDirection(
+      template,
+      previousMotionDirection.current,
+      Math.random
+    );
+    previousMotionDirection.current = nextHistory;
+    return direction;
+  }, []);
 
   const activePet = useMemo(() => snapshot?.pets.find((pet) => pet.id === snapshot.activePetId) ?? null, [snapshot]);
   const lifeState = companionSnapshot?.runtime.lifeState ?? "daily-calm";
+  const effectiveWakePhotoOverride = lifeState === "sleeping" ? wakePhotoOverride : null;
+
+  const resetWakeSequence = useCallback((): void => {
+    if (wakeResetTimer.current) {
+      clearTimeout(wakeResetTimer.current);
+      wakeResetTimer.current = null;
+    }
+    wakeSequence.current.reset();
+    setWakePhotoOverride(null);
+    pendingWakeDip.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (lifeState !== "sleeping") {
+      if (wakeResetTimer.current) {
+        clearTimeout(wakeResetTimer.current);
+        wakeResetTimer.current = null;
+      }
+      wakeSequence.current.reset();
+      pendingWakeDip.current = false;
+      const timer = window.setTimeout(() => {
+        setWakePhotoOverride(null);
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [lifeState]);
+
+  useEffect(() => {
+    return () => {
+      if (wakeResetTimer.current) {
+        clearTimeout(wakeResetTimer.current);
+      }
+    };
+  }, []);
   const runtimeState = restSnapshot?.runtime.session?.state ?? (restSnapshot?.runtime.prompt ? "reminding" : null);
   const runtimeActive = runtimeState !== null;
   const baseAsset = useMemo(
@@ -65,6 +160,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     () => activePet?.assets.find((asset) => asset.id === activePet.actionSlots.idle[0]) ?? null,
     [activePet]
   );
+  const viewport = { width: window.innerWidth || PET_WINDOW_WIDTH, height: window.innerHeight || PET_WINDOW_HEIGHT };
+  const visiblePersonRect = (() => {
+    if (!activePet || !baseAsset) return null;
+    const geometry = computeAssetGeometry(baseAsset, activePet.targetHeight, viewport);
+    return {
+      x: geometry.left + baseAsset.alphaBounds.x * geometry.scale,
+      y: geometry.top + baseAsset.alphaBounds.y * geometry.scale,
+      width: baseAsset.alphaBounds.width * geometry.scale,
+      height: baseAsset.alphaBounds.height * geometry.scale,
+    };
+  })();
+  const headHotspot =
+    activePet && baseAsset ? computeHeadHotspotGeometry(baseAsset, activePet.targetHeight, viewport) : null;
   const {
     dialogue,
     show: showDialogue,
@@ -95,96 +203,117 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       setActionState(null);
       setFrameIndex(0);
       setHeartVisible(false);
+      setDoubleHeart(false);
       pendingCompletion?.();
     },
     [clearActionTimers]
   );
 
   const performResolvedAction = useCallback(
-    (action: ResolvedAction, duration: number, complete?: () => void): void => {
+    (action: ResolvedAction, direction: MotionDirection = 0, complete?: () => void): void => {
       if (!activePet) return;
       clearActionTimers();
       api.cancelPettingGesture();
+      const motion = resolveMotion(action.template, reducedMotion);
+      const resolvedAction = { ...action, template: motion.template };
       actionCompletion.current = complete ?? null;
-      setActionState({ petId: activePet.id, action, phase: "active" });
+      setMotionRunId((id) => id + 1);
+      setActionState({ petId: activePet.id, action: resolvedAction, direction, phase: "active" });
       setFrameIndex(0);
-      actionTimers.current.push(
-        setTimeout(() => {
-          if (action.template === "asset-swap" && action.assetIds[0] !== baseAsset?.id) {
-            setActionState((current) =>
-              current?.petId === activePet.id && current.action === action
-                ? { ...current, phase: "returning" }
-                : current
-            );
-            return;
-          }
-          finishAction(complete);
-        }, duration)
-      );
+      const initialTimeout = getInitialActionTimeout(resolvedAction.template, motion.durationMs);
+      if (initialTimeout !== null) {
+        actionTimers.current.push(
+          setTimeout(() => {
+            finishAction(complete);
+          }, initialTimeout)
+        );
+      }
     },
-    [activePet, api, baseAsset?.id, clearActionTimers, finishAction]
+    [activePet, api, clearActionTimers, finishAction, reducedMotion]
   );
 
   const performCurrentPhotoAction = useCallback(
-    (template: ActionTemplate, duration = 900): void => {
-      if (!baseAsset) return;
+    (template: MotionTemplate, direction: MotionDirection = 0, complete?: () => void): void => {
+      const currentAssetId = effectiveWakePhotoOverride ?? baseAsset?.id;
+      if (!currentAssetId) return;
       performResolvedAction(
         {
           slot: "idle",
-          assetIds: [baseAsset.id],
+          assetIds: [currentAssetId],
           template,
           overlays: [],
           usedFallback: true,
         },
-        duration
+        direction,
+        complete
       );
     },
-    [baseAsset, performResolvedAction]
+    [baseAsset, effectiveWakePhotoOverride, performResolvedAction]
   );
 
-  const performWaddle = useCallback(
+  const performApproach = useCallback(
     (direction?: -1 | 1): void => {
       if (!baseAsset) return;
       if (direction === undefined) {
-        const steps = createPeepApproachSteps(Math.random);
-        performCurrentPhotoAction("peep-approach", 1_600);
-        steps.forEach((deltaX, index) => {
-          actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 180 + index * 180));
-        });
+        const resolvedDirection = resolveDirection("two-step-approach") as -1 | 1;
+        const plan = createApproachPlan(Math.random, resolvedDirection);
+        performCurrentPhotoAction("two-step-approach", resolvedDirection);
+        for (const step of plan.steps) {
+          actionTimers.current.push(
+            setTimeout(() => api.nudgePetBy(step.deltaX, 0), step.atMs)
+          );
+        }
       } else {
-        const steps = createPostureShiftSteps(direction, Math.random);
-        performCurrentPhotoAction("posture-shift", 800);
+        const steps = createBodyPushSteps(direction, Math.random);
+        performCurrentPhotoAction("body-step", direction);
         steps.forEach((deltaX, index) => {
-          actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 140 + index * 160));
+          actionTimers.current.push(setTimeout(() => api.nudgePetBy(deltaX, 0), 100 + index * 90));
         });
       }
     },
-    [api, baseAsset, performCurrentPhotoAction]
+    [api, baseAsset, performCurrentPhotoAction, resolveDirection]
   );
 
+  const currentDisplayedAssetId = displayedAssets?.current?.id;
   const handlePrimaryClick = useCallback((): void => {
     if (!activePet || !baseAsset || runtimeActive) return;
     if (lifeState === "sleeping") {
-      const stage = wakeSequence.current.registerClick(Date.now());
-      if (stage === "murmur") {
-        showDialogue("sleeping:murmur");
-        performCurrentPhotoAction("sway", 700);
-      } else if (stage === "stirring") {
-        showDialogue("sleeping:stirring");
-        const drowsyId = activePet.lifeStates.drowsy.assetIds[0];
-        performResolvedAction(
-          {
-            slot: "idle",
-            assetIds: drowsyId ? [drowsyId] : [baseAsset.id],
-            template: drowsyId ? "asset-swap" : "nod",
-            overlays: [],
-            usedFallback: !drowsyId,
-          },
-          1_100
-        );
+      const drowsyId = activePet.lifeStates.drowsy.assetIds[0] ?? null;
+      const step = wakeSequence.current.registerClick(Date.now(), drowsyId);
+      showDialogue(step.dialogueKey);
+      if (wakeResetTimer.current) {
+        clearTimeout(wakeResetTimer.current);
+        wakeResetTimer.current = null;
+      }
+      if (step.stage === "murmur") {
+        wakeResetTimer.current = setTimeout(() => {
+          wakeSequence.current.reset();
+          setWakePhotoOverride(null);
+          pendingWakeDip.current = false;
+        }, WAKE_SEQUENCE_EXPIRY_MS);
+        performCurrentPhotoAction("wake-sway", resolveDirection("wake-sway"));
+      } else if (step.stage === "stirring") {
+        wakeResetTimer.current = setTimeout(() => {
+          wakeSequence.current.reset();
+          setWakePhotoOverride(null);
+          pendingWakeDip.current = false;
+        }, WAKE_SEQUENCE_EXPIRY_MS);
+        setWakePhotoOverride(step.photoOverride);
+        if (step.transitionThenDip) {
+          if (currentDisplayedAssetId === step.photoOverride) {
+            pendingWakeDip.current = false;
+            performCurrentPhotoAction("drowsy-dip", resolveDirection("drowsy-dip"));
+          } else {
+            pendingWakeDip.current = true;
+          }
+        } else {
+          pendingWakeDip.current = false;
+          performCurrentPhotoAction("drowsy-dip", resolveDirection("drowsy-dip"));
+        }
       } else {
-        showDialogue("sleeping:awake");
         finishAction();
+        resetWakeSequence();
+        performCurrentPhotoAction("settle");
         void api
           .wakeCompanion()
           .then(setCompanionSnapshot)
@@ -195,56 +324,61 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     if (lifeState === "daily-calm" || lifeState === "daily-playful") {
       const dialogueKey = lifeState === "daily-calm" ? "daily:click" : "playful:click";
       showDialogue(dialogueKey);
-      const variant = CLICK_ACTION_VARIANTS[Math.floor(Math.random() * CLICK_ACTION_VARIANTS.length)]!;
-      performCurrentPhotoAction(variant, variant === "nod" ? 720 : 600);
+      const motion = selectClickMotion(lifeState, previousClickMotion.current, Math.random);
+      previousClickMotion.current = motion;
+      performCurrentPhotoAction(motion, resolveDirection(motion));
     } else if (lifeState === "drowsy") {
       showDialogue("drowsy:click");
-      performCurrentPhotoAction("nod", 800);
+      performCurrentPhotoAction("drowsy-dip", resolveDirection("drowsy-dip"));
     } else if (lifeState === "working") {
       showDialogue("working:click");
-      performCurrentPhotoAction("nod", 650);
+      performCurrentPhotoAction("calm-lean", resolveDirection("calm-lean"));
     }
   }, [
     activePet,
     api,
     baseAsset,
+    currentDisplayedAssetId,
     finishAction,
     lifeState,
     performCurrentPhotoAction,
-    performResolvedAction,
+    resetWakeSequence,
+    resolveDirection,
     runtimeActive,
     showDialogue,
   ]);
 
-  const handlePettingDetected = useCallback((): void => {
+  const handlePettingDetected = useCallback((result: PettingGestureResult): void => {
     if (!activePet || !baseAsset || runtimeActive) return;
     setHeartVisible(true);
+    setDoubleHeart(Math.random() < 0.24);
+    setHeartRunId((id) => id + 1);
     if (lifeState === "sleeping") {
       showDialogue("sleeping:touch");
-      performCurrentPhotoAction("gentle-breathe", 900);
+      performCurrentPhotoAction("gentle-breathe");
     } else if (lifeState === "daily-calm" || lifeState === "daily-playful") {
       showDialogue("daily:petting");
-      const variant = PETTING_ACTION_VARIANTS[Math.floor(Math.random() * PETTING_ACTION_VARIANTS.length)]!;
-      performCurrentPhotoAction(variant, activePet.actionTemplates.pettingDurationMs);
+      performCurrentPhotoAction("petting-lean", result.leanDirection);
     } else if (lifeState === "drowsy") {
       showDialogue("drowsy:petting");
-      performCurrentPhotoAction("scale-nod", 900);
+      performCurrentPhotoAction("drowsy-dip", result.leanDirection || resolveDirection("drowsy-dip"));
     } else {
       showDialogue("working:petting");
-      performCurrentPhotoAction("scale-nod", 650);
+      performCurrentPhotoAction("calm-lean", result.leanDirection);
     }
-  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue]);
+  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, resolveDirection, runtimeActive, showDialogue]);
 
   const cancelForPresenceTransition = useCallback((): void => {
-    wakeSequence.current.reset();
+    resetWakeSequence();
     api.cancelPettingGesture();
     clearActionTimers();
     actionCompletion.current = null;
     setActionState(null);
     setFrameIndex(0);
     setHeartVisible(false);
+    setDoubleHeart(false);
     clearDialogue();
-  }, [api, clearActionTimers, clearDialogue]);
+  }, [api, clearActionTimers, clearDialogue, resetWakeSequence]);
 
   const presence = usePetPresenceTransition({
     api,
@@ -255,10 +389,73 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const presenceTransitionActive = presence.phase === "entering" || presence.phase === "exiting";
   useAudioPlayback(api, pageVisible && !presenceTransitionActive, shouldPlayAudioCue);
 
+  const runtimeSlot: ActionSlot | null =
+    runtimeState === "resting" || runtimeState === "celebrating" || runtimeState === "crying" ? "resting" : null;
+  const resolvedAction =
+    activePet && baseAsset
+      ? runtimeActive
+        ? runtimeSlot
+          ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id)
+          : null
+        : actionState?.petId === activePet.id
+          ? actionState.action
+          : null
+      : null;
+  const returningToBase = actionState?.petId === activePet?.id && actionState?.phase === "returning";
+  const desiredAssetId = returningToBase
+    ? baseAsset?.id
+    : resolvedAction?.template === "asset-swap"
+      ? (resolvedAction.assetIds[frameIndex] ?? resolvedAction.assetIds[0] ?? baseAsset?.id)
+      : (effectiveWakePhotoOverride ?? resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0] ?? baseAsset?.id);
+  const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset;
+  const activeDisplayedAsset =
+    displayedAssets?.current && activePet?.assets.some((candidate) => candidate.id === displayedAssets.current.id)
+      ? displayedAssets.current
+      : (baseAsset ?? desiredAsset);
+  const outgoingAsset = displayedAssets?.outgoing ?? null;
+  const activeOutgoingAsset =
+    outgoingAsset && activePet?.assets.some((candidate) => candidate.id === outgoingAsset.id)
+      ? outgoingAsset
+      : null;
+
+  const currentGeometry =
+    activePet && activeDisplayedAsset
+      ? computeAssetGeometry(activeDisplayedAsset, activePet.targetHeight, viewport)
+      : null;
+  const currentPersonRect =
+    currentGeometry && activeDisplayedAsset
+      ? {
+          x: currentGeometry.left + activeDisplayedAsset.alphaBounds.x * currentGeometry.scale,
+          y: currentGeometry.top + activeDisplayedAsset.alphaBounds.y * currentGeometry.scale,
+          width: activeDisplayedAsset.alphaBounds.width * currentGeometry.scale,
+          height: activeDisplayedAsset.alphaBounds.height * currentGeometry.scale,
+        }
+      : visiblePersonRect;
+
+  const outgoingGeometry =
+    activePet && activeOutgoingAsset
+      ? computeAssetGeometry(activeOutgoingAsset, activePet.targetHeight, viewport)
+      : null;
+  const outgoingPersonRect =
+    outgoingGeometry && activeOutgoingAsset
+      ? {
+          x: outgoingGeometry.left + activeOutgoingAsset.alphaBounds.x * outgoingGeometry.scale,
+          y: outgoingGeometry.top + activeOutgoingAsset.alphaBounds.y * outgoingGeometry.scale,
+          width: activeOutgoingAsset.alphaBounds.width * outgoingGeometry.scale,
+          height: activeOutgoingAsset.alphaBounds.height * outgoingGeometry.scale,
+        }
+      : null;
+
+  const displayedPersonRect = unionMotionRect(currentPersonRect, outgoingPersonRect);
+  const displayedHeadHotspot =
+    activePet && activeDisplayedAsset
+      ? computeHeadHotspotGeometry(activeDisplayedAsset, activePet.targetHeight, viewport)
+      : headHotspot;
+
   const pettingPointerMove = usePettingGesture({
     api,
     petId: activePet?.id ?? null,
-    asset: baseAsset,
+    asset: activeDisplayedAsset ?? baseAsset,
     targetHeight: activePet?.targetHeight ?? 180,
     active: Boolean(
       activePet &&
@@ -268,11 +465,11 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       !runtimeActive &&
       !presenceTransitionActive
     ),
-    dependencyKey: `${lifeState}:${baseAsset?.id ?? ""}`,
+    dependencyKey: `${lifeState}:${activeDisplayedAsset?.id ?? baseAsset?.id ?? ""}`,
     onDetected: handlePettingDetected,
   });
   const bodyWaddlePointerMove = useBodyWaddleGesture({
-    asset: baseAsset,
+    asset: activeDisplayedAsset ?? baseAsset,
     targetHeight: activePet?.targetHeight ?? 180,
     active: Boolean(
       activePet &&
@@ -283,10 +480,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       !presenceTransitionActive &&
       !actionState &&
       (lifeState === "daily-calm" || lifeState === "daily-playful") &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      !reducedMotion
     ),
-    dependencyKey: `${activePet?.id ?? ""}:${lifeState}:${baseAsset?.id ?? ""}`,
-    onDirection: performWaddle,
+    dependencyKey: `${activePet?.id ?? ""}:${lifeState}:${activeDisplayedAsset?.id ?? baseAsset?.id ?? ""}`,
+    onDirection: performApproach,
   });
 
   const isDraggingRef = useRef(false);
@@ -296,6 +493,8 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     isDraggingRef.current = active;
     if (active) {
       applyIgnoreRef.current(false);
+      api.cancelPettingGesture();
+      finishAction();
     } else if (event) {
       const target = document.elementFromPoint(event.clientX, event.clientY);
       const isInteractive = Boolean(target?.closest?.('[data-pet-interactive="true"]'));
@@ -303,27 +502,29 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     } else {
       applyIgnoreRef.current(true);
     }
-  }, []);
+  }, [api, finishAction]);
 
   const {
     state: interactionState,
-    tilt,
+    attention,
     handlers: interactionHandlers,
   } = usePetInteractions({
     api,
     visible: Boolean((snapshot?.petWindow.visible || runtimeActive) && pageVisible && !presenceTransitionActive),
+    hoverRect: displayedPersonRect ?? visiblePersonRect,
+    hoverEnabled: Boolean(pageVisible && !runtimeActive && !actionState && !presenceTransitionActive),
+    reducedMotion,
     angryVelocity: activePet?.actionTemplates.dragAngryVelocity ?? 1_200,
     onAngry: (finish) => {
       showDialogue("angry");
-      performCurrentPhotoAction("fast-shake", activePet?.actionTemplates.angryDurationMs ?? 1_040);
-      finish();
+      performCurrentPhotoAction("angry-shake", 0, finish);
     },
     onLand: () => {
-      performCurrentPhotoAction("land", 380);
+      performCurrentPhotoAction("settle");
     },
     onPrimaryClick: handlePrimaryClick,
     onDragStarted: () => {
-      wakeSequence.current.reset();
+      resetWakeSequence();
       api.cancelPettingGesture();
       finishAction();
     },
@@ -331,6 +532,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     onLocalPointerMove: (event) => {
       const pettingCandidateActive = pettingPointerMove(event);
       bodyWaddlePointerMove(event, pettingCandidateActive);
+      return pettingCandidateActive;
     },
     runtimeState,
   });
@@ -381,40 +583,38 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   const performAmbient = useCallback((): void => {
     if (!activePet || !baseAsset) return;
-    if (lifeState === "sleeping" || lifeState === "working" || reducedMotion) {
-      performCurrentPhotoAction("gentle-breathe", 1_600);
-    } else if (lifeState === "drowsy") {
-      const roll = Math.random();
-      if (roll < 0.45) performCurrentPhotoAction("drowsy-catch", 1_600);
-      else if (roll < 0.75) performCurrentPhotoAction("nod", 900);
-      else performCurrentPhotoAction("gentle-breathe", 1_600);
-    } else {
-      const templates: ActionTemplate[] = ["gentle-breathe", "nod", "rhythm-sway"];
-      performCurrentPhotoAction(templates[Math.floor(Math.random() * templates.length)]!, 1_200);
-    }
-  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, reducedMotion]);
+    const motion = selectAmbientMotion(
+      lifeState,
+      activePet.companionPace,
+      previousAmbientMotion.current,
+      Math.random
+    );
+    previousAmbientMotion.current = motion;
+    performCurrentPhotoAction(motion, resolveDirection(motion));
+  }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, resolveDirection]);
 
   const performPersonality = useCallback((): void => {
-    if (Math.random() < 0.35) showDialogue("auto:cute");
-    if (activePet && activePet.actionSlots.idle.length > 1 && Math.random() < 0.35) {
+    if (!activePet) return;
+    const dialogueChance = activePet.companionPace === "quiet" ? 0.18 : activePet.companionPace === "lively" ? 0.3 : 0.24;
+    if (Math.random() < dialogueChance) showDialogue("auto:cute");
+    if (shouldSwapPersonalityPhoto(activePet.companionPace, activePet.actionSlots.idle.length > 1, Math.random)) {
       const nextIndex = (dailyIndex + 1) % activePet.actionSlots.idle.length;
       const nextId = activePet.actionSlots.idle[nextIndex]!;
       setDailyIndex(nextIndex);
       performResolvedAction(
-        { slot: "idle", assetIds: [nextId], template: "asset-swap", overlays: [], usedFallback: true },
-        2_000
+        { slot: "idle", assetIds: [nextId], template: "asset-swap", overlays: [], usedFallback: true }
       );
-    } else {
-      const roll = Math.random();
-      if (roll < 0.35) {
-        performCurrentPhotoAction("stretch", 1_800);
-      } else if (roll < 0.7) {
-        performCurrentPhotoAction("rhythm-sway", 1_100);
-      } else {
-        performCurrentPhotoAction("curious-tilt", 800);
-      }
+    } else if (!reducedMotion) {
+      const motion = selectPersonalityMotion(
+        lifeState,
+        activePet.companionPace,
+        previousPersonalityMotion.current,
+        Math.random
+      );
+      previousPersonalityMotion.current = motion;
+      performCurrentPhotoAction(motion, resolveDirection(motion));
     }
-  }, [activePet, dailyIndex, performCurrentPhotoAction, performResolvedAction, showDialogue]);
+  }, [activePet, dailyIndex, lifeState, performCurrentPhotoAction, performResolvedAction, reducedMotion, resolveDirection, showDialogue]);
 
   useCompanionPresence({
     enabled: Boolean(
@@ -431,7 +631,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     reducedMotion,
     resetKey: activePet?.id ?? "none",
     onAmbient: performAmbient,
-    onMotion: performWaddle,
+    onMotion: performApproach,
     onPersonality: performPersonality,
   });
 
@@ -442,7 +642,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         if (request.type === "play-now") {
           if (lifeState !== "daily-calm" && lifeState !== "daily-playful") return;
           showDialogue("daily:click");
-          performCurrentPhotoAction("bounce", 850);
+          performCurrentPhotoAction("playful-double-hop", resolveDirection("playful-double-hop"));
           return;
         }
         if (request.type === "quick-dialogue") {
@@ -465,12 +665,12 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
             voiceTrimEnd: request.voiceTrimEnd,
             voiceVolume: request.voiceVolume,
           });
-          performCurrentPhotoAction("nod", 850);
+          performCurrentPhotoAction("calm-lean", resolveDirection("calm-lean"));
           return;
         }
-        if (request.pace === "quiet") performCurrentPhotoAction("gentle-breathe", 1_600);
-        else if (request.pace === "natural") performCurrentPhotoAction("sway", 900);
-        else performCurrentPhotoAction("bounce", 900);
+        if (request.pace === "quiet") performCurrentPhotoAction("gentle-breathe");
+        else if (request.pace === "natural") performCurrentPhotoAction("observe-lean", resolveDirection("observe-lean"));
+        else performCurrentPhotoAction("playful-double-hop", resolveDirection("playful-double-hop"));
       }),
     [
       activePet,
@@ -480,6 +680,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       performCurrentPhotoAction,
       presenceTransitionActive,
       previewDialogue,
+      resolveDirection,
       runtimeActive,
       showDialogue,
     ]
@@ -539,10 +740,20 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handleChange = (): void => setReducedMotion(query.matches);
+    const handleChange = (): void => {
+      finishAction();
+      setReducedMotion(query.matches);
+    };
     query.addEventListener("change", handleChange);
     return () => query.removeEventListener("change", handleChange);
-  }, []);
+  }, [finishAction]);
+
+  useEffect(() => {
+    previousClickMotion.current = null;
+    previousAmbientMotion.current = null;
+    previousPersonalityMotion.current = null;
+    previousMotionDirection.current = null;
+  }, [activePet?.companionPace, activePet?.id, lifeState]);
 
   useEffect(() => {
     if (presenceTransitionActive) return;
@@ -568,12 +779,19 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [clearDialogue, presenceTransitionActive, runtimeState, showDialogue]);
 
   useEffect(() => {
+    if (wakeResetTimer.current) {
+      clearTimeout(wakeResetTimer.current);
+      wakeResetTimer.current = null;
+    }
     wakeSequence.current.reset();
+    pendingWakeDip.current = false;
     if (!pageVisible || !snapshot?.petWindow.visible || runtimeActive) {
       clearActionTimers();
       const timer = window.setTimeout(() => {
         setActionState(null);
         setHeartVisible(false);
+        setDoubleHeart(false);
+        setWakePhotoOverride(null);
         if (!pageVisible || !snapshot?.petWindow.visible) clearDialogue();
       }, 0);
       return () => window.clearTimeout(timer);
@@ -596,6 +814,121 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     void api.openSettings().catch(() => undefined);
   };
 
+  const motionOrigin = displayedPersonRect
+    ? `${displayedPersonRect.x + displayedPersonRect.width / 2}px ${displayedPersonRect.y + displayedPersonRect.height}px`
+    : "center bottom";
+  const requestedTemplate: MotionTemplate = !pageVisible
+    ? "still"
+    : runtimeState === "crying"
+      ? "crying-tremble"
+      : runtimeState === "celebrating"
+        ? "playful-double-hop"
+        : (resolvedAction?.template ?? (runtimeActive ? "gentle-breathe" : "still"));
+  const resolvedMotion = resolveMotion(requestedTemplate, reducedMotion);
+  const template = resolvedMotion.template;
+  const motionDirection = actionState?.direction ?? 0;
+  const targetHeight = activePet?.targetHeight ?? 180;
+  const motionX = motionDirection * scaleMotionDip(2, targetHeight);
+  const shakeX = scaleMotionDip(4, targetHeight);
+  const shiftAmplitude = getWeightShiftAmplitude(
+    template === "working-shift" ? "working-shift" : "weight-shift",
+    targetHeight
+  );
+  const shiftX = motionDirection * shiftAmplitude.horizontalDip;
+  const shiftRotate = motionDirection * shiftAmplitude.rotationDeg;
+  const actionStyle = {
+    "--motion-duration": `${resolvedMotion.durationMs}ms`,
+    "--motion-x": `${motionX}px`,
+    "--motion-x-neg": `${-motionX}px`,
+    "--motion-shift-x": `${shiftX}px`,
+    "--motion-shift-rotate": `${shiftRotate}deg`,
+    "--motion-rotate": `${motionDirection * 1.6}deg`,
+    "--motion-rotate-soft": `${motionDirection * 0.8}deg`,
+    "--motion-rotate-soft-neg": `${motionDirection * -0.8}deg`,
+    "--motion-hop": `${scaleMotionDip(6, targetHeight)}px`,
+    "--motion-hop-neg": `${-scaleMotionDip(6, targetHeight)}px`,
+    "--motion-hop-small": `${scaleMotionDip(4, targetHeight)}px`,
+    "--motion-hop-small-neg": `${-scaleMotionDip(4, targetHeight)}px`,
+    "--motion-rise": `${scaleMotionDip(2, targetHeight)}px`,
+    "--motion-rise-neg": `${-scaleMotionDip(2, targetHeight)}px`,
+    "--motion-down": `${scaleMotionDip(3, targetHeight)}px`,
+    "--motion-down-neg": `${-scaleMotionDip(3, targetHeight)}px`,
+    "--motion-shake-x": `${shakeX}px`,
+    "--motion-shake-x-neg": `${-shakeX}px`,
+    "--motion-origin": motionOrigin,
+  } as CSSProperties;
+  const attentionStyle = {
+    "--attention-x": `${attention.translateX}px`,
+    "--attention-y": `${attention.translateY}px`,
+    "--attention-rotate": `${attention.rotate}deg`,
+    "--attention-duration": `${attention.transitionMs}ms`,
+    "--motion-origin": motionOrigin,
+  } as CSSProperties;
+  const overlayX = displayedHeadHotspot
+    ? displayedHeadHotspot.centerX + displayedHeadHotspot.radiusX * 0.45
+    : displayedPersonRect
+      ? displayedPersonRect.x + displayedPersonRect.width * 0.58
+      : 0;
+  const overlayY = displayedHeadHotspot
+    ? displayedHeadHotspot.centerY - displayedHeadHotspot.radiusY * 0.2
+    : displayedPersonRect
+      ? displayedPersonRect.y + displayedPersonRect.height * 0.18
+      : 0;
+  const overlayStyle = {
+    "--overlay-x": `${overlayX}px`,
+    "--overlay-y": `${overlayY}px`,
+    "--motion-origin": motionOrigin,
+  } as CSSProperties;
+  const handlePhotoTransitionComplete = (completedAssetId?: string): void => {
+    if (pendingWakeDip.current) {
+      pendingWakeDip.current = false;
+      if (completedAssetId && completedAssetId === wakePhotoOverride) {
+        performCurrentPhotoAction("drowsy-dip", resolveDirection("drowsy-dip"));
+        return;
+      }
+    }
+    if (!actionState || actionState.action.template !== "asset-swap") return;
+    if (completedAssetId && completedAssetId !== actionState.action.assetIds[0] && actionState.phase === "active") {
+      finishAction();
+      return;
+    }
+    const needsReturn = actionState.action.assetIds[0] !== baseAsset?.id;
+    const step = determineAssetSwapStep(actionState.phase, reducedMotion, needsReturn);
+    if (step.action === "finish") {
+      finishAction();
+      return;
+    }
+    if (step.action === "return-immediately") {
+      setActionState((current) =>
+        current && current.petId === activePet?.id && current.phase === "active"
+          ? { ...current, phase: "returning" }
+          : current
+      );
+      return;
+    }
+    if (step.action === "hold-then-return") {
+      actionTimers.current.push(
+        setTimeout(() => {
+          setActionState((current) =>
+            current && current.petId === activePet?.id && current.phase === "active"
+              ? { ...current, phase: "returning" }
+              : current
+          );
+        }, step.holdMs)
+      );
+      return;
+    }
+  };
+
+  useLayoutEffect(() => {
+    const node = actionLayerRef.current;
+    if (!node || template === "still" || template === "asset-swap" || !pageVisible) return;
+    for (const animation of node.getAnimations()) {
+      animation.cancel();
+      animation.play();
+    }
+  }, [motionRunId, pageVisible, template]);
+
   if (error) {
     return (
       <main className={clsx(styles.shell, styles.emptyRuntime)}>
@@ -605,30 +938,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       </main>
     );
   }
-
-  const runtimeSlot: ActionSlot | null =
-    runtimeState === "resting" || runtimeState === "celebrating" || runtimeState === "crying" ? "resting" : null;
-  const resolvedAction =
-    activePet && baseAsset
-      ? runtimeActive
-        ? runtimeSlot
-          ? resolveAction(activePet, runtimeSlot, 0, baseAsset.id)
-          : null
-        : actionState?.petId === activePet.id
-          ? actionState.action
-          : null
-      : null;
-  const returningToBase = actionState?.petId === activePet?.id && actionState?.phase === "returning";
-  const desiredAssetId = returningToBase
-    ? baseAsset?.id
-    : (resolvedAction?.assetIds[frameIndex] ?? resolvedAction?.assetIds[0] ?? baseAsset?.id);
-  const desiredAsset = activePet?.assets.find((candidate) => candidate.id === desiredAssetId) ?? baseAsset;
-  const template = resolvedAction?.template ?? (runtimeActive ? "gentle-breathe" : "still");
-  const actorStyle = { "--pet-tilt-x": `${tilt.x}deg`, "--pet-tilt-y": `${tilt.y}deg` } as CSSProperties;
-  const handlePhotoTransitionComplete = (): void => {
-    if (!returningToBase) return;
-    finishAction();
-  };
 
   return (
     <main
@@ -646,42 +955,47 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
           )}
           onAnimationEnd={presence.handleAnimationEnd}
         >
-          <div className={clsx(styles.actor, "pet-actor")} style={actorStyle} aria-label={activePet.name}>
-            <PhotoTransition
-              key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}:${runtimeActive}`}
-              petId={activePet.id}
-              asset={desiredAsset}
-              fallbackAsset={dailyFallbackAsset}
-              targetHeight={activePet.targetHeight}
-              onTransitionComplete={handlePhotoTransitionComplete}
-            />
-            {resolvedAction?.overlays.includes("tears") && (
-              <span className={styles.tearsWrap} aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
-                  <path
-                    d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z"
-                    fill="#60A5FA"
+          <div className={clsx(styles.actor, "pet-actor")} aria-label={activePet.name}>
+            <div className={styles.attentionLayer} style={attentionStyle}>
+              <div ref={actionLayerRef} className={styles.actionLayer} data-motion={template} style={actionStyle}>
+                <PhotoTransition
+                  key={activePet.id}
+                  petId={activePet.id}
+                  asset={desiredAsset}
+                  fallbackAsset={dailyFallbackAsset}
+                  targetHeight={activePet.targetHeight}
+                  onTransitionComplete={handlePhotoTransitionComplete}
+                  onDisplayedAssetChange={handleDisplayedAssetChange}
+                />
+                {displayedPersonRect && (
+                  <div
+                    className={styles.interactionHitbox}
+                    data-pet-interactive="true"
+                    data-pet-drag="true"
+                    style={{
+                      left: displayedPersonRect.x,
+                      top: displayedPersonRect.y,
+                      width: displayedPersonRect.width,
+                      height: displayedPersonRect.height,
+                    }}
                   />
-                  <path
-                    d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5"
-                    stroke="white"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    opacity="0.65"
-                  />
-                </svg>
-              </span>
-            )}
-            {heartVisible && (
-              <span className={styles.heartWrap} aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="30" height="30">
-                  <path
-                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                    fill="#F43F5E"
-                  />
-                </svg>
-              </span>
-            )}
+                )}
+              </div>
+              <div className={styles.overlayLayer} style={overlayStyle} aria-hidden="true">
+                {pageVisible && runtimeState === "crying" && (
+                  <span className={styles.tearsWrap}>
+                    <Tear className={styles.tearPrimary} />
+                    <Tear className={styles.tearSecondary} />
+                  </span>
+                )}
+                {pageVisible && heartVisible && (
+                  <span key={heartRunId} className={styles.heartWrap}>
+                    <Heart className={styles.heartPrimary} />
+                    {doubleHeart && <Heart className={styles.heartSecondary} />}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -742,4 +1056,33 @@ function resolveLifeAsset(pet: PetConfig, state: CompanionLifeState, dailyIndex:
   const index = ids === dailyIds && ids.length > 0 ? dailyIndex % ids.length : 0;
   const id = ids[index] ?? dailyIds[0];
   return pet.assets.find((asset) => asset.id === id) ?? pet.assets.find((asset) => asset.id === dailyIds[0]) ?? null;
+}
+
+function Heart({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="30" height="30">
+      <path
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+        fill="#F43F5E"
+      />
+    </svg>
+  );
+}
+
+function Tear({ className }: { className?: string }): React.JSX.Element {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="24" height="24" fill="none">
+      <path
+        d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z"
+        fill="#60A5FA"
+      />
+      <path
+        d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5"
+        stroke="white"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.65"
+      />
+    </svg>
+  );
 }

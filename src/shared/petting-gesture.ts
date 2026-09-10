@@ -1,4 +1,4 @@
-import type { ScreenEllipse } from "./contracts";
+import type { PettingGestureResult, ScreenEllipse } from "./contracts";
 
 export interface CursorSample {
   x: number;
@@ -29,30 +29,30 @@ export class PettingGestureDetector {
 
   constructor(private readonly ellipse: ScreenEllipse) {}
 
-  addSample(sample: CursorSample): boolean {
+  addSample(sample: CursorSample): PettingGestureResult | null {
     if (this.ended || !isValidSample(sample) || !isValidEllipse(this.ellipse)) {
       this.ended = true;
-      return false;
+      return null;
     }
     if (!this.first) {
       if (outsideDistance(sample, this.ellipse) > PETTING_MAX_OUTSIDE_DISTANCE) {
         this.ended = true;
-        return false;
+        return null;
       }
       this.first = { ...sample };
       this.previous = { ...sample };
       this.outsideSince = outsideDistance(sample, this.ellipse) > 0 ? sample.at : null;
-      return false;
+      return null;
     }
     if (sample.at < this.first.at || sample.at - this.first.at > PETTING_CANDIDATE_MS) {
       this.ended = true;
-      return false;
+      return null;
     }
     const previous = this.previous!;
     const elapsed = sample.at - previous.at;
     if (elapsed <= 0) {
       this.ended = true;
-      return false;
+      return null;
     }
     const dx = sample.x - previous.x;
     const dy = sample.y - previous.y;
@@ -61,7 +61,7 @@ export class PettingGestureDetector {
     if (distance >= PETTING_SAMPLE_MIN_DISTANCE) {
       if (speed < PETTING_MIN_SPEED || speed > PETTING_MAX_SPEED) {
         this.ended = true;
-        return false;
+        return null;
       }
       this.path += distance;
       this.totalX += Math.abs(dx);
@@ -81,13 +81,13 @@ export class PettingGestureDetector {
     const outside = outsideDistance(sample, this.ellipse);
     if (outside > PETTING_MAX_OUTSIDE_DISTANCE) {
       this.ended = true;
-      return false;
+      return null;
     }
     if (outside > 0) {
       this.outsideSince ??= sample.at;
       if (sample.at - this.outsideSince > PETTING_MAX_OUTSIDE_MS) {
         this.ended = true;
-        return false;
+        return null;
       }
     } else {
       this.outsideSince = null;
@@ -95,14 +95,20 @@ export class PettingGestureDetector {
     this.previous = { ...sample };
     if (this.path >= PETTING_REQUIRED_PATH && this.reversals >= PETTING_REQUIRED_REVERSALS) {
       this.ended = true;
-      return true;
+      return { leanDirection: completionDirection(sample.x, this.ellipse) };
     }
-    return false;
+    return null;
   }
 
   get isEnded(): boolean {
     return this.ended;
   }
+}
+
+function completionDirection(x: number, ellipse: ScreenEllipse): -1 | 0 | 1 {
+  const offset = x - ellipse.centerX;
+  const deadZone = ellipse.radiusX * 0.1;
+  return Math.abs(offset) <= deadZone ? 0 : offset < 0 ? -1 : 1;
 }
 
 function outsideDistance(point: CursorSample, ellipse: ScreenEllipse): number {

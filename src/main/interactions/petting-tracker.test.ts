@@ -3,10 +3,10 @@ import { PettingTracker } from "./petting-tracker";
 
 function harness() {
   const points = [
-    { x: 80, y: 100 },
-    { x: 105, y: 100 },
-    { x: 80, y: 100 },
-    { x: 105, y: 100 },
+    { x: 70, y: 100 },
+    { x: 130, y: 100 },
+    { x: 70, y: 100 },
+    { x: 130, y: 100 },
   ];
   let pointIndex = 0;
   let now = 0;
@@ -55,6 +55,7 @@ describe("PettingTracker", () => {
       timer.callback();
     }
     expect(h.detected).toHaveBeenCalledTimes(1);
+    expect(h.detected).toHaveBeenCalledWith({ leanDirection: 1 });
     expect(timer.cleared).toBe(true);
     timer.callback();
     expect(h.detected).toHaveBeenCalledTimes(1);

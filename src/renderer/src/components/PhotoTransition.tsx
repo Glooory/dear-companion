@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clsx } from "clsx";
+import { PHOTO_TRANSITION_MS, REDUCED_PHOTO_TRANSITION_MS } from "@shared/companion-motion";
 import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type PetAsset } from "@shared/contracts";
 import { computeAssetGeometry } from "@shared/image-normalization";
 import styles from "./PhotoTransition.module.css";
@@ -10,19 +11,25 @@ export function PhotoTransition({
   fallbackAsset,
   targetHeight,
   onTransitionComplete,
+  onDisplayedAssetChange,
 }: {
   petId: string;
   asset: PetAsset;
   fallbackAsset: PetAsset;
   targetHeight: number;
   onTransitionComplete?: (assetId: string) => void;
+  onDisplayedAssetChange?: (current: PetAsset, outgoing: PetAsset | null) => void;
 }): React.JSX.Element {
   const [current, setCurrent] = useState(asset);
   const currentRef = useRef(asset);
   const [outgoing, setOutgoing] = useState<PetAsset | null>(null);
   const timers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const completionRef = useRef(onTransitionComplete);
+  const displayedAssetCallbackRef = useRef(onDisplayedAssetChange);
   const desiredUrl = useMemo(() => petAssetUrl(petId, asset.id), [asset.id, petId]);
+  const transitionDurationMs = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? REDUCED_PHOTO_TRANSITION_MS
+    : PHOTO_TRANSITION_MS;
 
   const clearTimers = useCallback((): void => {
     timers.current.forEach(clearTimeout);
@@ -30,12 +37,17 @@ export function PhotoTransition({
   }, []);
 
   useEffect(() => {
-    currentRef.current = current;
-  }, [current]);
-
-  useEffect(() => {
     completionRef.current = onTransitionComplete;
   }, [onTransitionComplete]);
+
+  useEffect(() => {
+    displayedAssetCallbackRef.current = onDisplayedAssetChange;
+  }, [onDisplayedAssetChange]);
+
+  useEffect(() => {
+    currentRef.current = current;
+    displayedAssetCallbackRef.current?.(current, outgoing);
+  }, [current, outgoing]);
 
   useEffect(() => {
     clearTimers();
@@ -60,11 +72,13 @@ export function PhotoTransition({
           if (cancelled) return;
           setOutgoing(null);
           completionRef.current?.(asset.id);
-        }, 400)
+        }, transitionDurationMs)
       );
     };
     image.onerror = () => {
-      if (!cancelled) completionRef.current?.(currentRef.current.id);
+      if (cancelled) return;
+      setOutgoing(null);
+      completionRef.current?.(currentRef.current.id);
     };
     image.src = desiredUrl;
     return () => {
@@ -73,7 +87,7 @@ export function PhotoTransition({
       image.onload = null;
       image.onerror = null;
     };
-  }, [asset, clearTimers, desiredUrl]);
+  }, [asset, clearTimers, desiredUrl, transitionDurationMs]);
 
   useEffect(() => () => clearTimers(), [clearTimers]);
 
@@ -83,6 +97,7 @@ export function PhotoTransition({
     currentRef.current = fallbackAsset;
     setCurrent(fallbackAsset);
     setOutgoing(null);
+    completionRef.current?.(fallbackAsset.id);
   };
 
   const viewport = {
@@ -97,14 +112,15 @@ export function PhotoTransition({
       {outgoing && outgoingGeometry && (
         <span
           className={clsx(styles.frame, styles.crossOutgoing, "pet-image-frame")}
-          data-pet-interactive="true"
-          data-pet-drag="true"
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
           style={{
             left: outgoingGeometry.left,
             top: outgoingGeometry.top,
             width: outgoingGeometry.renderedWidth,
             height: outgoingGeometry.renderedHeight,
             zIndex: 1,
+            animationDuration: `${transitionDurationMs}ms`,
           }}
           aria-hidden="true"
         >
@@ -113,14 +129,15 @@ export function PhotoTransition({
       )}
       <span
         className={clsx(styles.frame, outgoing ? styles.crossIncoming : "photo-idle", "pet-image-frame")}
-        data-pet-interactive="true"
-        data-pet-drag="true"
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
         style={{
           left: currentGeometry.left,
           top: currentGeometry.top,
           width: currentGeometry.renderedWidth,
           height: currentGeometry.renderedHeight,
           zIndex: 2,
+          animationDuration: outgoing ? `${transitionDurationMs}ms` : undefined,
         }}
       >
         <img

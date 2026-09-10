@@ -279,9 +279,9 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  html:not([data-window="pet"]) *,
+  html:not([data-window="pet"]) *::before,
+  html:not([data-window="pet"]) *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;

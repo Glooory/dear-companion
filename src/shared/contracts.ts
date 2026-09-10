@@ -136,6 +136,10 @@ export interface HeadHotspot {
 
 export type ScreenEllipse = HeadHotspot;
 
+export interface PettingGestureResult {
+  leanDirection: -1 | 0 | 1;
+}
+
 export interface AssetNormalization {
   scale: number;
   offsetX: number;
@@ -489,7 +493,7 @@ export interface CompanionSystemApi extends PetSystemApi {
   beginPettingGesture(region: ScreenEllipse): void;
   cancelPettingGesture(): void;
   onCompanionSystemChanged(listener: (snapshot: CompanionSystemSnapshot) => void): () => void;
-  onPettingGestureDetected(listener: () => void): () => void;
+  onPettingGestureDetected(listener: (result: PettingGestureResult) => void): () => void;
 }
 
 export interface RestSystemApi extends CompanionSystemApi {

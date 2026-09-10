@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, type PointerEvent } from "react";
-import { PET_WINDOW_HEIGHT, PET_WINDOW_WIDTH, type CompanionSystemApi, type PetAsset } from "@shared/contracts";
+import {
+  PET_WINDOW_HEIGHT,
+  PET_WINDOW_WIDTH,
+  type CompanionSystemApi,
+  type PetAsset,
+  type PettingGestureResult,
+} from "@shared/contracts";
 import { computeHeadHotspotGeometry } from "@shared/head-hotspot";
 
 export function usePettingGesture({
@@ -17,7 +23,7 @@ export function usePettingGesture({
   targetHeight: number;
   active: boolean;
   dependencyKey: string;
-  onDetected(): void;
+  onDetected(result: PettingGestureResult): void;
 }): (event: PointerEvent<HTMLElement>) => boolean {
   const armed = useRef(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,12 +37,12 @@ export function usePettingGesture({
   useEffect(() => {
     cancel();
     if (!active) return;
-    return api.onPettingGestureDetected(() => {
+    return api.onPettingGestureDetected((result) => {
       if (!armed.current) return;
       armed.current = false;
       if (resetTimer.current) clearTimeout(resetTimer.current);
       resetTimer.current = null;
-      onDetected();
+      onDetected(result);
     });
   }, [active, api, cancel, dependencyKey, onDetected, petId]);
 

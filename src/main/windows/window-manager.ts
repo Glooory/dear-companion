@@ -8,6 +8,7 @@ import {
   type BubbleSystemSnapshot,
   type CompanionSystemSnapshot,
   type PetInteractionRequest,
+  type PettingGestureResult,
   type PetRendererStatus,
   type PetSystemSnapshot,
   type RestSystemSnapshot,
@@ -642,10 +643,11 @@ export class WindowManager {
     this.broadcast(IPC_CHANNELS.companionSystemChanged, snapshot);
   }
 
-  broadcastPettingGestureDetected(): void {
+  broadcastPettingGestureDetected(result: PettingGestureResult): void {
     const window = this.petWindow;
     if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
-    window.webContents.send(IPC_CHANNELS.pettingGestureDetected);
+    const leanDirection = result.leanDirection === -1 || result.leanDirection === 1 ? result.leanDirection : 0;
+    window.webContents.send(IPC_CHANNELS.pettingGestureDetected, { leanDirection } satisfies PettingGestureResult);
   }
 
   requestPetInteraction(request: PetInteractionRequest): void {

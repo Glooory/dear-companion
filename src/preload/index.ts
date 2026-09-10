@@ -4,6 +4,7 @@ import type {
   BubbleSystemSnapshot,
   CompanionSystemSnapshot,
   PetInteractionRequest,
+  PettingGestureResult,
   PetPresenceTransitionRequest,
   PetRendererStatus,
   PetSystemSnapshot,
@@ -95,7 +96,7 @@ const api: ReleaseHardeningApi = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.companionSystemChanged, wrapped);
   },
   onPettingGestureDetected: (listener) => {
-    const wrapped = (): void => listener();
+    const wrapped = (_event: Electron.IpcRendererEvent, result: PettingGestureResult): void => listener(result);
     ipcRenderer.on(IPC_CHANNELS.pettingGestureDetected, wrapped);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.pettingGestureDetected, wrapped);
   },

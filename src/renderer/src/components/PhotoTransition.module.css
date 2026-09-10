@@ -3,12 +3,9 @@
   display: block;
   user-select: none;
   -webkit-user-drag: none;
+  touch-action: none;
   transform-origin: center bottom;
-  cursor: grab;
-}
-
-.frame:active {
-  cursor: grabbing;
+  pointer-events: none;
 }
 
 .image {

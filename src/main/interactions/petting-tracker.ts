@@ -1,4 +1,4 @@
-import type { ScreenEllipse } from "../../shared/contracts";
+import type { PettingGestureResult, ScreenEllipse } from "../../shared/contracts";
 import { PETTING_CANDIDATE_MS, PettingGestureDetector } from "../../shared/petting-gesture";
 
 interface Point {
@@ -7,7 +7,7 @@ interface Point {
 }
 interface Dependencies {
   getCursorScreenPoint(): Point;
-  onDetected(): void;
+  onDetected(result: PettingGestureResult): void;
   now?: () => number;
   setInterval?: (callback: () => void, delay: number) => ReturnType<typeof setInterval>;
   clearInterval?: (timer: ReturnType<typeof setInterval>) => void;
@@ -68,9 +68,10 @@ export class PettingTracker {
     const detector = this.detector;
     if (!detector || this.disposed) return;
     const point = this.dependencies.getCursorScreenPoint();
-    if (detector.addSample({ x: point.x, y: point.y, at: this.now() })) {
+    const result = detector.addSample({ x: point.x, y: point.y, at: this.now() });
+    if (result) {
       this.cancel();
-      this.dependencies.onDetected();
+      this.dependencies.onDetected(result);
     } else if (detector.isEnded) {
       this.cancel();
     }

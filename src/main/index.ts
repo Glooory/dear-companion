@@ -388,7 +388,7 @@ if (!hasSingleInstanceLock) {
     });
     const tracker = new PettingTracker({
       getCursorScreenPoint: () => screen.getCursorScreenPoint(),
-      onDetected: () => manager.broadcastPettingGestureDetected(),
+      onDetected: (result) => manager.broadcastPettingGestureDetected(result),
     });
     runtimeCompanionController = companionController;
     runtimePettingTracker = tracker;
