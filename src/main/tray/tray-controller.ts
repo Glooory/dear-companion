@@ -146,7 +146,7 @@ export class TrayController {
 
     this.onSettingsChanged(settings);
     if (visible) await this.windowManager.showPet();
-    else this.windowManager.hidePet();
+    else await this.windowManager.hidePet();
   }
 }
 

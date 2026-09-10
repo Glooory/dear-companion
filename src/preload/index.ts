@@ -4,6 +4,7 @@ import type {
   BubbleSystemSnapshot,
   CompanionSystemSnapshot,
   PetInteractionRequest,
+  PetPresenceTransitionRequest,
   PetRendererStatus,
   PetSystemSnapshot,
   ReleaseHardeningApi,
@@ -11,6 +12,17 @@ import type {
   SettingsNavigationTarget,
 } from "@shared/contracts";
 import { IPC_CHANNELS } from "@shared/ipc-channels";
+
+const presenceTransitionListeners = new Set<(request: PetPresenceTransitionRequest) => void>();
+let pendingPresenceTransition: PetPresenceTransitionRequest | null = null;
+
+ipcRenderer.on(
+  IPC_CHANNELS.petPresenceTransitionRequested,
+  (_event: Electron.IpcRendererEvent, request: PetPresenceTransitionRequest) => {
+    pendingPresenceTransition = request;
+    presenceTransitionListeners.forEach((listener) => listener(request));
+  }
+);
 
 const api: ReleaseHardeningApi = {
   getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.getSettings),
@@ -50,6 +62,19 @@ const api: ReleaseHardeningApi = {
     const wrapped = (_event: Electron.IpcRendererEvent, request: PetInteractionRequest): void => listener(request);
     ipcRenderer.on(IPC_CHANNELS.petInteractionRequested, wrapped);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.petInteractionRequested, wrapped);
+  },
+  reportPetPresenceTransitionReady: (id) => {
+    ipcRenderer.send(IPC_CHANNELS.petPresenceTransitionReady, id);
+  },
+  reportPetPresenceTransitionComplete: (id) => {
+    if (pendingPresenceTransition?.id === id) pendingPresenceTransition = null;
+    ipcRenderer.send(IPC_CHANNELS.petPresenceTransitionCompleted, id);
+  },
+  onPetPresenceTransitionRequested: (listener) => {
+    presenceTransitionListeners.add(listener);
+    const pending = pendingPresenceTransition;
+    if (pending) queueMicrotask(() => presenceTransitionListeners.has(listener) && listener(pending));
+    return () => presenceTransitionListeners.delete(listener);
   },
   onBubbleSystemChanged: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, snapshot: BubbleSystemSnapshot): void => listener(snapshot);

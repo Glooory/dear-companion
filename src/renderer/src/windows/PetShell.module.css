@@ -20,6 +20,26 @@
   transition: transform 140ms ease-out;
 }
 
+.presenceStage {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 88%;
+}
+
+.presenceEnter,
+.presenceExit {
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.presenceEnter {
+  animation: presenceFadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.presenceExit {
+  animation: presenceFadeOut 170ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
 .emptyRuntime {
   position: absolute;
   inset: 0;
@@ -209,9 +229,45 @@
   animation: petNod 720ms ease-in-out both;
 }
 
-.shell[data-state="hidden"] *,
+.shell[data-presence="hidden"] *,
 .shell:not([data-state]) * {
   animation-play-state: paused !important;
+}
+
+.shell[data-presence="entering"] .actor,
+.shell[data-presence="entering"] .actor *,
+.shell[data-presence="exiting"] .actor,
+.shell[data-presence="exiting"] .actor * {
+  animation-play-state: paused !important;
+}
+
+@keyframes presenceFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes presenceFadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presenceEnter,
+  .presenceExit {
+    animation-duration: 0.01ms !important;
+  }
 }
 
 @keyframes petBounce {

@@ -19,6 +19,7 @@ import { useDialogue } from "../dialogues/use-dialogue";
 import { useBodyWaddleGesture } from "../interactions/use-body-waddle-gesture";
 import { useCompanionPresence } from "../interactions/use-companion-presence";
 import { usePetInteractions } from "../interactions/use-pet-interactions";
+import { usePetPresenceTransition } from "../interactions/use-pet-presence-transition";
 import { usePettingGesture } from "../interactions/use-petting-gesture";
 import styles from "./PetShell.module.css";
 
@@ -81,8 +82,6 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     },
     [hasVoiceForCategory]
   );
-  useAudioPlayback(api, pageVisible, shouldPlayAudioCue);
-
   const clearActionTimers = useCallback((): void => {
     actionTimers.current.forEach(clearTimeout);
     actionTimers.current = [];
@@ -236,12 +235,39 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     }
   }, [activePet, baseAsset, lifeState, performCurrentPhotoAction, runtimeActive, showDialogue]);
 
+  const cancelForPresenceTransition = useCallback((): void => {
+    wakeSequence.current.reset();
+    api.cancelPettingGesture();
+    clearActionTimers();
+    actionCompletion.current = null;
+    setActionState(null);
+    setFrameIndex(0);
+    setHeartVisible(false);
+    clearDialogue();
+  }, [api, clearActionTimers, clearDialogue]);
+
+  const presence = usePetPresenceTransition({
+    api,
+    actorAvailable: snapshot === null ? null : Boolean(activePet && baseAsset && dailyFallbackAsset),
+    requestedVisible: Boolean(snapshot?.petWindow.visible || runtimeActive),
+    onTransitionRequested: cancelForPresenceTransition,
+  });
+  const presenceTransitionActive = presence.phase === "entering" || presence.phase === "exiting";
+  useAudioPlayback(api, pageVisible && !presenceTransitionActive, shouldPlayAudioCue);
+
   const pettingPointerMove = usePettingGesture({
     api,
     petId: activePet?.id ?? null,
     asset: baseAsset,
     targetHeight: activePet?.targetHeight ?? 180,
-    active: Boolean(activePet && baseAsset && pageVisible && snapshot?.petWindow.visible && !runtimeActive),
+    active: Boolean(
+      activePet &&
+      baseAsset &&
+      pageVisible &&
+      snapshot?.petWindow.visible &&
+      !runtimeActive &&
+      !presenceTransitionActive
+    ),
     dependencyKey: `${lifeState}:${baseAsset?.id ?? ""}`,
     onDetected: handlePettingDetected,
   });
@@ -254,6 +280,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       pageVisible &&
       snapshot?.petWindow.visible &&
       !runtimeActive &&
+      !presenceTransitionActive &&
       !actionState &&
       (lifeState === "daily-calm" || lifeState === "daily-playful") &&
       !window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -284,7 +311,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     handlers: interactionHandlers,
   } = usePetInteractions({
     api,
-    visible: Boolean((snapshot?.petWindow.visible || runtimeActive) && pageVisible),
+    visible: Boolean((snapshot?.petWindow.visible || runtimeActive) && pageVisible && !presenceTransitionActive),
     angryVelocity: activePet?.actionTemplates.dragAngryVelocity ?? 1_200,
     onAngry: (finish) => {
       showDialogue("angry");
@@ -309,7 +336,10 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   });
 
   useEffect(() => {
-    if (!pageVisible || !snapshot?.petWindow.visible) return;
+    if (!pageVisible || !snapshot?.petWindow.visible || presenceTransitionActive) {
+      if (presenceTransitionActive) api.setIgnoreMouseEvents(true);
+      return;
+    }
 
     let ignoring = false;
     const applyIgnore = (nextIgnore: boolean): void => {
@@ -347,7 +377,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
       applyIgnoreRef.current = () => undefined;
       applyIgnore(false);
     };
-  }, [api, pageVisible, snapshot?.petWindow.visible]);
+  }, [api, pageVisible, presenceTransitionActive, snapshot?.petWindow.visible]);
 
   const performAmbient = useCallback((): void => {
     if (!activePet || !baseAsset) return;
@@ -387,7 +417,14 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, [activePet, dailyIndex, performCurrentPhotoAction, performResolvedAction, showDialogue]);
 
   useCompanionPresence({
-    enabled: Boolean(activePet && baseAsset && pageVisible && snapshot?.petWindow.visible && !runtimeActive),
+    enabled: Boolean(
+      activePet &&
+      baseAsset &&
+      pageVisible &&
+      snapshot?.petWindow.visible &&
+      !runtimeActive &&
+      !presenceTransitionActive
+    ),
     busy: interactionState !== "idle" || Boolean(actionState),
     pace: activePet?.companionPace ?? "natural",
     lifeState,
@@ -401,7 +438,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   useEffect(
     () =>
       api.onPetInteractionRequested((request) => {
-        if (!activePet || !baseAsset || runtimeActive) return;
+        if (!activePet || !baseAsset || runtimeActive || presenceTransitionActive) return;
         if (request.type === "play-now") {
           if (lifeState !== "daily-calm" && lifeState !== "daily-playful") return;
           showDialogue("daily:click");
@@ -435,7 +472,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
         else if (request.pace === "natural") performCurrentPhotoAction("sway", 900);
         else performCurrentPhotoAction("bounce", 900);
       }),
-    [activePet, api, baseAsset, lifeState, performCurrentPhotoAction, previewDialogue, runtimeActive, showDialogue]
+    [
+      activePet,
+      api,
+      baseAsset,
+      lifeState,
+      performCurrentPhotoAction,
+      presenceTransitionActive,
+      previewDialogue,
+      runtimeActive,
+      showDialogue,
+    ]
   );
 
   useEffect(() => {
@@ -498,15 +545,17 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    if (presenceTransitionActive) return;
     if (previousLifeState.current === lifeState) return;
     previousLifeState.current = lifeState;
     if (lifeState === "drowsy") showDialogue("state:drowsy");
     else if (lifeState === "sleeping") showDialogue("state:sleeping");
     else if (lifeState === "working") showDialogue("state:working");
     else if (lifeState === "daily-calm") showDialogue("state:daily");
-  }, [lifeState, showDialogue]);
+  }, [lifeState, presenceTransitionActive, showDialogue]);
 
   useEffect(() => {
+    if (presenceTransitionActive) return;
     const prev = previousRuntimeState.current;
     previousRuntimeState.current = runtimeState;
     if (runtimeState === "crying") {
@@ -516,7 +565,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     } else if (prev === "crying" || prev === "celebrating" || (prev !== null && runtimeState === null)) {
       clearDialogue();
     }
-  }, [clearDialogue, runtimeState, showDialogue]);
+  }, [clearDialogue, presenceTransitionActive, runtimeState, showDialogue]);
 
   useEffect(() => {
     wakeSequence.current.reset();
@@ -585,45 +634,55 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     <main
       className={clsx(styles.shell, "pet-shell", `action-${template}`)}
       data-state={interactionState}
+      data-presence={presence.phase}
       {...interactionHandlers}
     >
       {activePet && desiredAsset && dailyFallbackAsset ? (
-        <div className={clsx(styles.actor, "pet-actor")} style={actorStyle} aria-label={activePet.name}>
-          <PhotoTransition
-            key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}:${runtimeActive}`}
-            petId={activePet.id}
-            asset={desiredAsset}
-            fallbackAsset={dailyFallbackAsset}
-            targetHeight={activePet.targetHeight}
-            onTransitionComplete={handlePhotoTransitionComplete}
-          />
-          {resolvedAction?.overlays.includes("tears") && (
-            <span className={styles.tearsWrap} aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
-                <path
-                  d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z"
-                  fill="#60A5FA"
-                />
-                <path
-                  d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5"
-                  stroke="white"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  opacity="0.65"
-                />
-              </svg>
-            </span>
+        <div
+          className={clsx(
+            styles.presenceStage,
+            presence.request?.kind === "enter" && styles.presenceEnter,
+            presence.request?.kind === "exit" && styles.presenceExit
           )}
-          {heartVisible && (
-            <span className={styles.heartWrap} aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="30" height="30">
-                <path
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                  fill="#F43F5E"
-                />
-              </svg>
-            </span>
-          )}
+          onAnimationEnd={presence.handleAnimationEnd}
+        >
+          <div className={clsx(styles.actor, "pet-actor")} style={actorStyle} aria-label={activePet.name}>
+            <PhotoTransition
+              key={`${activePet.id}:${pageVisible}:${snapshot?.petWindow.visible}:${runtimeActive}`}
+              petId={activePet.id}
+              asset={desiredAsset}
+              fallbackAsset={dailyFallbackAsset}
+              targetHeight={activePet.targetHeight}
+              onTransitionComplete={handlePhotoTransitionComplete}
+            />
+            {resolvedAction?.overlays.includes("tears") && (
+              <span className={styles.tearsWrap} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+                  <path
+                    d="M12 2.5C12 2.5 5 11.5 5 16C5 19.866 8.134 23 12 23C15.866 23 19 19.866 19 16C19 11.5 12 2.5 12 2.5Z"
+                    fill="#60A5FA"
+                  />
+                  <path
+                    d="M9.5 13.5C9 14.8 9.2 16.5 10.5 17.5"
+                    stroke="white"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    opacity="0.65"
+                  />
+                </svg>
+              </span>
+            )}
+            {heartVisible && (
+              <span className={styles.heartWrap} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="30" height="30">
+                  <path
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                    fill="#F43F5E"
+                  />
+                </svg>
+              </span>
+            )}
+          </div>
         </div>
       ) : (
         <div className={styles.emptyRuntime}>

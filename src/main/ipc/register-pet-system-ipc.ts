@@ -47,6 +47,8 @@ interface PetSystemIpcDependencies {
     | "hidePet"
     | "openSettings"
     | "requestPetInteraction"
+    | "readyPetPresenceTransition"
+    | "completePetPresenceTransition"
   >;
   onSettingsChanged?: (settings: AppSettings) => void;
   requestQuit: () => void;
@@ -139,6 +141,26 @@ export function registerPetSystemIpc({
       }
     } catch {
       // Unknown or stale renderer senders receive no privileged action.
+    }
+  };
+
+  const completePresenceTransitionListener = (event: IpcMainEvent, id: unknown): void => {
+    try {
+      if (windowManager.getWindowKind(event.sender.id) !== "pet") return;
+      if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) return;
+      windowManager.completePetPresenceTransition(id);
+    } catch {
+      // Unknown or stale renderer senders cannot complete window transitions.
+    }
+  };
+
+  const readyPresenceTransitionListener = (event: IpcMainEvent, id: unknown): void => {
+    try {
+      if (windowManager.getWindowKind(event.sender.id) !== "pet") return;
+      if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) return;
+      windowManager.readyPetPresenceTransition(id);
+    } catch {
+      // Unknown or stale renderer senders cannot reveal window transitions.
     }
   };
 
@@ -292,7 +314,7 @@ export function registerPetSystemIpc({
     if (!active) return;
     onSettingsChanged(settings);
     if (visible) await windowManager.showPet();
-    else windowManager.hidePet();
+    else await windowManager.hidePet();
   };
 
   const handle = (channel: string, listener: Parameters<typeof ipcMain.handle>[1]): void => {
@@ -447,6 +469,8 @@ export function registerPetSystemIpc({
     ipcMain.on(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.on(IPC_CHANNELS.nudgePetBy, nudgePetListener);
     ipcMain.on(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
+    ipcMain.on(IPC_CHANNELS.petPresenceTransitionReady, readyPresenceTransitionListener);
+    ipcMain.on(IPC_CHANNELS.petPresenceTransitionCompleted, completePresenceTransitionListener);
     ipcMain.on(IPC_CHANNELS.setBubbleDialogue, setBubbleDialogueListener);
     ipcMain.on(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
   } catch (error) {
@@ -454,6 +478,8 @@ export function registerPetSystemIpc({
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener);
     ipcMain.removeListener(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
+    ipcMain.removeListener(IPC_CHANNELS.petPresenceTransitionReady, readyPresenceTransitionListener);
+    ipcMain.removeListener(IPC_CHANNELS.petPresenceTransitionCompleted, completePresenceTransitionListener);
     ipcMain.removeListener(IPC_CHANNELS.setBubbleDialogue, setBubbleDialogueListener);
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
     throw error;
@@ -466,6 +492,8 @@ export function registerPetSystemIpc({
     ipcMain.removeListener(IPC_CHANNELS.movePetBy, movePetListener);
     ipcMain.removeListener(IPC_CHANNELS.nudgePetBy, nudgePetListener);
     ipcMain.removeListener(IPC_CHANNELS.setPetIgnoreMouseEvents, setIgnoreMouseEventsListener);
+    ipcMain.removeListener(IPC_CHANNELS.petPresenceTransitionReady, readyPresenceTransitionListener);
+    ipcMain.removeListener(IPC_CHANNELS.petPresenceTransitionCompleted, completePresenceTransitionListener);
     ipcMain.removeListener(IPC_CHANNELS.setBubbleDialogue, setBubbleDialogueListener);
     ipcMain.removeListener(IPC_CHANNELS.showPetContextMenu, showContextMenuListener);
   };

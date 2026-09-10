@@ -391,6 +391,13 @@ export interface PetRendererStatus {
   errorCode?: "pet-renderer-failed";
 }
 
+export type PetPresenceTransitionKind = "enter" | "exit";
+
+export interface PetPresenceTransitionRequest {
+  id: number;
+  kind: PetPresenceTransitionKind;
+}
+
 export interface PetAssetAdjustment {
   id: string;
   normalization: AssetNormalization;
@@ -466,6 +473,9 @@ export interface PetSystemApi extends FoundationApi {
   setBubbleDialogue(dialogue: string | null): void;
   onPetSystemChanged(listener: (snapshot: PetSystemSnapshot) => void): () => void;
   onPetInteractionRequested(listener: (request: PetInteractionRequest) => void): () => void;
+  reportPetPresenceTransitionReady(id: number): void;
+  reportPetPresenceTransitionComplete(id: number): void;
+  onPetPresenceTransitionRequested(listener: (request: PetPresenceTransitionRequest) => void): () => void;
   onBubbleSystemChanged(listener: (snapshot: BubbleSystemSnapshot) => void): () => void;
 }
 

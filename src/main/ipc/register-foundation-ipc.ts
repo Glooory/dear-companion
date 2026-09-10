@@ -61,7 +61,7 @@ export function registerFoundationIpc({
 
       onSettingsChanged(settings);
       if (visible) await windowManager.showPet();
-      else windowManager.hidePet();
+      else await windowManager.hidePet();
 
       return settings;
     });

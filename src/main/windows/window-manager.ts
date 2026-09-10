@@ -28,6 +28,7 @@ import {
   type Rect,
   type SettingsWindowBounds,
 } from "./display-placement";
+import { PetPresenceTransitionController } from "./pet-presence-transition";
 import { loadSettingsWindowState, saveSettingsWindowState } from "./settings-window-state";
 import { createBubbleWindowOptions, createPetWindowOptions, createSettingsWindowOptions } from "./window-options";
 
@@ -66,6 +67,29 @@ export class WindowManager {
   private bubbleDialogue: string | null = null;
   private lastRestSnapshot: RestSystemSnapshot | null = null;
   private currentPetTargetHeight = 180;
+  private pendingPetShowAnimation = true;
+  private pendingPetShowCompletion: Promise<void> | null = null;
+  private readonly petPresenceTransition = new PetPresenceTransitionController({
+    send: (request) => {
+      const petWindow = this.petWindow;
+      if (!petWindow || petWindow.isDestroyed() || petWindow.webContents.isDestroyed()) return;
+      petWindow.webContents.send(IPC_CHANNELS.petPresenceTransitionRequested, request);
+    },
+    hide: () => {
+      const petWindow = this.petWindow;
+      if (!this.petVisibilityRequested && petWindow && !petWindow.isDestroyed()) petWindow.hide();
+    },
+    reveal: () => {
+      const petWindow = this.petWindow;
+      if (!petWindow || petWindow.isDestroyed()) return;
+      try {
+        petWindow.setOpacity(1);
+      } catch {
+        // The renderer may acknowledge while the native window is being destroyed.
+      }
+    },
+    settle: () => this.syncBubblePlacement(),
+  });
 
   constructor({ settingsStore, preloadPath, isPackaged, userDataPath }: WindowManagerOptions) {
     this.settingsStore = settingsStore;
@@ -80,12 +104,14 @@ export class WindowManager {
     return target;
   }
 
-  async showPet(): Promise<void> {
+  async showPet(animate = true): Promise<void> {
     if (this.disposed) return;
     if (this.crashRecoveryBudget.getState() === "safe-mode") return;
     this.petVisibilityRequested = true;
+    this.pendingPetShowAnimation = animate;
     if (this.petWindow && !this.petWindow.isDestroyed()) {
-      if (this.petWindowReady && this.petWindowPlaced) this.showPetWindow(this.petWindow);
+      if (this.petWindowReady && this.petWindowPlaced) await this.showPetWindow(this.petWindow, animate);
+      else if (this.pendingPetShowCompletion) await this.pendingPetShowCompletion;
       return;
     }
 
@@ -97,11 +123,29 @@ export class WindowManager {
     this.petWindowPlaced = false;
     this.secureWindow(petWindow);
 
+    let initialShowStarted = false;
+    let resolveInitialShow = (): void => undefined;
+    let rejectInitialShow: (error: unknown) => void = () => undefined;
+    const initialShowCompleted = new Promise<void>((resolve, reject) => {
+      resolveInitialShow = resolve;
+      rejectInitialShow = reject;
+    });
+    void initialShowCompleted.catch(() => undefined);
+    this.pendingPetShowCompletion = initialShowCompleted;
+    const startInitialShow = (): void => {
+      if (initialShowStarted || !this.petWindowReady || !this.petWindowPlaced) return;
+      initialShowStarted = true;
+      if (!this.petVisibilityRequested) {
+        resolveInitialShow();
+        return;
+      }
+      void this.showPetWindow(petWindow, this.pendingPetShowAnimation).then(resolveInitialShow, rejectInitialShow);
+    };
     const showWhenReady = (): void => {
       if (this.petWindow !== petWindow || petWindow.isDestroyed()) return;
       this.petWindowReady = true;
       this.markPetRendererReady();
-      if (this.petWindowPlaced && this.petVisibilityRequested) this.showPetWindow(petWindow);
+      startInitialShow();
     };
     petWindow.once("ready-to-show", showWhenReady);
     this.addListenerDisposer(petWindow, () => {
@@ -117,10 +161,13 @@ export class WindowManager {
     });
 
     const clearPetWindow = (): void => {
+      resolveInitialShow();
       if (this.petWindow === petWindow) {
+        this.petPresenceTransition.reset(false);
         this.petWindow = null;
         this.petWindowReady = false;
         this.petWindowPlaced = false;
+        this.pendingPetShowCompletion = null;
         this.petVisibilityRequested = false;
       }
       this.releaseWindowListeners(petWindow);
@@ -144,27 +191,52 @@ export class WindowManager {
       const placementCompleted = await this.initializePetPlacement(petWindow);
       if (!placementCompleted) return;
       this.petWindowPlaced = true;
-      if (this.petWindowReady && this.petVisibilityRequested) this.showPetWindow(petWindow);
+      startInitialShow();
 
       await petWindow.loadURL(this.rendererUrl("pet"));
       void this.ensureBubbleWindow().catch(() => undefined);
+      await initialShowCompleted;
+      if (this.pendingPetShowCompletion === initialShowCompleted) this.pendingPetShowCompletion = null;
     } catch (error) {
+      rejectInitialShow(error);
+      if (this.pendingPetShowCompletion === initialShowCompleted) this.pendingPetShowCompletion = null;
       this.discardFailedPetWindow(petWindow);
       throw error;
     }
   }
 
-  hidePet(): void {
+  async hidePet(animate = true): Promise<void> {
     if (this.disposed) return;
     this.petVisibilityRequested = false;
-    this.petWindow?.hide();
     this.bubbleWindow?.hide();
+    const petWindow = this.petWindow;
+    if (!petWindow || petWindow.isDestroyed() || petWindow.webContents.isDestroyed() || !petWindow.isVisible()) {
+      this.petPresenceTransition.reset(false);
+      if (petWindow && !petWindow.isDestroyed()) petWindow.hide();
+      return;
+    }
+    this.setPetIgnoreMouseEvents(true);
+    await this.petPresenceTransition.exit(animate);
   }
 
-  private showPetWindow(petWindow: BrowserWindow): void {
+  private async showPetWindow(petWindow: BrowserWindow, animate: boolean): Promise<void> {
     petWindow.setHasShadow(false);
+    const wasVisible = petWindow.isVisible();
+    if (!wasVisible) this.petPresenceTransition.reset(false);
+    if (animate) this.setPetIgnoreMouseEvents(true);
+    if (!wasVisible && animate) petWindow.setOpacity(0);
+    const completed = this.petPresenceTransition.enter(animate);
     petWindow.show();
-    this.syncBubblePlacement();
+    if (!animate) this.syncBubblePlacement();
+    await completed;
+  }
+
+  readyPetPresenceTransition(id: number): void {
+    this.petPresenceTransition.ready(id);
+  }
+
+  completePetPresenceTransition(id: number): void {
+    this.petPresenceTransition.complete(id);
   }
 
   private async ensureBubbleWindow(): Promise<void> {
@@ -238,7 +310,14 @@ export class WindowManager {
   }
 
   syncBubblePlacement(): void {
-    if (this.disposed || !this.petWindow || this.petWindow.isDestroyed() || !this.petVisibilityRequested) {
+    if (
+      this.disposed ||
+      !this.petWindow ||
+      this.petWindow.isDestroyed() ||
+      !this.petWindow.isVisible() ||
+      !this.petVisibilityRequested ||
+      this.petPresenceTransition.isActive()
+    ) {
       if (this.bubbleWindow && !this.bubbleWindow.isDestroyed() && this.bubbleWindow.isVisible()) {
         this.bubbleWindow.hide();
       }
@@ -587,7 +666,7 @@ export class WindowManager {
 
   async restorePersistedPetVisibility(): Promise<void> {
     const settings = await this.settingsStore.load();
-    if (!settings.petWindow.visible) this.hidePet();
+    if (!settings.petWindow.visible) await this.hidePet(false);
   }
 
   isPetVisible(): boolean {
@@ -616,12 +695,14 @@ export class WindowManager {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.petPresenceTransition.reset(false);
     const ownedWindows = [this.petWindow, this.bubbleWindow, this.settingsWindow];
     this.petWindow = null;
     this.bubbleWindow = null;
     this.settingsWindow = null;
     this.petWindowReady = false;
     this.petWindowPlaced = false;
+    this.pendingPetShowCompletion = null;
     this.petVisibilityRequested = false;
     this.bubbleWindowReady = false;
     this.settingsWindowReady = false;
@@ -649,9 +730,11 @@ export class WindowManager {
   private handlePetRendererFailure(petWindow: BrowserWindow): void {
     if (this.disposed || this.petWindow !== petWindow) return;
     const shouldShow = this.petVisibilityRequested;
+    this.petPresenceTransition.reset(false);
     this.petWindow = null;
     this.petWindowReady = false;
     this.petWindowPlaced = false;
+    this.pendingPetShowCompletion = null;
     this.releaseWindowListeners(petWindow);
     if (!petWindow.isDestroyed()) petWindow.destroy();
 
@@ -667,8 +750,8 @@ export class WindowManager {
 
   private async rebuildPetWindow(shouldShow: boolean): Promise<void> {
     try {
-      const rebuilding = this.showPet();
-      if (!shouldShow) this.hidePet();
+      const rebuilding = this.showPet(false);
+      if (!shouldShow) void this.hidePet(false);
       await rebuilding;
     } catch {
       if (this.crashRecoveryBudget.rendererFailed() === "safe-mode") {
@@ -773,9 +856,11 @@ export class WindowManager {
 
   private discardFailedPetWindow(petWindow: BrowserWindow): void {
     if (this.petWindow === petWindow) {
+      this.petPresenceTransition.reset(false);
       this.petWindow = null;
       this.petWindowReady = false;
       this.petWindowPlaced = false;
+      this.pendingPetShowCompletion = null;
       this.petVisibilityRequested = false;
     }
     this.releaseWindowListeners(petWindow);
