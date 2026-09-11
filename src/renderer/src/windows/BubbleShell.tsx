@@ -26,15 +26,41 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
     const textEl = textRef.current;
     if (!wrapperEl || !textEl || !dialogue) return;
 
-    // Reset width constraint to measure intrinsic line widths
+    // Temporarily pause animation transform so measurement is not distorted by scale(0.9)
+    const prevAnimation = wrapperEl.style.animation;
+    wrapperEl.style.animation = "none";
     wrapperEl.style.removeProperty("--dialogue-width");
 
-    const range = document.createRange();
-    range.selectNodeContents(textEl);
-    const rects = Array.from(range.getClientRects());
-    const maxLineWidth = rects.length > 0 ? Math.max(...rects.map((r) => r.width)) : textEl.offsetWidth;
-    // 14px padding * 2 + 1px border * 2 = 30px, plus 2px subpixel buffer
-    const measuredWidth = Math.min(260, Math.ceil(maxLineWidth) + 32);
+    // Measure single-line unconstrained width
+    textEl.style.whiteSpace = "nowrap";
+    const singleLineWidth = textEl.offsetWidth;
+
+    // Max content width: 260px container - 34px (28px padding + 3px border + 3px buffer) = 226px
+    const maxContentWidth = 226;
+    const hasManualNewline = dialogue.includes("\n");
+
+    let measuredWidth: number;
+    if (!hasManualNewline && singleLineWidth <= maxContentWidth) {
+      // Single line fits comfortably: lock nowrap to prevent text-wrap: balance from splitting short text
+      textEl.style.whiteSpace = "nowrap";
+      measuredWidth = Math.min(260, Math.ceil(singleLineWidth) + 34);
+    } else {
+      // Multi-line text: restore wrapping within the 260px limit and balance
+      textEl.style.whiteSpace = "pre-wrap";
+      wrapperEl.style.setProperty("--dialogue-width", "260px");
+
+      const range = document.createRange();
+      range.selectNodeContents(textEl);
+      const rects = Array.from(range.getClientRects());
+      const maxLineWidth = rects.length > 0 ? Math.max(...rects.map((r) => r.width)) : textEl.offsetWidth;
+      measuredWidth = Math.min(260, Math.ceil(maxLineWidth) + 32);
+    }
+
+    if (prevAnimation) {
+      wrapperEl.style.animation = prevAnimation;
+    } else {
+      wrapperEl.style.removeProperty("animation");
+    }
 
     const half = measuredWidth / 2;
     const minCenter = half + 12;
