@@ -452,7 +452,8 @@ export function ReminderEditor({
 
   return (
     <form ref={formRef} className={styles.editor} onSubmit={handleSubmit} noValidate>
-      <div className={styles.sectionCard}>
+      <div className={styles.editorContent}>
+        <div className={styles.sectionCard}>
         <h3 className={styles.sectionTitle}>时间与重复</h3>
 
         <fieldset className={styles.modeFieldset}>
@@ -925,19 +926,22 @@ export function ReminderEditor({
           )}
         </div>
       </div>
+    </div>
 
-      <div className="editor-actions">
+      <div className={styles.saveBar}>
         {onDelete && (
           <button type="button" className="danger-button" disabled={disabled} onClick={onDelete}>
             删除提醒
           </button>
         )}
-        <button type="button" className="secondary-button" disabled={disabled} onClick={onCancel}>
-          取消
-        </button>
-        <button type="submit" className="primary-button" disabled={disabled}>
-          保存提醒
-        </button>
+        <div className={styles.saveBarRight}>
+          <button type="button" className="secondary-button" disabled={disabled} onClick={onCancel}>
+            取消
+          </button>
+          <button type="submit" className="primary-button" disabled={disabled}>
+            保存提醒
+          </button>
+        </div>
       </div>
 
       {showRecorder && (

@@ -661,6 +661,7 @@
   flex-direction: column;
   max-width: 580px;
   width: 100%;
+  height: min(85vh, 620px);
   max-height: min(85vh, 620px);
   margin: auto;
   background: #ffffff;
