@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "A private, offline desktop photo companion",
   "author": "Glooory",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "main": "./out/main/index.js",
   "type": "module",
   "private": true,
