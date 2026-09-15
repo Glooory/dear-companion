@@ -284,6 +284,11 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
     "--arrow-offset": `${arrowOffset}px`,
   } as CSSProperties;
 
+  const restArrowOffset = Math.max(22, Math.min(274, bubbleSnapshot.tailOffsetX - 12));
+  const restBubbleStyle = {
+    "--arrow-offset": `${restArrowOffset}px`,
+  } as CSSProperties;
+
   const shellThemeStyle = {
     "--bubble-border": themeColor.borderColor,
     "--bubble-text": themeColor.textColor,
@@ -301,21 +306,28 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
           role="dialog"
           aria-label="休息提醒"
           data-pet-interactive="true"
+          style={restBubbleStyle}
         >
           <p>{prompt.message}</p>
           <div className={styles.restActions}>
-            <button type="button" onClick={startRest}>
+            <button type="button" className={styles.primaryAction} onClick={startRest}>
               开始休息
             </button>
             {([5, 10, 15] as const).map((minutes) => (
-              <button type="button" key={minutes} onClick={() => snooze(minutes)}>
+              <button
+                type="button"
+                className={styles.secondaryAction}
+                key={minutes}
+                onClick={() => snooze(minutes)}
+              >
                 稍后 {minutes} 分钟
               </button>
             ))}
-            <button type="button" onClick={skipRest}>
+            <button type="button" className={styles.secondaryAction} onClick={skipRest}>
               跳过
             </button>
           </div>
+          <BubbleTail />
         </section>
       )}
 
@@ -324,6 +336,7 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
           className={clsx(styles.restBubble, "rest-bubble", `rest-${session.state}`)}
           role="status"
           data-pet-interactive="true"
+          style={restBubbleStyle}
         >
           <p>
             {session.state === "celebrating"
@@ -333,11 +346,12 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
           {session.state !== "celebrating" && (
             <div className={styles.restFooter}>
               <span className={styles.restCountdown}>剩余 {formatCountdown(remainingSeconds)}</span>
-              <button type="button" onClick={endRest}>
+              <button type="button" className={styles.secondaryAction} onClick={endRest}>
                 结束休息
               </button>
             </div>
           )}
+          <BubbleTail />
         </section>
       )}
 
@@ -353,26 +367,32 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
             <span ref={textRef} className={styles.dialogueText}>
               {dialogue}
             </span>
-            <svg
-              className={styles.dialogueTail}
-              viewBox="0 0 18 9"
-              width="18"
-              height="9"
-              aria-hidden="true"
-            >
-              <path
-                d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0 Z"
-                className={styles.tailFill}
-              />
-              <path
-                d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0"
-                className={styles.tailStroke}
-              />
-            </svg>
+            <BubbleTail />
           </div>
         </div>
       )}
     </main>
+  );
+}
+
+function BubbleTail(): React.JSX.Element {
+  return (
+    <svg
+      className={styles.dialogueTail}
+      viewBox="0 0 18 9"
+      width="18"
+      height="9"
+      aria-hidden="true"
+    >
+      <path
+        d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0 Z"
+        className={styles.tailFill}
+      />
+      <path
+        d="M 0 0 C 3 3, 6.5 7.5, 8.2 8.8 C 8.7 9.2, 9.3 9.2, 9.8 8.8 C 11.5 7.5, 15 3, 18 0"
+        className={styles.tailStroke}
+      />
+    </svg>
   );
 }
 
