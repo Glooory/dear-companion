@@ -489,20 +489,23 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
   const isDraggingRef = useRef(false);
   const applyIgnoreRef = useRef<(nextIgnore: boolean) => void>(() => undefined);
 
-  const handleDragSessionChange = useCallback((active: boolean, event?: PointerEvent<HTMLElement>): void => {
-    isDraggingRef.current = active;
-    if (active) {
-      applyIgnoreRef.current(false);
-      api.cancelPettingGesture();
-      finishAction();
-    } else if (event) {
-      const target = document.elementFromPoint(event.clientX, event.clientY);
-      const isInteractive = Boolean(target?.closest?.('[data-pet-interactive="true"]'));
-      applyIgnoreRef.current(!isInteractive);
-    } else {
-      applyIgnoreRef.current(true);
-    }
-  }, [api, finishAction]);
+  const handleDragSessionChange = useCallback(
+    (active: boolean, event?: PointerEvent<HTMLElement>): void => {
+      isDraggingRef.current = active;
+      if (active) {
+        applyIgnoreRef.current(false);
+        api.cancelPettingGesture();
+        if (!runtimeActive) finishAction();
+      } else if (event) {
+        const target = document.elementFromPoint(event.clientX, event.clientY);
+        const isInteractive = Boolean(target?.closest?.('[data-pet-interactive="true"]'));
+        applyIgnoreRef.current(!isInteractive);
+      } else {
+        applyIgnoreRef.current(true);
+      }
+    },
+    [api, finishAction, runtimeActive]
+  );
 
   const {
     state: interactionState,
@@ -526,7 +529,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     onDragStarted: () => {
       resetWakeSequence();
       api.cancelPettingGesture();
-      finishAction();
+      if (!runtimeActive) finishAction();
     },
     onDragSessionChange: handleDragSessionChange,
     onLocalPointerMove: (event) => {

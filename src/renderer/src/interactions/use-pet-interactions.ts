@@ -67,13 +67,13 @@ export function usePetInteractions({
   }
 
   useEffect(() => {
-    if (!visible || runtimeState) {
+    if (!visible) {
       if (drag.current) {
         drag.current = null;
         onDragSessionChange?.(false);
       }
     }
-  }, [onDragSessionChange, runtimeState, visible]);
+  }, [onDragSessionChange, visible]);
 
   const clearAttentionTimer = useCallback((): void => {
     if (attentionTimer.current) clearTimeout(attentionTimer.current);
@@ -107,11 +107,13 @@ export function usePetInteractions({
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {
     primaryClickArmed.current = false;
-    if (event.button !== 0 || state === "hidden" || runtimeState) return;
+    if (event.button !== 0 || state === "hidden") return;
     const target = event.target as HTMLElement | null;
     if (!target?.closest?.('[data-pet-drag="true"]')) return;
     event.preventDefault();
-    primaryClickArmed.current = true;
+    if (!runtimeState) {
+      primaryClickArmed.current = true;
+    }
     clearAttentionTimer();
     setAttention({ translateX: 0, translateY: 0, rotate: 0, transitionMs: 80 });
     onDragSessionChange?.(true, event);
@@ -128,7 +130,9 @@ export function usePetInteractions({
       samples: [{ x: event.screenX, y: event.screenY, at: event.timeStamp }],
       moved: false,
     };
-    setState((current) => transitionPetState(current, { type: "drag-start" }));
+    if (!runtimeState) {
+      setState((current) => transitionPetState(current, { type: "drag-start" }));
+    }
   };
 
   const onPointerMove = (event: PointerEvent<HTMLElement>): void => {
@@ -139,13 +143,15 @@ export function usePetInteractions({
       const deltaX = clamp(rawDeltaX, -256, 256);
       const deltaY = clamp(rawDeltaY, -256, 256);
       if (deltaX !== 0 || deltaY !== 0) {
-        setAttention({
-          translateX: 0,
-          translateY: 0,
-          rotate: clamp(-deltaX * 0.12, -1.2, 1.2),
-          transitionMs: 80,
-        });
-        resetAttention(80);
+        if (!runtimeState) {
+          setAttention({
+            translateX: 0,
+            translateY: 0,
+            rotate: clamp(-deltaX * 0.12, -1.2, 1.2),
+            transitionMs: 80,
+          });
+          resetAttention(80);
+        }
         api.movePetBy(deltaX, deltaY);
         const moved = Math.hypot(event.screenX - session.startX, event.screenY - session.startY) > 4;
         if (!session.moved && moved) onDragStarted?.();
@@ -186,16 +192,18 @@ export function usePetInteractions({
       }
     }
     onDragSessionChange?.(false, event);
-    const angry = session.moved && isAngryDragRelease(session.samples, angryVelocity);
+    const angry = !runtimeState && session.moved && isAngryDragRelease(session.samples, angryVelocity);
     suppressClick.current = session.moved;
     if (session.moved)
       setTimeout(() => {
         suppressClick.current = false;
       }, 0);
-    setState((current) => transitionPetState(current, { type: "drag-release", angry }));
-    if (angry) onAngry?.(finishAction);
-    else if (session.moved) onLand?.();
-    resetAttention(80);
+    if (!runtimeState) {
+      setState((current) => transitionPetState(current, { type: "drag-release", angry }));
+      if (angry) onAngry?.(finishAction);
+      else if (session.moved) onLand?.();
+      resetAttention(80);
+    }
   };
 
   const onClick = (event: MouseEvent<HTMLElement>): void => {
