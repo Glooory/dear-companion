@@ -130,7 +130,8 @@ export function UserGuide(): React.JSX.Element {
               伙伴右键菜单
             </span>
             <p className={styles.itemDesc}>
-              右键点击伙伴，可随时切换生活状态（“安静待着”、“让 TA 打个盹”、“陪我专注”），也能随时恢复自动生活节奏。
+              右键点击伙伴，可选择“逗逗 TA”即时互动，或随时切换生活状态（“安静待着”、“让 TA
+              打个盹”、“陪我专注”），也能恢复自动陪伴。
             </p>
           </li>
           <li className={styles.item}>

@@ -682,7 +682,7 @@ export function DialogueSettingsEditor({
             {quickIssue ??
               (quickCount >= MAX_QUICK_DIALOGUES
                 ? "已经选满，取消一句后可以继续添加。"
-                : "选出最多 3 句，可以从伙伴右键菜单随时让它说出。")}
+                : "选出最多 3 句，可以从伙伴右键菜单随时让 TA 说出。")}
           </div>
         </section>
       </div>

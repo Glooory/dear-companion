@@ -171,7 +171,7 @@ export function DialogueLineEditor({
       ? quickDialogueUnavailableReason
         ? `${quickDialogueUnavailableReason}。每个伙伴最多可设 3 句常用对白。`
         : "常用对白最多选择 3 句。可在上方常用对白区域移除已有项目后再添加。"
-      : "设为常用后，可以从伙伴右键菜单直接让它说出。每个伙伴最多可设 3 句。";
+      : "设为常用后，可以从伙伴右键菜单直接让 TA 说出。每个伙伴最多可设 3 句。";
 
   return (
     <div className={clsx(styles.row, row.issue && styles.hasError, row.source === "custom" && styles.customRow)}>

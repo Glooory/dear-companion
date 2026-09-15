@@ -230,7 +230,7 @@ export function registerPetSystemIpc({
                 enabled: false,
               },
               {
-                label: "逗逗它",
+                label: "逗逗 TA",
                 enabled: playEnabled,
                 click: () => windowManager.requestPetInteraction({ type: "play-now" }),
               },
@@ -243,7 +243,7 @@ export function registerPetSystemIpc({
               ...(companion.available.sleeping
                 ? [
                     {
-                      label: "让它打个盹",
+                      label: "让 TA 打个盹",
                       enabled: lifeStateSwitchEnabled,
                       click: () => companionController.selectManualState("sleeping"),
                     },
@@ -251,7 +251,7 @@ export function registerPetSystemIpc({
                 : companion.available.drowsy
                   ? [
                       {
-                        label: "让它歇一会儿",
+                        label: "让 TA 歇一会儿",
                         enabled: lifeStateSwitchEnabled,
                         click: () => companionController.selectManualState("drowsy"),
                       },

@@ -218,7 +218,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   };
 
   const deletePet = (): void => {
-    if (!selectedPet || !window.confirm(`删除“${selectedPet.name}”后，它的照片也会从这台电脑中移除。继续删除吗？`))
+    if (!selectedPet || !window.confirm(`删除“${selectedPet.name}”后，TA 的照片也会从这台电脑中移除。继续删除吗？`))
       return;
     void runMutation(async () => {
       const next = await api.deletePet(selectedPet.id);

@@ -163,7 +163,7 @@ export const DIALOGUE_GROUPS: readonly DialogueGroupMeta[] = Object.freeze([
       {
         id: "sleeping:murmur",
         group: "sleeping",
-        label: "轻声叫它",
+        label: "轻声叫 TA",
         builtIns: [
           { id: "sleeping-murmur-hum", text: "唔……" },
           { id: "sleeping-murmur-heard", text: "听见了……" },
