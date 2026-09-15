@@ -596,6 +596,7 @@ describe("settings contracts", () => {
       action: "new-reminder",
     });
     expect(parseSettingsNavigationTarget({ tab: "pets" })).toEqual({ tab: "pets" });
+    expect(parseSettingsNavigationTarget({ tab: "guide" })).toEqual({ tab: "guide" });
   });
 
   it("parses head hotspot with optional enabled flag", () => {

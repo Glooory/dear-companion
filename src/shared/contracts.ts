@@ -356,7 +356,7 @@ export interface AudioPlaybackRequest {
 }
 
 export interface SettingsNavigationTarget {
-  tab: "pets" | "rest" | "work" | "system";
+  tab: "pets" | "rest" | "work" | "system" | "guide";
   action?: "new-reminder";
 }
 
@@ -364,7 +364,7 @@ export function parseSettingsNavigationTarget(value: unknown): SettingsNavigatio
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
   const tab = record.tab;
-  if (tab !== "pets" && tab !== "rest" && tab !== "work" && tab !== "system") return null;
+  if (tab !== "pets" && tab !== "rest" && tab !== "work" && tab !== "system" && tab !== "guide") return null;
   const action = record.action;
   if (action !== undefined && action !== "new-reminder") return null;
   return {

@@ -32,6 +32,7 @@ import { PetGalleryManager } from "../components/PetGalleryManager";
 import { createDraftWindow, ReminderEditor, type ReminderDraft } from "../components/ReminderEditor";
 import { useToast } from "../components/Toast";
 import { InfoTooltip, Tooltip } from "../components/Tooltip";
+import { UserGuide } from "../components/UserGuide";
 import { WorkScheduleEditor } from "../components/WorkScheduleEditor";
 import styles from "./SettingsShell.module.css";
 
@@ -57,7 +58,7 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [targetHeightText, setTargetHeightText] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pets" | "rest" | "work" | "system">("pets");
+  const [activeTab, setActiveTab] = useState<"pets" | "rest" | "work" | "system" | "guide">("pets");
   const [petSubTab, setPetSubTab] = useState<"appearance" | "dialogues">("appearance");
   const [petDialogueGroupId, setPetDialogueGroupId] = useState<DialogueGroupId>("daily");
   const [dialogueValidationAttempt, setDialogueValidationAttempt] = useState(0);
@@ -707,6 +708,27 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
             </svg>
             <span>通用设置</span>
           </button>
+          <button
+            type="button"
+            className={clsx(styles.navButton, activeTab === "guide" && styles.active)}
+            onClick={() => setActiveTab("guide")}
+          >
+            <svg
+              viewBox="0 0 20 20"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 0-2.5 2.5z" />
+              <path d="M6 6h7M6 10h7" />
+            </svg>
+            <span>使用说明</span>
+          </button>
         </nav>
       </header>
 
@@ -1276,6 +1298,12 @@ export function SettingsShell({ api }: SettingsShellProps): React.JSX.Element {
               </button>
             </article>
           )}
+        </section>
+      )}
+
+      {activeTab === "guide" && (
+        <section className={styles.tabContent}>
+          <UserGuide />
         </section>
       )}
 
