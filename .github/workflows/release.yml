@@ -44,9 +44,12 @@ jobs:
       - name: Smoke packaged Windows executable
         shell: pwsh
         run: |
-          $executable = "release\win-unpacked\Dear Companion.exe"
+          $executable = "release\win-unpacked\挚伴.exe"
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-            throw "Packaged executable is missing: $executable"
+            $executable = "release\win-unpacked\Dear Companion.exe"
+          }
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Packaged executable is missing in release\win-unpacked"
           }
           $env:DEAR_COMPANION_BUILD_SMOKE = "1"
           $process = Start-Process -FilePath $executable -PassThru -Wait
@@ -88,9 +91,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_path="$(find release -maxdepth 2 -type d -name "Dear Companion.app" -print -quit)"
+          app_path="$(find release -maxdepth 2 -type d \( -name "挚伴.app" -o -name "Dear Companion.app" \) -print -quit)"
           test -n "$app_path"
-          executable="$app_path/Contents/MacOS/Dear Companion"
+          executable="$(find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm +111 -print -quit 2>/dev/null || find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)"
           test -x "$executable"
           file "$executable" | grep -q "x86_64"
           DEAR_COMPANION_BUILD_SMOKE=1 "$executable"
@@ -125,9 +128,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_path="$(find release -maxdepth 2 -type d -name "Dear Companion.app" -print -quit)"
+          app_path="$(find release -maxdepth 2 -type d \( -name "挚伴.app" -o -name "Dear Companion.app" \) -print -quit)"
           test -n "$app_path"
-          executable="$app_path/Contents/MacOS/Dear Companion"
+          executable="$(find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm +111 -print -quit 2>/dev/null || find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)"
           test -x "$executable"
           file "$executable" | grep -q "arm64"
           DEAR_COMPANION_BUILD_SMOKE=1 "$executable"
