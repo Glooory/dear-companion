@@ -134,6 +134,26 @@
   line-height: 1.4;
 }
 
+.restBubble p:last-child {
+  margin-bottom: 0;
+}
+
+.restFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.restCountdown {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(32, 64, 55, 0.72);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
 .restActions {
   display: flex;
   flex-wrap: wrap;

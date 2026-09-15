@@ -325,19 +325,18 @@ export function BubbleShell({ api }: BubbleShellProps): React.JSX.Element {
           role="status"
           data-pet-interactive="true"
         >
-          {session.state === "crying" ? (
-            <p>{dialogue ?? `${session.message} · ${formatCountdown(remainingSeconds)}`}</p>
-          ) : session.state === "celebrating" ? (
-            <p>{dialogue ?? "休息结束啦！"}</p>
-          ) : (
-            <p>
-              {session.message} · {formatCountdown(remainingSeconds)}
-            </p>
-          )}
+          <p>
+            {session.state === "celebrating"
+              ? (dialogue ?? "休息结束啦！")
+              : (dialogue ?? (session.message || "休息一下吧"))}
+          </p>
           {session.state !== "celebrating" && (
-            <button type="button" onClick={endRest}>
-              结束休息
-            </button>
+            <div className={styles.restFooter}>
+              <span className={styles.restCountdown}>剩余 {formatCountdown(remainingSeconds)}</span>
+              <button type="button" onClick={endRest}>
+                结束休息
+              </button>
+            </div>
           )}
         </section>
       )}
