@@ -172,10 +172,15 @@ jobs:
           (cd artifacts && sha256sum ./*.exe ./*.dmg > SHA256SUMS.txt)
           cp docs/installing-unsigned.md artifacts/INSTALLING-UNSIGNED.md
           {
-            echo "# Dear Companion $RELEASE_TAG"
+            echo "# 挚伴 (Dear Companion) $RELEASE_TAG"
             echo
-            echo "Unsigned Windows x64, macOS Intel, and macOS Apple Silicon installers."
-            echo "Verify SHA256SUMS.txt and read INSTALLING-UNSIGNED.md before installation."
+            echo "### 安装包下载 / Downloads"
+            echo "- **macOS (Apple Silicon 芯片)**: \`Zhiban-${RELEASE_TAG#v}-mac-arm64.dmg\`"
+            echo "- **macOS (Intel 芯片)**: \`Zhiban-${RELEASE_TAG#v}-mac-x64.dmg\`"
+            echo "- **Windows (64位)**: \`Zhiban-${RELEASE_TAG#v}-win-x64.exe\`"
+            echo
+            echo "未签名的 Windows x64、macOS Intel 与 macOS Apple Silicon 安装包。"
+            echo "安装前请先核对 SHA256SUMS.txt，并参阅 INSTALLING-UNSIGNED.md 安装指引。"
           } > artifacts/RELEASE-NOTES.md
       - name: Create or update draft GitHub Release
         shell: bash
@@ -185,12 +190,14 @@ jobs:
           set -euo pipefail
           tag="$RELEASE_TAG"
           mapfile -d '' installers < <(find artifacts -maxdepth 1 -type f \( -name "*.exe" -o -name "*.dmg" \) -print0 | sort -z)
-          existing="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          existing="$(gh release view "$tag" --json tagName --jq .tagName 2>/dev/null || true)"
           if [[ -n "$existing" ]]; then
-            test "$existing" = "true"
-            gh release edit "$tag" --title "Dear Companion $tag" --notes-file artifacts/RELEASE-NOTES.md
+            gh release delete-asset "$tag" --yes -- "-${RELEASE_TAG#v}-mac-arm64.dmg" 2>/dev/null || true
+            gh release delete-asset "$tag" --yes -- "-${RELEASE_TAG#v}-mac-x64.dmg" 2>/dev/null || true
+            gh release delete-asset "$tag" --yes -- "-${RELEASE_TAG#v}-win-x64.exe" 2>/dev/null || true
+            gh release edit "$tag" --title "挚伴 (Dear Companion) $tag" --notes-file artifacts/RELEASE-NOTES.md
             gh release upload "$tag" "${installers[@]}" artifacts/SHA256SUMS.txt artifacts/INSTALLING-UNSIGNED.md --clobber
           else
             gh release create "$tag" "${installers[@]}" artifacts/SHA256SUMS.txt artifacts/INSTALLING-UNSIGNED.md \
-              --draft --verify-tag --title "Dear Companion $tag" --notes-file artifacts/RELEASE-NOTES.md
+              --draft --verify-tag --title "挚伴 (Dear Companion) $tag" --notes-file artifacts/RELEASE-NOTES.md
           fi

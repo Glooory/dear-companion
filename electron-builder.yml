@@ -11,7 +11,7 @@ extraResources:
     filter:
       - "*.png"
 asar: true
-artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+artifactName: Zhiban-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.lifestyle
   identity: null
