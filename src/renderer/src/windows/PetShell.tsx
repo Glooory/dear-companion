@@ -770,7 +770,7 @@ export function PetShell({ api }: PetShellProps): React.JSX.Element {
     const prev = previousRuntimeState.current;
     previousRuntimeState.current = runtimeState;
     if (runtimeState === "crying") {
-      showDialogue("rest:crying", true);
+      showDialogue("rest:crying", true, { autoDismiss: false });
     } else if (runtimeState === "celebrating") {
       showDialogue("rest:completion", true);
     } else if (prev === "crying" || prev === "celebrating" || (prev !== null && runtimeState === null)) {

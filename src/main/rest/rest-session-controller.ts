@@ -95,11 +95,20 @@ export class RestSessionController {
   }
 
   private sampleCursor(now: number): void {
-    if (!this.session || this.session.state !== "resting" || !this.accumulator) return;
+    if (
+      !this.session ||
+      (this.session.state !== "resting" && this.session.state !== "crying") ||
+      !this.accumulator
+    ) {
+      return;
+    }
     const point = this.options.getCursorScreenPoint();
     if (this.accumulator.add({ ...point, timestamp: now })) {
+      const previousState = this.session.state;
       this.session = transitionRestSession(this.session, { type: "movement" }, now);
-      this.options.onCryingAudio(this.session?.sounds.crying ?? false);
+      if (previousState !== "crying") {
+        this.options.onCryingAudio(this.session?.sounds.crying ?? false);
+      }
       this.broadcast();
     }
   }

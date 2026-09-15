@@ -7,6 +7,8 @@ export type RestSessionEvent =
   | { type: "manual-end" }
   | { type: "celebration-complete" };
 
+export const CRYING_DURATION_MS = 3_000;
+
 export function remainingRestMilliseconds(endsAt: number, now: number, startedAt = 0): number {
   if (![endsAt, now, startedAt].every(Number.isFinite) || endsAt < startedAt) return 0;
   return Math.min(Math.max(endsAt - now, 0), endsAt - startedAt);
@@ -23,7 +25,8 @@ export function transitionRestSession(
     return { ...session, state: "celebrating", cryingUntil: null };
   }
   if (event.type === "movement" && session.state !== "celebrating") {
-    return { ...session, state: "crying", cryingUntil: now + 3_000 };
+    const nextCryingUntil = Math.max(session.cryingUntil ?? 0, now + CRYING_DURATION_MS);
+    return { ...session, state: "crying", cryingUntil: nextCryingUntil };
   }
   if (session.state === "crying" && session.cryingUntil !== null && now >= session.cryingUntil) {
     return { ...session, state: "resting", cryingUntil: null };

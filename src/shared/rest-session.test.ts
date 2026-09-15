@@ -30,6 +30,18 @@ describe("rest session calculations", () => {
     expect(transitionRestSession(crying, { type: "tick" }, 5_000)).toMatchObject({ state: "resting", endsAt: 11_000 });
   });
 
+  it("extends crying when movement occurs during an active crying state", () => {
+    const crying = transitionRestSession(session(), { type: "movement" }, 2_000)!;
+    expect(crying).toMatchObject({ state: "crying", cryingUntil: 5_000 });
+    const extended = transitionRestSession(crying, { type: "movement" }, 3_500)!;
+    expect(extended).toMatchObject({ state: "crying", cryingUntil: 6_500, endsAt: 11_000 });
+    expect(transitionRestSession(extended, { type: "tick" }, 6_499)?.state).toBe("crying");
+    expect(transitionRestSession(extended, { type: "tick" }, 6_500)).toMatchObject({
+      state: "resting",
+      endsAt: 11_000,
+    });
+  });
+
   it("completes late ticks and resumes according to endsAt", () => {
     expect(transitionRestSession(session(), { type: "tick" }, 20_000)?.state).toBe("celebrating");
     expect(transitionRestSession(session(), { type: "resume" }, 5_000)).toMatchObject({

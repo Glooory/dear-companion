@@ -51,9 +51,9 @@ describe("RestSessionController", () => {
     now = 2_000;
     cursor = { x: 100, y: 0 };
     interval!();
-    expect(controller.getSnapshot().session).toMatchObject({ state: "crying", cryingUntil: 4_250 });
+    expect(controller.getSnapshot().session).toMatchObject({ state: "crying", cryingUntil: 5_000 });
     expect(audio).toHaveBeenCalledTimes(1);
-    now = 4_250;
+    now = 5_000;
     interval!();
     expect(controller.getSnapshot().session?.state).toBe("resting");
     controller.endManually();

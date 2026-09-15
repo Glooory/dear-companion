@@ -18,14 +18,19 @@ export interface DialoguePreviewOptions {
   voiceVolume?: number;
 }
 
+export interface ShowDialogueOptions {
+  autoDismiss?: boolean;
+  durationMs?: number;
+}
+
 export function useDialogue(
   enabled: boolean,
   dialogueSettings?: PetDialogueSettings,
   petId?: string | null
 ): {
   dialogue: string | null;
-  show(category: DialogueTriggerKey | string, required?: boolean): string | null;
-  show(category: string, lines: readonly string[], required?: boolean): string | null;
+  show(category: DialogueTriggerKey | string, required?: boolean, options?: ShowDialogueOptions): string | null;
+  show(category: string, lines: readonly string[], required?: boolean, options?: ShowDialogueOptions): string | null;
   preview(options: DialoguePreviewOptions): void;
   clear(): void;
   hasVoiceForCategory(category: DialogueCategory): boolean;
@@ -56,8 +61,21 @@ export function useDialogue(
   }, [clear, petId]);
 
   const show = useCallback(
-    (category: string, linesOrRequired?: readonly string[] | boolean, maybeRequired?: boolean): string | null => {
-      const required = Array.isArray(linesOrRequired) ? Boolean(maybeRequired) : Boolean(linesOrRequired);
+    (
+      category: string,
+      linesOrRequired?: readonly string[] | boolean,
+      maybeRequiredOrOptions?: boolean | ShowDialogueOptions,
+      maybeOptions?: ShowDialogueOptions
+    ): string | null => {
+      const isLinesArray = Array.isArray(linesOrRequired);
+      const required = isLinesArray ? Boolean(maybeRequiredOrOptions) : Boolean(linesOrRequired);
+      const options = isLinesArray
+        ? maybeOptions
+        : typeof maybeRequiredOrOptions === "object"
+          ? maybeRequiredOrOptions
+          : undefined;
+      const autoDismiss = options?.autoDismiss ?? true;
+      const durationMs = options?.durationMs ?? DIALOGUE_DISPLAY_DURATION_MS;
 
       let selected: string | null;
       let selectedCandidate: ResolvedDialogueCandidate | null = null;
@@ -114,11 +132,13 @@ export function useDialogue(
         );
       }
 
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        stopVoice();
-        setDialogue(null);
-      }, DIALOGUE_DISPLAY_DURATION_MS);
+      if (autoDismiss) {
+        timer.current = setTimeout(() => {
+          timer.current = null;
+          stopVoice();
+          setDialogue(null);
+        }, durationMs);
+      }
       return selected;
     },
     [clear, dialogueSettings, enabled, petId, stopVoice, voicePlayback]
